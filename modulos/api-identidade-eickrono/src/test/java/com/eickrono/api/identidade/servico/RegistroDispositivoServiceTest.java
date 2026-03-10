@@ -70,7 +70,6 @@ class RegistroDispositivoServiceTest {
      * Prepara o serviço real com dependências mockadas para acompanhar auditoria e registros gerados.
      * Utilizamos um TokenDispositivoServiceFake para evitar o uso de Mockito inline (incompatível com Java 25).
      */
-    @SuppressWarnings("unused")
     @BeforeEach
     void setUp() {
         properties = new DispositivoProperties();
@@ -104,7 +103,6 @@ class RegistroDispositivoServiceTest {
                 CLOCK_FIXO);
     }
 
-    @SuppressWarnings("unused")
     @Nested
     @DisplayName("Caso de uso: solicitar registro")
     class SolicitarRegistro {
@@ -129,7 +127,6 @@ class RegistroDispositivoServiceTest {
         }
     }
 
-    @SuppressWarnings("unused")
     @Nested
     @DisplayName("Caso de uso: confirmar registro")
     class ConfirmarRegistro {
@@ -200,7 +197,6 @@ class RegistroDispositivoServiceTest {
         }
     }
 
-    @SuppressWarnings("unused")
     @Nested
     @DisplayName("Caso de uso: reenviar códigos")
     class ReenviarCodigos {
@@ -252,7 +248,6 @@ class RegistroDispositivoServiceTest {
         }
     }
 
-    @SuppressWarnings("unused")
     @Nested
     @DisplayName("Caso de uso: expirar registros pendentes")
     class ExpirarRegistros {
@@ -295,8 +290,6 @@ class RegistroDispositivoServiceTest {
             assertThat(codigo.getStatus()).isEqualTo(StatusCodigoVerificacao.EXPIRADO);
         }
     }
-
-    @SuppressWarnings("unused")
     @Nested
     @DisplayName("Caso de uso: revogar token")
     class RevogarToken {

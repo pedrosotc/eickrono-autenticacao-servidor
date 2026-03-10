@@ -58,10 +58,7 @@ class AplicacaoApiIdentidadeTest {
     private static final String METADATA_PATH = OIDC_REALM_PATH + "/.well-known/openid-configuration";
     private static final String JWKS_PATH = OIDC_REALM_PATH + "/protocol/openid-connect/certs";
     private static final String EXPECTED_AUDIENCE = "api-identidade-eickrono";
-    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:15.5")
-            .withDatabaseName("eickrono_identidade_test")
-            .withUsername("test")
-            .withPassword("test");
+    private static PostgreSQLContainer<?> POSTGRES;
 
     private static MockWebServer oidcServer;
     private static RSAKey rsaKey;
@@ -76,6 +73,13 @@ class AplicacaoApiIdentidadeTest {
         }
 
         private void iniciarPostgres() {
+            if (POSTGRES == null) {
+                PostgreSQLContainer<?> container = new PostgreSQLContainer<>("postgres:15.5");
+                container.withDatabaseName("eickrono_identidade_test");
+                container.withUsername("test");
+                container.withPassword("test");
+                POSTGRES = container;
+            }
             if (!POSTGRES.isRunning()) {
                 POSTGRES.start();
             }
@@ -192,8 +196,14 @@ class AplicacaoApiIdentidadeTest {
         } catch (IOException e) {
             throw new IllegalStateException("Falha ao encerrar MockWebServer do OIDC simulado", e);
         } finally {
-            if (POSTGRES.isRunning()) {
-                POSTGRES.stop();
+            if (POSTGRES != null) {
+                try {
+                    POSTGRES.close();
+                } catch (Exception e) {
+                    throw new IllegalStateException("Falha ao encerrar container PostgreSQL de testes", e);
+                } finally {
+                    POSTGRES = null;
+                }
             }
         }
     }

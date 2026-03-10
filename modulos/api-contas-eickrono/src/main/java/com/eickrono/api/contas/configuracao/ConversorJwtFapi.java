@@ -38,7 +38,6 @@ public class ConversorJwtFapi implements Converter<Jwt, AbstractAuthenticationTo
         return granted == null ? Set.of() : granted;
     }
 
-    @SuppressWarnings("unchecked")
     private Collection<? extends GrantedAuthority> extrairPapeis(Jwt source) {
         Set<String> papeis = new HashSet<>();
         Map<String, Object> realmAccess = source.getClaim("realm_access");

@@ -6,12 +6,12 @@ Este guia rápido explica, de forma acessível para quem está começando, os se
 
 ## eickrono-keycloak-dev
 
-- **O que é:** uma instância do Keycloak (servidor de autorização) configurada com o realm `dev`. Ele cuida do login, emissão de tokens e regras de segurança.
+- **O que é:** uma instância do Keycloak (servidor de autorização) configurada com o realm `desenvolvimento`. Ele cuida do login, emissão de tokens e regras de segurança.
 - **Configuração:** fica no container `servidor-autorizacao` definido em `infraestrutura/dev/docker-compose.yml`. Usa a imagem `quay.io/keycloak/keycloak:24.0.5`.
 
 ### Quando usar
 
-1. **Gerar tokens para testes** — acessar `http://localhost:8080/`, entrar no realm `dev` e criar/usar usuários para chamar as APIs via Swagger.
+1. **Gerar tokens para testes** — acessar `http://localhost:8080/`, entrar no realm `desenvolvimento` e criar/usar usuários para chamar as APIs via Swagger.
 2. **Conferir configurações de clientes e escopos** — útil para validar se o app ou BFF está com as permissões corretas.
 3. **Verificar logs de autenticação** — ajuda a entender quando um token é negado ou expira.
 
@@ -39,8 +39,8 @@ Este guia rápido explica, de forma acessível para quem está começando, os se
 
 - **Console administrativo:** `http://localhost:8080/`. Entre com `KEYCLOAK_ADMIN` / `KEYCLOAK_ADMIN_PASSWORD` definidos no `.env`.
 - **Endpoints OpenID Connect:**  
-  - Descoberta: `http://localhost:8080/realms/dev/.well-known/openid-configuration`  
-  - JWKs: `http://localhost:8080/realms/dev/protocol/openid-connect/certs`
+  - Descoberta: `http://localhost:8080/realms/desenvolvimento/.well-known/openid-configuration`  
+  - JWKs: `http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/certs`
 
 ---
 

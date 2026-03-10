@@ -35,7 +35,7 @@ Os artefatos serão gerados em `modulos/<nome>/target/`, prontos para serem copi
 
 ### Portas expostas em desenvolvimento
 
-- `localhost:8080`: Keycloak (`realm` dev).
+- `localhost:8080`: Keycloak (`realm` desenvolvimento).
 - `localhost:8081`: API Identidade (HTTP).
 - `localhost:8082`: API Contas (HTTP).
 - `localhost:5005`: depuração remota da API Identidade.
@@ -68,7 +68,23 @@ Os containers reutilizam o mesmo par de portas de depuração. Evite subir os am
 
 ## 5. Configurando a depuração remota no Eclipse
 
-Repita os passos abaixo para cada módulo que desejar depurar.
+### Checklist antes de anexar o depurador
+
+1. Construa os artefatos atualizados (`mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am package -DskipTests`). O Dockerfile copia o JAR de `target`, portanto ele precisa estar fresco.
+2. Suba ou reinicie o serviço no Docker para aplicar o `JAVA_OPTS` com o agente de debug:
+   ```bash
+   cd infraestrutura/dev        # ou infraestrutura/hml
+   docker compose up --build -d api-identidade-eickrono api-contas-eickrono
+   ```
+   Sempre que mudar variáveis ou precisar “resetar” o JDWP, use `docker compose restart <serviço>`.
+3. Confirme que a porta está ouvindo na máquina host:
+   ```bash
+   nc -vz localhost 5005  # Identidade
+   nc -vz localhost 5006  # Contas
+   ```
+   Se quiser ver o parâmetro na JVM, rode `docker exec eickrono-api-identidade-dev ps -o pid,args | grep jdwp`.
+
+### Criando a configuração no Eclipse
 
 1. Certifique-se de que o Docker Compose correspondente (`dev` ou `hml`) está rodando.
 2. No Eclipse, abra `Run > Debug Configurations...`.
@@ -90,9 +106,25 @@ Repita os passos abaixo para cada módulo que desejar depurar.
 
 ### Dicas de diagnóstico
 
+- **Failed to attach / handshake timeout:** significa que a JVM não respondeu ao protocolo JDWP. Reinicie o serviço (`docker compose restart api-identidade-eickrono`), garanta que o `JAVA_OPTS` da compose contém `-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005` e teste a porta com `nc -vz localhost 5005`.
+- **Sessão travada por anexos anteriores:** verifique se já existe conexão ativa usando `docker exec eickrono-api-identidade-dev lsof -i :5005`. Se houver, reinicie o container.
 - **Conexão recusada:** confirme se o container está up (`docker compose ps`) e se nenhuma outra aplicação está ocupando as portas 5005/5006.
 - **Breakpoint ignorado:** verifique se o código foi compilado após sua alteração e se o módulo selecionado na configuração de debug corresponde ao serviço (Ex.: não usar o projeto de contas para depurar a API de identidade).
 - **Depuração no início da aplicação:** altere `suspend=n` para `suspend=y` em `infraestrutura/<ambiente>/docker-compose.yml`, na linha `JAVA_OPTS`, antes de subir o container.
+
+### Verificações rápidas quando o attach insiste em falhar
+
+1. **Confirme se o agente está ouvindo:** `docker logs eickrono-api-identidade-dev | grep -m1 'Listening for transport'`. A saída deve conter `Listening for transport dt_socket at address: 5005`. Se não aparecer, o container foi iniciado sem `JAVA_OPTS` — refaça o `docker compose up --build -d`.
+2. **Inspecione o comando efetivo:** `docker exec eickrono-api-identidade-dev cat /proc/1/cmdline | tr '\0' ' '`. Busque por `-agentlib:jdwp=...`. Ausência desse trecho significa que as variáveis não chegaram ao processo (verifique `.env` e compose).
+3. **Teste o handshake JDWP diretamente (rode o comando abaixo em um terminal local):**  
+   ```shell
+   printf 'JDWP-Handshake' | nc -w 5 localhost 5005
+   ```
+   Resultado esperado: o texto `JDWP-Handshake` deve reaparecer no terminal.  
+   - Se o comando retornar `Connection refused`, o agente ainda não está ouvindo (espere o container terminar de subir ou reinicie o serviço).  
+   - Se não houver saída alguma e o terminal encerrar imediatamente, houve reset de conexão; reinicie o serviço para limpar sessões anteriores e tente novamente.  
+   > Dica: se `nc` não estiver disponível na sua máquina, instale o pacote `netcat` ou utilize uma VM/container com a ferramenta. Caso continue preferindo uma verificação detalhada, é possível repetir o teste com um script simples em qualquer linguagem que envie a string `JDWP-Handshake` pela porta 5005 e leia a resposta.
+4. **Cheque conexões pendentes:** `lsof -nP -iTCP:5005` (host) ou `docker exec eickrono-api-identidade-dev lsof -i :5005`. Se aparecer `ESTABLISHED`, encerre o processo listado ou reinicie o container para liberar a porta.
 
 ## 6. URLs de Swagger e credenciais
 
@@ -127,12 +159,16 @@ docker compose up -d api-identidade-eickrono api-contas-eickrono
 
 ### Como gerar um JWT para testes
 
-1. Autentique-se no Keycloak local (`http://localhost:8080/`) com usuário administrador definido no `.env`.
-2. Garanta que exista um cliente confidencial com `client_id` (ex.: `app-flutter-local`) e habilite o fluxo `Authorization Code` ou `Client Credentials`, conforme o cenário.
-3. Para testes rápidos via linha de comando, utilize `curl`:
+Se estiver começando agora e precisa de um guia passo a passo com cada clique dentro do Keycloak, leia [[guia-gerar-jwt]]. O documento cobre criação de clientes, escopos, usuários e os fluxos `password`/`client_credentials`.
+
+Para uma visão rápida:
+
+1. Entre no Keycloak local (`http://localhost:8080/`) com o administrador configurado no `.env` e confirme que o cliente confidencial (ex.: `app-flutter-local`) tem os fluxos desejados habilitados.
+2. Garanta que o usuário ou a service account recebeu as roles/escopos necessários (`contas:ler`, `identidade:ler`, `openid` etc.).
+3. Emita o token com `curl` (exemplo abaixo) ou pelo app/BFF e informe `Bearer <token>` no modal `Authorize` do Swagger.
 
 ```bash
-curl -X POST http://localhost:8080/realms/dev/protocol/openid-connect/token \
+curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d 'grant_type=password' \
@@ -141,10 +177,7 @@ curl -X POST http://localhost:8080/realms/dev/protocol/openid-connect/token \
   -d 'scope=openid contas:ler identidade:ler'
 ```
 
-4. Copie o valor de `access_token` da resposta e cole no modal `Authorize` como `Bearer <token>`.
-
-> Em `hml`, troque a URL para `https://hml-identidade.eickrono.com.br/realms/homologacao/...` e utilize credenciais próprias do ambiente.
-- Caso esteja usando o ambiente `hml`, lembre-se de atualizar seu `/etc/hosts` ou proxy corporativo se precisar testar com o hostname externo (`hml-identidade.eickrono.com.br`).
+> Em `hml`, ajuste a URL para `https://hml-identidade.eickrono.com.br/realms/homologacao/...`, use as credenciais do ambiente e lembre-se de atualizar `/etc/hosts` ou o proxy corporativo caso precise resolver o hostname externo.
 
 ## 7. Fluxo resumido para o dia a dia
 

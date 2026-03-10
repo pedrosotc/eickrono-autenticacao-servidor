@@ -2,5 +2,200 @@
   "realm": "producao",
   "enabled": true,
   "displayName": "Realm Produção Eickrono",
-  "clients": []
+  "loginWithEmailAllowed": true,
+  "registrationEmailAsUsername": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "clientScopes": [
+    {
+      "name": "vinculos:ler",
+      "description": "Escopo vinculos:ler",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Permite leitura de vínculos sociais"
+      }
+    },
+    {
+      "name": "transacoes:ler",
+      "description": "Escopo transacoes:ler",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Permite leitura de transações financeiras"
+      }
+    },
+    {
+      "name": "identidade:ler",
+      "description": "Escopo identidade:ler",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Permite leitura de dados de identidade"
+      }
+    },
+    {
+      "name": "vinculos:escrever",
+      "description": "Escopo vinculos:escrever",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Permite criar vínculos sociais"
+      }
+    },
+    {
+      "name": "contas:ler",
+      "description": "Escopo contas:ler",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Permite leitura das contas"
+      }
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "cliente",
+        "description": "Role de cliente para acesso às APIs",
+        "composite": false,
+        "clientRole": false
+      }
+    ],
+    "client": {
+      "api-identidade-eickrono": [
+        {
+          "name": "vinculos:ler",
+          "description": "Permite listar vínculos sociais",
+          "composite": false,
+          "clientRole": true
+        },
+        {
+          "name": "identidade:ler",
+          "description": "Permite ler dados de identidade",
+          "composite": false,
+          "clientRole": true
+        },
+        {
+          "name": "vinculos:escrever",
+          "description": "Permite criar vínculos sociais",
+          "composite": false,
+          "clientRole": true
+        }
+      ],
+      "api-contas-eickrono": [
+        {
+          "name": "transacoes:ler",
+          "description": "Permite leitura de transações",
+          "composite": false,
+          "clientRole": true
+        },
+        {
+          "name": "contas:ler",
+          "description": "Permite leitura de contas",
+          "composite": false,
+          "clientRole": true
+        }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "api-contas-eickrono",
+      "name": "API Contas",
+      "description": "Resource server da API Contas",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "attributes": {},
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    },
+    {
+      "clientId": "api-identidade-eickrono",
+      "name": "API Identidade",
+      "description": "Resource server da API Identidade",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "attributes": {},
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    },
+    {
+      "clientId": "app-flutter-prod",
+      "name": "App Flutter (prod)",
+      "description": "Aplicativo Flutter produção consumindo APIs Identidade/Contas",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "attributes": {},
+      "redirectUris": [],
+      "webOrigins": [],
+      "optionalClientScopes": [
+        "vinculos:escrever",
+        "vinculos:ler",
+        "transacoes:ler",
+        "identidade:ler",
+        "contas:ler",
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "secret": "CHANGE_ME"
+    }
+  ]
 }

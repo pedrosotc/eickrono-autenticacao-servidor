@@ -41,7 +41,6 @@ class TokenDispositivoServiceTest {
      * Configura o serviço de tokens com propriedades controladas e um registro de dispositivo base.
      * O Clock fixo garante previsibilidade para validar tempos de emissão e expiração.
      */
-    @SuppressWarnings("unused")
     @BeforeEach
     void setUp() {
         propriedades = new DispositivoProperties();

@@ -36,7 +36,6 @@ class DeviceTokenFilterTest {
      * Configura o filtro antes de cada cenário preparando um stub de TokenDispositivoService.
      * Assim controlamos quando o dispositivo será aceito ou bloqueado sem depender de integrações externas.
      */
-    @SuppressWarnings("unused")
     @BeforeEach
     void setUp() {
         tokenDispositivoService = new TokenDispositivoServiceStub();
@@ -44,7 +43,6 @@ class DeviceTokenFilterTest {
         SecurityContextHolder.clearContext();
     }
 
-    @SuppressWarnings("unused")
     @AfterEach
     void clean() {
         SecurityContextHolder.clearContext();
