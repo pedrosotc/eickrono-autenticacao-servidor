@@ -17,12 +17,13 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,18 +38,29 @@ class TokenDispositivoServiceTest {
     private DispositivoProperties propriedades;
     private RegistroDispositivo registroDispositivo;
 
+    private TokenDispositivoRepositorio tokenRepositorio() {
+        return Objects.requireNonNull(tokenRepositorio);
+    }
+
+    private TokenDispositivo tokenSalvo(InvocationOnMock invocacao) {
+        return Objects.requireNonNull(invocacao.getArgument(0, TokenDispositivo.class));
+    }
+
+    private static <T> T anyValue(Class<T> tipo) {
+        return any(tipo);
+    }
+
     /**
      * Configura o serviço de tokens com propriedades controladas e um registro de dispositivo base.
      * O Clock fixo garante previsibilidade para validar tempos de emissão e expiração.
      */
-    @BeforeEach
-    void setUp() {
+    private void inicializarServico() {
         propriedades = new DispositivoProperties();
         propriedades.getToken().setSegredoHmac("segredo-test-token");
         propriedades.getToken().setTamanhoBytes(16);
         propriedades.getToken().setValidadeHoras(48);
 
-        tokenDispositivoService = new TokenDispositivoService(tokenRepositorio, propriedades, CLOCK_FIXO);
+        tokenDispositivoService = new TokenDispositivoService(tokenRepositorio(), propriedades, CLOCK_FIXO);
 
         registroDispositivo = new RegistroDispositivo(
                 UUID.randomUUID(),
@@ -71,6 +83,7 @@ class TokenDispositivoServiceTest {
      */
     @Test
     void deveEmitirTokenRevogandoAnteriores() {
+        inicializarServico();
         TokenDispositivo tokenAnterior = new TokenDispositivo(
                 UUID.randomUUID(),
                 registroDispositivo,
@@ -84,9 +97,9 @@ class TokenDispositivoServiceTest {
                 OffsetDateTime.now(CLOCK_FIXO).plusHours(12)
         );
 
-        when(tokenRepositorio.findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
+        when(tokenRepositorio().findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
                 .thenReturn(List.of(tokenAnterior));
-        when(tokenRepositorio.save(any(TokenDispositivo.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
 
         TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
 
@@ -95,7 +108,7 @@ class TokenDispositivoServiceTest {
         assertThat(tokenEmitido.entidade().getEmitidoEm()).isEqualTo(OffsetDateTime.now(CLOCK_FIXO));
         assertThat(tokenAnterior.getStatus()).isEqualTo(StatusTokenDispositivo.REVOGADO);
 
-        verify(tokenRepositorio).save(any(TokenDispositivo.class));
+        verify(tokenRepositorio()).save(Objects.requireNonNull(anyValue(TokenDispositivo.class)));
     }
 
     /**
@@ -104,22 +117,72 @@ class TokenDispositivoServiceTest {
      */
     @Test
     void deveValidarTokenAtivo() {
-        when(tokenRepositorio.findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
+        inicializarServico();
+        when(tokenRepositorio().findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
                 .thenReturn(List.of());
-        when(tokenRepositorio.save(any(TokenDispositivo.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
+        when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
 
         TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
 
-        when(tokenRepositorio.findByUsuarioSubAndTokenHashAndStatus(
+        when(tokenRepositorio().findByUsuarioSubAndTokenHashAndStatus(
                 "usuario-123",
                 tokenEmitido.entidade().getTokenHash(),
                 StatusTokenDispositivo.ATIVO))
-                .thenReturn(Optional.of(tokenEmitido.entidade()));
+                .thenReturn(Optional.of(Objects.requireNonNull(tokenEmitido.entidade())));
+        when(tokenRepositorio().findByUsuarioSubAndTokenHash("usuario-123", tokenEmitido.entidade().getTokenHash()))
+                .thenReturn(Optional.of(Objects.requireNonNull(tokenEmitido.entidade())));
 
         Optional<TokenDispositivo> resultado = tokenDispositivoService.validarTokenAtivo("usuario-123", tokenEmitido.tokenClaro());
 
         assertThat(resultado).isPresent();
         assertThat(resultado.get().estaAtivo(OffsetDateTime.now(CLOCK_FIXO))).isTrue();
+    }
+
+    @Test
+    void deveClassificarTokenRevogado() {
+        inicializarServico();
+        when(tokenRepositorio().findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
+                .thenReturn(List.of());
+        when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
+
+        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
+        tokenEmitido.entidade().revogar(MotivoRevogacaoToken.SOLICITACAO_CLIENTE, OffsetDateTime.now(CLOCK_FIXO));
+
+        when(tokenRepositorio().findByUsuarioSubAndTokenHash("usuario-123", tokenEmitido.entidade().getTokenHash()))
+                .thenReturn(Optional.of(Objects.requireNonNull(tokenEmitido.entidade())));
+
+        ResultadoValidacaoTokenDispositivo resultado = tokenDispositivoService.validarToken("usuario-123", tokenEmitido.tokenClaro());
+
+        assertThat(resultado.status()).isEqualTo(StatusValidacaoTokenDispositivo.REVOGADO);
+    }
+
+    @Test
+    void deveClassificarTokenExpirado() {
+        inicializarServico();
+        when(tokenRepositorio().findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
+                .thenReturn(List.of());
+        when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
+
+        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
+        TokenDispositivo tokenExpirado = new TokenDispositivo(
+                tokenEmitido.entidade().getId(),
+                registroDispositivo,
+                "usuario-123",
+                tokenEmitido.entidade().getFingerprint(),
+                tokenEmitido.entidade().getPlataforma(),
+                tokenEmitido.entidade().getVersaoAplicativo().orElse(null),
+                tokenEmitido.entidade().getTokenHash(),
+                StatusTokenDispositivo.ATIVO,
+                OffsetDateTime.now(CLOCK_FIXO).minusHours(48),
+                OffsetDateTime.now(CLOCK_FIXO).minusMinutes(1)
+        );
+
+        when(tokenRepositorio().findByUsuarioSubAndTokenHash("usuario-123", tokenEmitido.entidade().getTokenHash()))
+                .thenReturn(Optional.of(Objects.requireNonNull(tokenExpirado)));
+
+        ResultadoValidacaoTokenDispositivo resultado = tokenDispositivoService.validarToken("usuario-123", tokenEmitido.tokenClaro());
+
+        assertThat(resultado.status()).isEqualTo(StatusValidacaoTokenDispositivo.EXPIRADO);
     }
 
     /**
@@ -128,6 +191,7 @@ class TokenDispositivoServiceTest {
      */
     @Test
     void deveRevogarTokensPorSolicitacaoCliente() {
+        inicializarServico();
         TokenDispositivo tokenAtivo = new TokenDispositivo(
                 UUID.randomUUID(),
                 registroDispositivo,
@@ -141,7 +205,7 @@ class TokenDispositivoServiceTest {
                 OffsetDateTime.now(CLOCK_FIXO).plusHours(24)
         );
 
-        when(tokenRepositorio.findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
+        when(tokenRepositorio().findByUsuarioSubAndStatus("usuario-123", StatusTokenDispositivo.ATIVO))
                 .thenReturn(List.of(tokenAtivo));
 
         tokenDispositivoService.revogarTokensAtivos("usuario-123", MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
@@ -151,11 +215,11 @@ class TokenDispositivoServiceTest {
     }
 
     /**
-     * Teste auxiliar que valida se o @BeforeEach configurou corretamente as propriedades padrão.
-     * Como o método é executado automaticamente antes de cada caso, aqui apenas verificamos seus efeitos.
+     * Teste auxiliar que valida se a rotina explícita de inicialização prepara as propriedades padrão.
      */
     @Test
-    void setUpDevePrepararServicoComPropriedadesPadrao() {
+    void devePrepararServicoComPropriedadesPadrao() {
+        inicializarServico();
         assertThat(tokenDispositivoService).as("Serviço deve ser instanciado no setUp").isNotNull();
         assertThat(propriedades.getToken().getTamanhoBytes()).isEqualTo(16);
         assertThat(propriedades.getToken().getValidadeHoras()).isEqualTo(48);

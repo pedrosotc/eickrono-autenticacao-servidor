@@ -3,6 +3,7 @@ package com.eickrono.api.identidade.configuracao;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
@@ -137,7 +138,7 @@ public class SegurancaConfiguracao {
         configuration.setAllowedMethods(CORS_METODOS);
         configuration.setAllowedHeaders(CORS_CABECALHOS);
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(CORS_MAX_AGE);
+        configuration.setMaxAge(Objects.requireNonNull(CORS_MAX_AGE));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -148,9 +149,9 @@ public class SegurancaConfiguracao {
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCacheNames(List.of(CACHE_JWKS));
-        cacheManager.setCaffeine(Caffeine.newBuilder()
+        cacheManager.setCaffeine(Objects.requireNonNull(Caffeine.newBuilder()
                 .expireAfterWrite(CACHE_EXPIRACAO_PADRAO)
-                .maximumSize(CACHE_TAMANHO_MAXIMO));
+                .maximumSize(CACHE_TAMANHO_MAXIMO)));
         return cacheManager;
     }
 

@@ -8,8 +8,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -24,6 +22,8 @@ import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusTokenDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
+import com.eickrono.api.identidade.servico.ResultadoValidacaoTokenDispositivo;
+import com.eickrono.api.identidade.servico.StatusValidacaoTokenDispositivo;
 
 import jakarta.servlet.ServletException;
 
@@ -36,15 +36,13 @@ class DeviceTokenFilterTest {
      * Configura o filtro antes de cada cenário preparando um stub de TokenDispositivoService.
      * Assim controlamos quando o dispositivo será aceito ou bloqueado sem depender de integrações externas.
      */
-    @BeforeEach
-    void setUp() {
+    private void inicializarFiltro() {
         tokenDispositivoService = new TokenDispositivoServiceStub();
         filter = new DeviceTokenFilter(tokenDispositivoService);
         SecurityContextHolder.clearContext();
     }
 
-    @AfterEach
-    void clean() {
+    private void limparContexto() {
         SecurityContextHolder.clearContext();
     }
 
@@ -54,6 +52,7 @@ class DeviceTokenFilterTest {
      */
     @Test
     void deveIgnorarQuandoNaoHaAutenticacaoJwt() throws ServletException, IOException {
+        inicializarFiltro();
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/identidade/perfil");
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
@@ -70,10 +69,11 @@ class DeviceTokenFilterTest {
 
     /**
      * Exercita o fluxo em que o cabeçalho X-Device-Token é informado, porém inválido.
-     * O stub retorna Optional.empty() e esperamos a resposta 423 (Locked).
+     * O stub devolve o estado INVALIDO e esperamos a resposta 423 com código explícito.
      */
     @Test
     void deveRetornar423QuandoTokenInvalido() throws ServletException, IOException {
+        inicializarFiltro();
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/identidade/perfil");
         request.addHeader("X-Device-Token", "token-invalido");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -82,11 +82,14 @@ class DeviceTokenFilterTest {
         JwtAuthenticationToken authentication = autenticarCliente("usuario-xyz");
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        tokenDispositivoService.configurarResultado(Optional.empty());
+        tokenDispositivoService.configurarResultado(new ResultadoValidacaoTokenDispositivo(
+                StatusValidacaoTokenDispositivo.INVALIDO,
+                null));
 
         filter.doFilter(request, response, chain);
 
         assertThat(response.getStatus()).isEqualTo(423);
+        assertThat(response.getContentAsString()).contains("DEVICE_TOKEN_INVALID");
     }
 
     /**
@@ -95,6 +98,7 @@ class DeviceTokenFilterTest {
      */
     @Test
     void devePermitirQuandoTokenValido() throws ServletException, IOException {
+        inicializarFiltro();
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/identidade/perfil");
         request.addHeader("X-Device-Token", "token-valido");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -103,7 +107,9 @@ class DeviceTokenFilterTest {
         JwtAuthenticationToken authentication = autenticarCliente("usuario-xyz");
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        tokenDispositivoService.configurarResultado(Optional.of(criarToken()));
+        tokenDispositivoService.configurarResultado(new ResultadoValidacaoTokenDispositivo(
+                StatusValidacaoTokenDispositivo.VALIDO,
+                criarToken().getExpiraEm()));
 
         filter.doFilter(request, response, chain);
 
@@ -114,10 +120,11 @@ class DeviceTokenFilterTest {
      * Exercita diretamente o método @AfterEach para garantir que o context seja limpo entre os testes.
      */
     @Test
-    void cleanDeveLimparSecurityContext() {
+    void deveLimparSecurityContextQuandoSolicitado() {
+        inicializarFiltro();
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken("user", "credencial"));
 
-        clean();
+        limparContexto();
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
@@ -160,14 +167,15 @@ class DeviceTokenFilterTest {
 
     private static class TokenDispositivoServiceStub extends com.eickrono.api.identidade.servico.TokenDispositivoService {
 
-        private Optional<TokenDispositivo> resultado = Optional.empty();
+        private ResultadoValidacaoTokenDispositivo resultado =
+                new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.INVALIDO, null);
         private Optional<String> ultimoUsuario = Optional.empty();
 
         TokenDispositivoServiceStub() {
             super(null, new com.eickrono.api.identidade.configuracao.DispositivoProperties(), Clock.systemUTC());
         }
 
-        void configurarResultado(Optional<TokenDispositivo> resultado) {
+        void configurarResultado(ResultadoValidacaoTokenDispositivo resultado) {
             this.resultado = resultado;
         }
 
@@ -176,7 +184,7 @@ class DeviceTokenFilterTest {
         }
 
         @Override
-        public Optional<TokenDispositivo> validarTokenAtivo(String usuarioSub, String tokenClaro) {
+        public ResultadoValidacaoTokenDispositivo validarToken(String usuarioSub, String tokenClaro) {
             this.ultimoUsuario = Optional.ofNullable(usuarioSub);
             return resultado;
         }

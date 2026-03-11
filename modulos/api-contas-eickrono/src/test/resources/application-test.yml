@@ -29,3 +29,7 @@ fapi:
   seguranca:
     audiencia-esperada: api-contas-eickrono-test
     tolerancia-clock-skew-segundos: 60
+
+integracao:
+  identidade:
+    url-base: http://localhost:8081

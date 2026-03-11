@@ -9,7 +9,6 @@ import com.eickrono.api.identidade.dto.PerfilDto;
 import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.Set;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,8 +26,7 @@ class PerfilServiceTest {
     /**
      * Prepara o service real apontando para um repositório Mockito para que cada teste controle o retorno.
      */
-    @BeforeEach
-    void setUp() {
+    private void inicializarServico() {
         perfilService = new PerfilService(perfilRepositorio);
     }
 
@@ -41,6 +39,7 @@ class PerfilServiceTest {
     @Test
     @DisplayName("deve mapear PerfilIdentidade para DTO quando encontrar registro")
     void deveRetornarPerfilQuandoEncontrar() {
+        inicializarServico();
         OffsetDateTime atualizadoEm = OffsetDateTime.parse("2024-06-01T10:00:00Z");
         PerfilIdentidade entidade = new PerfilIdentidade(
                 "sub-123",
@@ -69,6 +68,7 @@ class PerfilServiceTest {
     @Test
     @DisplayName("deve retornar Optional.empty quando perfil não existir")
     void deveRetornarVazioQuandoNaoEncontrar() {
+        inicializarServico();
         when(perfilRepositorio.findBySub("sub-inexistente")).thenReturn(Optional.empty());
 
         Optional<PerfilDto> resultado = perfilService.buscarPorSub("sub-inexistente");

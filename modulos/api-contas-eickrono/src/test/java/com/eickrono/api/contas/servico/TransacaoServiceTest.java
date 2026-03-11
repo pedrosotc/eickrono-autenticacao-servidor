@@ -20,10 +20,9 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -45,50 +44,66 @@ class TransacaoServiceTest {
     private AuditoriaContasService auditoriaContasService;
     private TransacaoService transacaoService;
 
-    /** Prepara o serviço com dependências mockadas para observar auditoria e acesso. */
-    @BeforeEach
-    void setUp() {
-        auditoriaContasService = new AuditoriaContasService(eventoRepositorio, acessoRepositorio);
-        transacaoService = new TransacaoService(contaRepositorio, transacaoRepositorio, auditoriaContasService);
+    private ContaRepositorio contaRepositorio() {
+        return Objects.requireNonNull(contaRepositorio);
     }
 
-    @Nested
-    @DisplayName("Caso de uso: listar transações")
-    class ListarTransacoes {
+    private TransacaoRepositorio transacaoRepositorio() {
+        return Objects.requireNonNull(transacaoRepositorio);
+    }
 
-        /** Verificamos que o serviço somente retorna transações do titular e registra auditoria. */
-        @Test
-        @DisplayName("deve retornar transações ordenadas da conta do cliente")
-        void deveRetornarTransacoesERegistrarAuditoria() throws Exception {
-            Conta conta = novaConta("cliente-1");
-            definirIdConta(conta, 15L);
-            when(contaRepositorio.findById(15L)).thenReturn(Optional.of(conta));
+    private AuditoriaEventoContasRepositorio eventoRepositorio() {
+        return Objects.requireNonNull(eventoRepositorio);
+    }
 
-            Transacao credito = novaTransacao(conta, 101L, TipoTransacao.CREDITO, BigDecimal.valueOf(100), "Depósito");
-            Transacao debito = novaTransacao(conta, 102L, TipoTransacao.DEBITO, BigDecimal.valueOf(50), "Transferência");
-            when(transacaoRepositorio.findByContaOrderByEfetivadaEmDesc(conta)).thenReturn(List.of(credito, debito));
+    private AuditoriaAcessoContasRepositorio acessoRepositorio() {
+        return Objects.requireNonNull(acessoRepositorio);
+    }
 
-            List<TransacaoDto> resultado = transacaoService.listarPorConta(15L, "cliente-1");
+    /** Prepara o serviço com dependências mockadas para observar auditoria e acesso. */
+    private void inicializarServico() {
+        auditoriaContasService = new AuditoriaContasService(eventoRepositorio(), acessoRepositorio());
+        transacaoService = new TransacaoService(contaRepositorio(), transacaoRepositorio(), auditoriaContasService);
+    }
 
-            assertThat(resultado).extracting(TransacaoDto::id).containsExactly(101L, 102L);
-            ArgumentCaptor<AuditoriaAcessoContas> captor = ArgumentCaptor.forClass(AuditoriaAcessoContas.class);
-            verify(acessoRepositorio).save(captor.capture());
-            assertThat(captor.getValue().getEndpoint()).isEqualTo("/transacoes");
-        }
+    private static <T> T anyValue(Class<T> tipo) {
+        return any(tipo);
+    }
 
-        /** Caso a conta pertença a outro usuário, uma IllegalArgumentException deve ser lançada. */
-        @Test
-        @DisplayName("deve lançar exceção quando conta não for do cliente")
-        void deveLancarQuandoContaNaoPertencerAoCliente() throws Exception {
-            Conta conta = novaConta("cliente-2");
-            definirIdConta(conta, 15L);
-            when(contaRepositorio.findById(15L)).thenReturn(Optional.of(conta));
+    /** Verificamos que o serviço somente retorna transações do titular e registra auditoria. */
+    @Test
+    @DisplayName("deve retornar transações ordenadas da conta do cliente")
+    void deveRetornarTransacoesERegistrarAuditoria() throws Exception {
+        inicializarServico();
+        Conta conta = novaConta("cliente-1");
+        definirIdConta(conta, 15L);
+        when(contaRepositorio().findById(15L)).thenReturn(Optional.of(conta));
 
-            assertThatThrownBy(() -> transacaoService.listarPorConta(15L, "cliente-1"))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Conta não encontrada");
-            verify(acessoRepositorio, never()).save(any());
-        }
+        Transacao credito = novaTransacao(conta, 101L, TipoTransacao.CREDITO, BigDecimal.valueOf(100), "Depósito");
+        Transacao debito = novaTransacao(conta, 102L, TipoTransacao.DEBITO, BigDecimal.valueOf(50), "Transferência");
+        when(transacaoRepositorio().findByContaOrderByEfetivadaEmDesc(conta)).thenReturn(List.of(credito, debito));
+
+        List<TransacaoDto> resultado = transacaoService.listarPorConta(15L, "cliente-1");
+
+        assertThat(resultado).extracting(TransacaoDto::id).containsExactly(101L, 102L);
+        ArgumentCaptor<AuditoriaAcessoContas> captor = ArgumentCaptor.forClass(AuditoriaAcessoContas.class);
+        verify(acessoRepositorio()).save(Objects.requireNonNull(captor.capture()));
+        assertThat(Objects.requireNonNull(captor.getValue()).getEndpoint()).isEqualTo("/transacoes");
+    }
+
+    /** Caso a conta pertença a outro usuário, uma IllegalArgumentException deve ser lançada. */
+    @Test
+    @DisplayName("deve lançar exceção quando conta não for do cliente")
+    void deveLancarQuandoContaNaoPertencerAoCliente() throws Exception {
+        inicializarServico();
+        Conta conta = novaConta("cliente-2");
+        definirIdConta(conta, 15L);
+        when(contaRepositorio().findById(15L)).thenReturn(Optional.of(conta));
+
+        assertThatThrownBy(() -> transacaoService.listarPorConta(15L, "cliente-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Conta não encontrada");
+        verify(acessoRepositorio(), never()).save(Objects.requireNonNull(anyValue(AuditoriaAcessoContas.class)));
     }
 
     private Conta novaConta(String clienteId) {

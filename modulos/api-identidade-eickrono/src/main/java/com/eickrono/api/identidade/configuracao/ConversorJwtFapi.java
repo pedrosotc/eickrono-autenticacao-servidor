@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -27,7 +28,7 @@ public class ConversorJwtFapi implements Converter<Jwt, AbstractAuthenticationTo
     }
 
     @Override
-    public AbstractAuthenticationToken convert(Jwt source) {
+    public AbstractAuthenticationToken convert(@NonNull Jwt source) {
         Set<GrantedAuthority> authorities = new HashSet<>(converterEscopos(source));
         authorities.addAll(extrairPapeis(source));
         return new JwtAuthenticationToken(source, authorities, extrairNome(source));

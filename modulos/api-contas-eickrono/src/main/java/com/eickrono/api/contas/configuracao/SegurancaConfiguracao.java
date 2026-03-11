@@ -3,6 +3,7 @@ package com.eickrono.api.contas.configuracao;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
@@ -25,6 +26,7 @@ import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -35,14 +37,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  */
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties({FapiProperties.class, CorsProperties.class, TlsMutuoProperties.class, SwaggerSegurancaProperties.class})
+@EnableConfigurationProperties({FapiProperties.class, CorsProperties.class, TlsMutuoProperties.class, SwaggerSegurancaProperties.class, IntegracaoIdentidadeProperties.class})
 public class SegurancaConfiguracao {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SegurancaConfiguracao.class);
     @Bean
     public SecurityFilterChain apiSecurity(HttpSecurity http,
                                            ConversorJwtFapi conversor,
-                                           CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                           CorsConfigurationSource corsConfigurationSource,
+                                           DeviceTokenFilter deviceTokenFilter) throws Exception {
         http.securityMatcher("/**")
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(AbstractHttpConfigurer::disable)
@@ -54,6 +57,7 @@ public class SegurancaConfiguracao {
                         .anyRequest()
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
+        http.addFilterAfter(deviceTokenFilter, BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 
@@ -117,9 +121,9 @@ public class SegurancaConfiguracao {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsProperties.getOrigensPermitidas());
         configuration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Device-Token"));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(Duration.ofHours(1));
+        configuration.setMaxAge(Objects.requireNonNull(Duration.ofHours(1)));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -130,9 +134,9 @@ public class SegurancaConfiguracao {
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCacheNames(List.of("jwks-cache"));
-        cacheManager.setCaffeine(Caffeine.newBuilder()
+        cacheManager.setCaffeine(Objects.requireNonNull(Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(5))
-                .maximumSize(1_000));
+                .maximumSize(1_000)));
         return cacheManager;
     }
 

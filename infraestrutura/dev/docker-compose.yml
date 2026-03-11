@@ -5,7 +5,7 @@ services:
     image: postgres:15.5
     container_name: eickrono-postgres-dev
     env_file:
-      - .env.dev
+      - .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -23,7 +23,7 @@ services:
       retries: 5
 
   servidor-autorizacao:
-    image: quay.io/keycloak/keycloak:24.0.5
+    image: quay.io/keycloak/keycloak:26.5.5
     container_name: eickrono-keycloak-dev
     command:
       [
@@ -34,7 +34,7 @@ services:
         "--spi-theme-static-max-age=-1"
       ]
     env_file:
-      - .env.dev
+      - .env
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
@@ -44,6 +44,7 @@ services:
       KC_DB_USERNAME: ${KC_DB_USERNAME}
       KC_DB_PASSWORD: ${KC_DB_PASSWORD}
       KC_PROXY: ${KC_PROXY}
+      EICKRONO_PASSWORD_PEPPER: ${EICKRONO_PASSWORD_PEPPER}
     depends_on:
       banco-postgres:
         condition: service_healthy
@@ -56,6 +57,7 @@ services:
       retries: 6
       start_period: 10s
     volumes:
+      - ../../modulos/servidor-autorizacao-eickrono/target/servidor-autorizacao-eickrono-1.0.0-SNAPSHOT.jar:/opt/keycloak/providers/servidor-autorizacao-eickrono.jar:ro
       - ../../modulos/servidor-autorizacao-eickrono/realms:/opt/keycloak/data/import:ro
       - ../../modulos/servidor-autorizacao-eickrono/temas-login-ptbr:/opt/keycloak/themes/login-ptbr:ro
       - ../../modulos/servidor-autorizacao-eickrono/configuracoes-fapi:/opt/keycloak/providers/configuracoes-fapi:ro
@@ -72,7 +74,7 @@ services:
       dockerfile: Dockerfile
     container_name: eickrono-api-identidade-dev
     env_file:
-      - .env.dev
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://banco-postgres:5432/${POSTGRES_DB}
@@ -81,6 +83,7 @@ services:
       SPRING_FLYWAY_SCHEMAS: identidade
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: ${OIDC_ISSUER_URI}
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: ${OIDC_JWKS_URI}
+      IDENTIDADE_API_BASE_URL: http://api-identidade-eickrono:8081
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
       SERVIDOR_AUTORIZACAO_MTLS_CERTIFICADO: ${MTLS_CERT_PATH}
       SERVIDOR_AUTORIZACAO_MTLS_SENHA: ${MTLS_CERT_SENHA}
@@ -102,7 +105,7 @@ services:
       dockerfile: Dockerfile
     container_name: eickrono-api-contas-dev
     env_file:
-      - .env.dev
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://banco-postgres:5432/${POSTGRES_DB}

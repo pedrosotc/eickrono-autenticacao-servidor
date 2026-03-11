@@ -32,16 +32,16 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -66,12 +66,35 @@ class RegistroDispositivoServiceTest {
 
     private RegistroDispositivo ultimoRegistro;
 
+    private RegistroDispositivoRepositorio registroRepositorio() {
+        return Objects.requireNonNull(registroRepositorio);
+    }
+
+    private CodigoVerificacaoRepositorio codigoRepositorio() {
+        return Objects.requireNonNull(codigoRepositorio);
+    }
+
+    private AuditoriaEventoIdentidadeRepositorio auditoriaRepositorio() {
+        return Objects.requireNonNull(auditoriaRepositorio);
+    }
+
+    private RegistroDispositivo registroSalvo(InvocationOnMock invocation) {
+        return Objects.requireNonNull(invocation.getArgument(0, RegistroDispositivo.class));
+    }
+
+    private CodigoVerificacao codigoSalvo(InvocationOnMock invocation) {
+        return Objects.requireNonNull(invocation.getArgument(0, CodigoVerificacao.class));
+    }
+
+    private static <T> T anyValue(Class<T> tipo) {
+        return any(tipo);
+    }
+
     /**
      * Prepara o serviço real com dependências mockadas para acompanhar auditoria e registros gerados.
      * Utilizamos um TokenDispositivoServiceFake para evitar o uso de Mockito inline (incompatível com Java 25).
      */
-    @BeforeEach
-    void setUp() {
+    private void inicializarServico() {
         properties = new DispositivoProperties();
         properties.getCodigo().setSegredoHmac("codigo-secreto-test");
         properties.getCodigo().setExpiracaoHoras(9);
@@ -81,21 +104,22 @@ class RegistroDispositivoServiceTest {
         properties.getToken().setValidadeHoras(48);
         properties.getToken().setTamanhoBytes(16);
 
-        AuditoriaService auditoriaService = new AuditoriaService(auditoriaRepositorio);
+        AuditoriaService auditoriaService = new AuditoriaService(auditoriaRepositorio());
         canalSms = new CapturadorCanal(CanalVerificacao.SMS);
         canalEmail = new CapturadorCanal(CanalVerificacao.EMAIL);
 
-        lenient().when(registroRepositorio.save(any())).thenAnswer(invocation -> {
-            ultimoRegistro = invocation.getArgument(0);
+        lenient().when(registroRepositorio().save(Objects.requireNonNull(anyValue(RegistroDispositivo.class)))).thenAnswer(invocation -> {
+            ultimoRegistro = registroSalvo(invocation);
             return ultimoRegistro;
         });
-        lenient().when(codigoRepositorio.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(codigoRepositorio().save(Objects.requireNonNull(anyValue(CodigoVerificacao.class))))
+                .thenAnswer(this::codigoSalvo);
 
         tokenDispositivoService = new TokenDispositivoServiceFake(properties, CLOCK_FIXO);
 
         registroDispositivoService = new RegistroDispositivoService(
-                registroRepositorio,
-                codigoRepositorio,
+                registroRepositorio(),
+                codigoRepositorio(),
                 tokenDispositivoService,
                 properties,
                 auditoriaService,
@@ -103,247 +127,237 @@ class RegistroDispositivoServiceTest {
                 CLOCK_FIXO);
     }
 
-    @Nested
-    @DisplayName("Caso de uso: solicitar registro")
-    class SolicitarRegistro {
+    /**
+     * Fluxo completo da solicitação inicial: verificamos geração de códigos e auditoria correspondente.
+     */
+    @Test
+    @DisplayName("deve gerar códigos em ambos os canais e registrar auditoria")
+    void deveGerarCodigosNosCanais() {
+        inicializarServico();
+        RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
 
-        /**
-         * Fluxo completo da solicitação inicial: verificamos geração de códigos e auditoria correspondente.
-         */
-        @Test
-        @DisplayName("deve gerar códigos em ambos os canais e registrar auditoria")
-        void deveGerarCodigosNosCanais() {
-            RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
+        assertThat(canalSms.codigos(resposta.registroId())).hasSize(1);
+        assertThat(canalEmail.codigos(resposta.registroId())).hasSize(1);
 
-            assertThat(canalSms.codigos(resposta.registroId())).hasSize(1);
-            assertThat(canalEmail.codigos(resposta.registroId())).hasSize(1);
+        ArgumentCaptor<AuditoriaEventoIdentidade> auditoriaCaptor = ArgumentCaptor.forClass(AuditoriaEventoIdentidade.class);
+        verify(auditoriaRepositorio()).save(Objects.requireNonNull(auditoriaCaptor.capture()));
+        assertThat(Objects.requireNonNull(auditoriaCaptor.getValue()).getTipoEvento())
+                .isEqualTo("DISPOSITIVO_REGISTRO_SOLICITADO");
 
-            ArgumentCaptor<AuditoriaEventoIdentidade> auditoriaCaptor = ArgumentCaptor.forClass(AuditoriaEventoIdentidade.class);
-            verify(auditoriaRepositorio).save(auditoriaCaptor.capture());
-            assertThat(auditoriaCaptor.getValue().getTipoEvento()).isEqualTo("DISPOSITIVO_REGISTRO_SOLICITADO");
-
-            assertThat(ultimoRegistro.getStatus()).isEqualTo(StatusRegistroDispositivo.PENDENTE);
-            assertThat(ultimoRegistro.getExpiraEm()).isEqualTo(OffsetDateTime.now(CLOCK_FIXO).plusHours(properties.getCodigo().getExpiracaoHoras()));
-        }
+        assertThat(ultimoRegistro.getStatus()).isEqualTo(StatusRegistroDispositivo.PENDENTE);
+        assertThat(ultimoRegistro.getExpiraEm()).isEqualTo(OffsetDateTime.now(CLOCK_FIXO).plusHours(properties.getCodigo().getExpiracaoHoras()));
     }
 
-    @Nested
-    @DisplayName("Caso de uso: confirmar registro")
-    class ConfirmarRegistro {
+    /**
+     * Confirmação bem-sucedida precisa validar códigos SMS e e-mail, emitir token e atualizar status.
+     */
+    @Test
+    @DisplayName("deve confirmar registro quando códigos estiverem corretos")
+    void deveConfirmarRegistro() {
+        inicializarServico();
+        RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
+        RegistroDispositivo registro = Objects.requireNonNull(ultimoRegistro);
+        when(registroRepositorio().findById(Objects.requireNonNull(resposta.registroId())))
+                .thenReturn(Optional.of(Objects.requireNonNull(registro)));
 
-        /**
-         * Confirmação bem-sucedida precisa validar códigos SMS e e-mail, emitir token e atualizar status.
-         */
-        @Test
-        @DisplayName("deve confirmar registro quando códigos estiverem corretos")
-        void deveConfirmarRegistro() {
-            RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
-            RegistroDispositivo registro = ultimoRegistro;
-            when(registroRepositorio.findById(resposta.registroId())).thenReturn(Optional.of(registro));
+        String codigoSms = canalSms.codigos(resposta.registroId()).getFirst();
+        String codigoEmail = canalEmail.codigos(resposta.registroId()).getFirst();
 
-            String codigoSms = canalSms.codigos(resposta.registroId()).getFirst();
-            String codigoEmail = canalEmail.codigos(resposta.registroId()).getFirst();
+        TokenDispositivo tokenEntidade = new TokenDispositivo(
+                UUID.randomUUID(),
+                registro,
+                "sub-123",
+                registro.getFingerprint(),
+                registro.getPlataforma(),
+                registro.getVersaoAplicativo().orElse(null),
+                "hash-token",
+                StatusTokenDispositivo.ATIVO,
+                OffsetDateTime.now(CLOCK_FIXO),
+                OffsetDateTime.now(CLOCK_FIXO).plusHours(48));
+        tokenDispositivoService.configurarEmissao(new TokenDispositivoService.TokenEmitido("token-dispositivo", tokenEntidade));
 
-            TokenDispositivo tokenEntidade = new TokenDispositivo(
-                    UUID.randomUUID(),
-                    registro,
-                    "sub-123",
-                    registro.getFingerprint(),
-                    registro.getPlataforma(),
-                    registro.getVersaoAplicativo().orElse(null),
-                    "hash-token",
-                    StatusTokenDispositivo.ATIVO,
-                    OffsetDateTime.now(CLOCK_FIXO),
-                    OffsetDateTime.now(CLOCK_FIXO).plusHours(48));
-            tokenDispositivoService.configurarEmissao(new TokenDispositivoService.TokenEmitido("token-dispositivo", tokenEntidade));
+        ConfirmacaoRegistroRequest request = new ConfirmacaoRegistroRequest();
+        request.setCodigoSms(codigoSms);
+        request.setCodigoEmail(codigoEmail);
 
-            ConfirmacaoRegistroRequest request = new ConfirmacaoRegistroRequest();
-            request.setCodigoSms(codigoSms);
-            request.setCodigoEmail(codigoEmail);
+        var respostaConfirmacao = registroDispositivoService.confirmarRegistro(resposta.registroId(), request, Optional.of("sub-123"));
 
-            var respostaConfirmacao = registroDispositivoService.confirmarRegistro(resposta.registroId(), request, Optional.of("sub-123"));
-
-            assertThat(respostaConfirmacao.tokenDispositivo()).isEqualTo("token-dispositivo");
-            assertThat(tokenDispositivoService.getUltimoUsuario()).isEqualTo("sub-123");
-            assertThat(tokenDispositivoService.getUltimoRegistro()).isSameAs(registro);
-            assertThat(registro.getStatus()).isEqualTo(StatusRegistroDispositivo.CONFIRMADO);
-            registro.codigoPorCanal(CanalVerificacao.SMS).ifPresent(codigo ->
-                    assertThat(codigo.getStatus()).isEqualTo(StatusCodigoVerificacao.CONFIRMADO));
-            registro.codigoPorCanal(CanalVerificacao.EMAIL).ifPresent(codigo ->
-                    assertThat(codigo.getStatus()).isEqualTo(StatusCodigoVerificacao.CONFIRMADO));
-        }
-
-        /**
-         * Quando um dos códigos falha, o serviço deve lançar 401 e registrar tentativa nos metadados.
-         */
-        @Test
-        @DisplayName("deve lançar exceção quando código informado for inválido")
-        void deveRejeitarCodigoInvalido() {
-            RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
-            RegistroDispositivo registro = ultimoRegistro;
-            when(registroRepositorio.findById(resposta.registroId())).thenReturn(Optional.of(registro));
-
-            ConfirmacaoRegistroRequest request = new ConfirmacaoRegistroRequest();
-            request.setCodigoSms("000000");
-            request.setCodigoEmail(canalEmail.codigos(resposta.registroId()).getFirst());
-
-            assertThatThrownBy(() -> registroDispositivoService.confirmarRegistro(resposta.registroId(), request, Optional.of("sub-123")))
-                    .isInstanceOf(ResponseStatusException.class)
-                    .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
-                    .isEqualTo(HttpStatus.UNAUTHORIZED);
-
-            registro.codigoPorCanal(CanalVerificacao.SMS).ifPresent(codigo ->
-                    assertThat(codigo.getTentativas()).isEqualTo(1));
-        }
+        assertThat(respostaConfirmacao.tokenDispositivo()).isEqualTo("token-dispositivo");
+        assertThat(tokenDispositivoService.getUltimoUsuario()).isEqualTo("sub-123");
+        assertThat(tokenDispositivoService.getUltimoRegistro()).isSameAs(registro);
+        assertThat(registro.getStatus()).isEqualTo(StatusRegistroDispositivo.CONFIRMADO);
+        registro.codigoPorCanal(CanalVerificacao.SMS).ifPresent(codigo ->
+                assertThat(codigo.getStatus()).isEqualTo(StatusCodigoVerificacao.CONFIRMADO));
+        registro.codigoPorCanal(CanalVerificacao.EMAIL).ifPresent(codigo ->
+                assertThat(codigo.getStatus()).isEqualTo(StatusCodigoVerificacao.CONFIRMADO));
     }
 
-    @Nested
-    @DisplayName("Caso de uso: reenviar códigos")
-    class ReenviarCodigos {
+    /**
+     * Quando um dos códigos falha, o serviço deve lançar 401 e registrar tentativa nos metadados.
+     */
+    @Test
+    @DisplayName("deve lançar exceção quando código informado for inválido")
+    void deveRejeitarCodigoInvalido() {
+        inicializarServico();
+        RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
+        RegistroDispositivo registro = Objects.requireNonNull(ultimoRegistro);
+        when(registroRepositorio().findById(Objects.requireNonNull(resposta.registroId())))
+                .thenReturn(Optional.of(Objects.requireNonNull(registro)));
 
-        /**
-         * Caso ainda existam reenvios disponíveis, os códigos são renovados e um novo contador registrado.
-         */
-        @Test
-        @DisplayName("deve gerar novo código quando limite não foi atingido")
-        void deveReenviarComSucesso() {
-            RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
-            RegistroDispositivo registro = ultimoRegistro;
-            when(registroRepositorio.findById(resposta.registroId())).thenReturn(Optional.of(registro));
+        ConfirmacaoRegistroRequest request = new ConfirmacaoRegistroRequest();
+        request.setCodigoSms("000000");
+        request.setCodigoEmail(canalEmail.codigos(resposta.registroId()).getFirst());
 
-            ReenvioCodigoRequest requisicao = new ReenvioCodigoRequest();
-            requisicao.setReenviarEmail(true);
-            requisicao.setReenviarSms(true);
+        assertThatThrownBy(() -> registroDispositivoService.confirmarRegistro(resposta.registroId(), request, Optional.of("sub-123")))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
 
-            registroDispositivoService.reenviarCodigos(resposta.registroId(), requisicao);
-
-            assertThat(registro.getReenvios()).isEqualTo(1);
-            assertThat(canalSms.codigos(resposta.registroId())).hasSize(2);
-            assertThat(canalEmail.codigos(resposta.registroId())).hasSize(2);
-        }
-
-        /**
-         * Quando os reenvios alcançam o limite configurado, esperamos a resposta 429 (Too Many Requests).
-         */
-        @Test
-        @DisplayName("deve lançar quando limite for atingido")
-        void deveFalharQuandoLimiteAtingido() {
-            RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
-            RegistroDispositivo registro = ultimoRegistro;
-            when(registroRepositorio.findById(resposta.registroId())).thenReturn(Optional.of(registro));
-
-            registro.codigoPorCanal(CanalVerificacao.SMS).ifPresent(this::atingirLimiteReenvios);
-            registro.codigoPorCanal(CanalVerificacao.EMAIL).ifPresent(this::atingirLimiteReenvios);
-
-            assertThatThrownBy(() -> registroDispositivoService.reenviarCodigos(resposta.registroId(), new ReenvioCodigoRequest()))
-                    .isInstanceOf(ResponseStatusException.class)
-                    .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
-                    .isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
-        }
-
-        private void atingirLimiteReenvios(CodigoVerificacao codigo) {
-            for (int i = 0; i < properties.getCodigo().getReenviosMaximos(); i++) {
-                codigo.atualizarCodigo(codigo.getCodigoHash(), codigo.getEnviadoEm().orElseThrow(), codigo.getExpiraEm());
-            }
-        }
+        registro.codigoPorCanal(CanalVerificacao.SMS).ifPresent(codigo ->
+                assertThat(codigo.getTentativas()).isEqualTo(1));
     }
 
-    @Nested
-    @DisplayName("Caso de uso: expirar registros pendentes")
-    class ExpirarRegistros {
+    /**
+     * Caso ainda existam reenvios disponíveis, os códigos são renovados e um novo contador registrado.
+     */
+    @Test
+    @DisplayName("deve gerar novo código quando limite não foi atingido")
+    void deveReenviarComSucesso() {
+        inicializarServico();
+        RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
+        RegistroDispositivo registro = Objects.requireNonNull(ultimoRegistro);
+        when(registroRepositorio().findById(Objects.requireNonNull(resposta.registroId())))
+                .thenReturn(Optional.of(Objects.requireNonNull(registro)));
 
-        /**
-         * Job de expiração: registros PENDENTE + expira_em passado devem virar EXPIRADO junto com os códigos.
-         */
-        @Test
-        @DisplayName("deve marcar registros e códigos como expirados")
-        void deveMarcarComoExpirado() {
-            RegistroDispositivo registro = new RegistroDispositivo(
-                    UUID.randomUUID(),
-                    "sub-789",
-                    "teste@eickrono.com",
-                    "+5511999991111",
-                    "fingerprint",
-                    "ANDROID",
-                    "1.0.0",
-                    null,
-                    StatusRegistroDispositivo.PENDENTE,
-                    OffsetDateTime.now(CLOCK_FIXO).minusHours(10),
-                    OffsetDateTime.now(CLOCK_FIXO).minusMinutes(1));
-            CodigoVerificacao codigo = new CodigoVerificacao(
-                    UUID.randomUUID(),
-                    CanalVerificacao.EMAIL,
-                    "teste@eickrono.com",
-                    "hash",
-                    properties.getCodigo().getTentativasMaximas(),
-                    properties.getCodigo().getReenviosMaximos(),
-                    StatusCodigoVerificacao.PENDENTE,
-                    OffsetDateTime.now(CLOCK_FIXO).minusHours(9),
-                    OffsetDateTime.now(CLOCK_FIXO).minusMinutes(1));
-            registro.adicionarCodigo(codigo);
+        ReenvioCodigoRequest requisicao = new ReenvioCodigoRequest();
+        requisicao.setReenviarEmail(true);
+        requisicao.setReenviarSms(true);
 
-            when(registroRepositorio.findByStatusInAndExpiraEmBefore(any(), any())).thenReturn(List.of(registro));
+        registroDispositivoService.reenviarCodigos(resposta.registroId(), requisicao);
 
-            registroDispositivoService.expirarRegistrosPendentes();
-
-            assertThat(registro.getStatus()).isEqualTo(StatusRegistroDispositivo.EXPIRADO);
-            assertThat(codigo.getStatus()).isEqualTo(StatusCodigoVerificacao.EXPIRADO);
-        }
+        assertThat(registro.getReenvios()).isEqualTo(1);
+        assertThat(canalSms.codigos(resposta.registroId())).hasSize(2);
+        assertThat(canalEmail.codigos(resposta.registroId())).hasSize(2);
     }
-    @Nested
-    @DisplayName("Caso de uso: revogar token")
-    class RevogarToken {
 
-        /**
-         * Revogação solicitada pelo cliente: token deve ser marcado como REVOGADO e auditado.
-         */
-        @Test
-        @DisplayName("deve revogar token quando encontrado")
-        void deveRevogarToken() {
-            RegistroDispositivo registro = new RegistroDispositivo(
-                    UUID.randomUUID(),
-                    "sub-123",
-                    "teste@eickrono.com",
-                    "+551199999999",
-                    "fingerprint",
-                    "IOS",
-                    "1.0.0",
-                    null,
-                    StatusRegistroDispositivo.CONFIRMADO,
-                    OffsetDateTime.now(CLOCK_FIXO).minusHours(3),
-                    OffsetDateTime.now(CLOCK_FIXO).plusHours(1));
-            TokenDispositivo token = new TokenDispositivo(
-                    UUID.randomUUID(),
-                    registro,
-                    "sub-123",
-                    "fingerprint",
-                    "IOS",
-                    "1.0.0",
-                    "hash",
-                    StatusTokenDispositivo.ATIVO,
-                    OffsetDateTime.now(CLOCK_FIXO).minusHours(1),
-                    OffsetDateTime.now(CLOCK_FIXO).plusHours(2));
-            tokenDispositivoService.configurarValidar(Optional.of(token));
+    /**
+     * Quando os reenvios alcançam o limite configurado, esperamos a resposta 429 (Too Many Requests).
+     */
+    @Test
+    @DisplayName("deve lançar quando limite for atingido")
+    void deveFalharQuandoLimiteAtingido() {
+        inicializarServico();
+        RegistroDispositivoResponse resposta = solicitarRegistroPadrao();
+        RegistroDispositivo registro = Objects.requireNonNull(ultimoRegistro);
+        when(registroRepositorio().findById(Objects.requireNonNull(resposta.registroId())))
+                .thenReturn(Optional.of(Objects.requireNonNull(registro)));
 
-            registroDispositivoService.revogarToken("sub-123", "token-claro", MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
+        registro.codigoPorCanal(CanalVerificacao.SMS).ifPresent(this::atingirLimiteReenvios);
+        registro.codigoPorCanal(CanalVerificacao.EMAIL).ifPresent(this::atingirLimiteReenvios);
 
-            assertThat(token.getStatus()).isEqualTo(StatusTokenDispositivo.REVOGADO);
-            ArgumentCaptor<AuditoriaEventoIdentidade> auditoriaCaptor = ArgumentCaptor.forClass(AuditoriaEventoIdentidade.class);
-            verify(auditoriaRepositorio).save(auditoriaCaptor.capture());
-            assertThat(auditoriaCaptor.getValue().getTipoEvento()).isEqualTo("DISPOSITIVO_TOKEN_REVOGADO");
-        }
+        assertThatThrownBy(() -> registroDispositivoService.reenviarCodigos(resposta.registroId(), new ReenvioCodigoRequest()))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
+                .isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+    }
 
-        /**
-         * Se o token não for encontrado, nada deve ser registrado nem revogado.
-         */
-        @Test
-        @DisplayName("não deve registrar auditoria quando token não existir")
-        void naoDeveRegistrarQuandoTokenInexistente() {
-            tokenDispositivoService.configurarValidar(Optional.empty());
+    /**
+     * Job de expiração: registros PENDENTE + expira_em passado devem virar EXPIRADO junto com os códigos.
+     */
+    @Test
+    @DisplayName("deve marcar registros e códigos como expirados")
+    void deveMarcarComoExpirado() {
+        inicializarServico();
+        RegistroDispositivo registro = new RegistroDispositivo(
+                UUID.randomUUID(),
+                "sub-789",
+                "teste@eickrono.com",
+                "+5511999991111",
+                "fingerprint",
+                "ANDROID",
+                "1.0.0",
+                null,
+                StatusRegistroDispositivo.PENDENTE,
+                OffsetDateTime.now(CLOCK_FIXO).minusHours(10),
+                OffsetDateTime.now(CLOCK_FIXO).minusMinutes(1));
+        CodigoVerificacao codigo = new CodigoVerificacao(
+                UUID.randomUUID(),
+                CanalVerificacao.EMAIL,
+                "teste@eickrono.com",
+                "hash",
+                properties.getCodigo().getTentativasMaximas(),
+                properties.getCodigo().getReenviosMaximos(),
+                StatusCodigoVerificacao.PENDENTE,
+                OffsetDateTime.now(CLOCK_FIXO).minusHours(9),
+                OffsetDateTime.now(CLOCK_FIXO).minusMinutes(1));
+        registro.adicionarCodigo(codigo);
 
-            registroDispositivoService.revogarToken("sub-123", "token-claro", MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
+        when(registroRepositorio().findByStatusInAndExpiraEmBefore(any(), any())).thenReturn(List.of(registro));
 
-            verify(auditoriaRepositorio, never()).save(any());
+        registroDispositivoService.expirarRegistrosPendentes();
+
+        assertThat(registro.getStatus()).isEqualTo(StatusRegistroDispositivo.EXPIRADO);
+        assertThat(codigo.getStatus()).isEqualTo(StatusCodigoVerificacao.EXPIRADO);
+    }
+
+    /**
+     * Revogação solicitada pelo cliente: token deve ser marcado como REVOGADO e auditado.
+     */
+    @Test
+    @DisplayName("deve revogar token quando encontrado")
+    void deveRevogarToken() {
+        inicializarServico();
+        RegistroDispositivo registro = new RegistroDispositivo(
+                UUID.randomUUID(),
+                "sub-123",
+                "teste@eickrono.com",
+                "+551199999999",
+                "fingerprint",
+                "IOS",
+                "1.0.0",
+                null,
+                StatusRegistroDispositivo.CONFIRMADO,
+                OffsetDateTime.now(CLOCK_FIXO).minusHours(3),
+                OffsetDateTime.now(CLOCK_FIXO).plusHours(1));
+        TokenDispositivo token = new TokenDispositivo(
+                UUID.randomUUID(),
+                registro,
+                "sub-123",
+                "fingerprint",
+                "IOS",
+                "1.0.0",
+                "hash",
+                StatusTokenDispositivo.ATIVO,
+                OffsetDateTime.now(CLOCK_FIXO).minusHours(1),
+                OffsetDateTime.now(CLOCK_FIXO).plusHours(2));
+        tokenDispositivoService.configurarValidar(Optional.of(token));
+
+        registroDispositivoService.revogarToken("sub-123", "token-claro", MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
+
+        assertThat(token.getStatus()).isEqualTo(StatusTokenDispositivo.REVOGADO);
+        ArgumentCaptor<AuditoriaEventoIdentidade> auditoriaCaptor = ArgumentCaptor.forClass(AuditoriaEventoIdentidade.class);
+        verify(auditoriaRepositorio()).save(Objects.requireNonNull(auditoriaCaptor.capture()));
+        assertThat(Objects.requireNonNull(auditoriaCaptor.getValue()).getTipoEvento())
+                .isEqualTo("DISPOSITIVO_TOKEN_REVOGADO");
+    }
+
+    /**
+     * Se o token não for encontrado, nada deve ser registrado nem revogado.
+     */
+    @Test
+    @DisplayName("não deve registrar auditoria quando token não existir")
+    void naoDeveRegistrarQuandoTokenInexistente() {
+        inicializarServico();
+        tokenDispositivoService.configurarValidar(Optional.empty());
+
+        registroDispositivoService.revogarToken("sub-123", "token-claro", MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
+
+        verify(auditoriaRepositorio(), never()).save(Objects.requireNonNull(anyValue(AuditoriaEventoIdentidade.class)));
+    }
+
+    private void atingirLimiteReenvios(CodigoVerificacao codigo) {
+        for (int i = 0; i < properties.getCodigo().getReenviosMaximos(); i++) {
+            codigo.atualizarCodigo(codigo.getCodigoHash(), codigo.getEnviadoEm().orElseThrow(), codigo.getExpiraEm());
         }
     }
 

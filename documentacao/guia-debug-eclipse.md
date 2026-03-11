@@ -8,7 +8,7 @@ Este guia mostra como preparar os ambientes Docker (desenvolvimento e homologaç
 2. Docker Desktop ou Docker Engine + Docker Compose Plugin (`docker compose version`).
 3. Eclipse IDE for Enterprise Java Developers 2023‑12 ou superior (com suporte a Maven e Remote Java Application).
 
-> Dica: ao importar o monorepo no Eclipse, use `File > Import... > Existing Maven Projects`, apontando para a raiz `eickrono_autenticacao`. Isso cria projetos separados para cada módulo, facilitando o vínculo nas configurações de depuração.
+> Dica: ao importar o monorepo no Eclipse, use `File > Import... > Existing Maven Projects`, apontando para a raiz `eickrono-autenticacao-servidor`. Isso cria projetos separados para cada módulo, facilitando o vínculo nas configurações de depuração.
 
 ## 2. Build dos módulos antes de subir os containers
 
@@ -25,7 +25,7 @@ Os artefatos serão gerados em `modulos/<nome>/target/`, prontos para serem copi
 ## 3. Ambiente Docker de desenvolvimento
 
 1. Vá para a pasta `infraestrutura/dev`.
-2. Personalize variáveis copiando `.env.dev` para `.env` se precisar alterar portas ou segredos: `cp .env.dev .env`.
+2. Revise o arquivo `.env` e ajuste portas ou segredos, se necessario.
 3. Suba os serviços com suporte a depuração:
    ```bash
    docker compose up --build -d
@@ -48,7 +48,7 @@ Se precisar alterar as portas de depuração, edite `API_IDENTIDADE_DEBUG_PORT` 
 O cenário `hml` replica a configuração com parâmetros de homologação (URLs, schemas, certificados).
 
 1. Vá para `infraestrutura/hml`.
-2. Revise `.env.hml` e, se necessário, copie para `.env` para ajustes locais (`cp .env.hml .env`).
+2. Revise o arquivo `.env` para ajustes locais do ambiente `hml`, se necessario.
 3. Execute:
    ```bash
    docker compose up --build -d
@@ -148,7 +148,7 @@ Observações:
 Para evitar erros de “módulo não encontrado” ou diretório incorreto, execute os comandos sempre a partir da raiz do repositório:
 
 ```bash
-cd /Users/thiago/Desenvolvedor/eickrono_autenticacao
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor
 mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am clean package
 cd infraestrutura/dev
 docker compose build api-identidade-eickrono api-contas-eickrono

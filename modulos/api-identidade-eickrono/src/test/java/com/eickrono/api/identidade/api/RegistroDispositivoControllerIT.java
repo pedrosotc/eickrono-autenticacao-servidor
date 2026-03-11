@@ -12,10 +12,12 @@ import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
 import com.eickrono.api.identidade.dominio.repositorio.TokenDispositivoRepositorio;
 import com.eickrono.api.identidade.dto.ConfirmacaoRegistroResponse;
 import com.eickrono.api.identidade.dto.RegistroDispositivoResponse;
+import com.eickrono.api.identidade.dto.ValidacaoTokenDispositivoResponse;
 import com.eickrono.api.identidade.servico.CanalEnvioCodigo;
 import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,10 +29,10 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -51,13 +53,29 @@ class RegistroDispositivoControllerIT {
     @Autowired
     private TokenDispositivoRepositorio tokenDispositivoRepositorio;
 
+    private MockMvc mockMvc() {
+        return Objects.requireNonNull(mockMvc);
+    }
+
+    private ObjectMapper objectMapper() {
+        return Objects.requireNonNull(objectMapper);
+    }
+
+    private CodigoCapturador codigoCapturador() {
+        return Objects.requireNonNull(codigoCapturador);
+    }
+
+    private TokenDispositivoRepositorio tokenDispositivoRepositorio() {
+        return Objects.requireNonNull(tokenDispositivoRepositorio);
+    }
+
     @Test
     void fluxoCompletoDeRegistroConfirmacaoERevogacao() throws Exception {
         RegistroDispositivoResponse registro = solicitarRegistro();
 
-        String codigoSms = codigoCapturador.obterCodigo(registro.registroId(), CanalVerificacao.SMS)
+        String codigoSms = codigoCapturador().obterCodigo(registro.registroId(), CanalVerificacao.SMS)
                 .orElseThrow(() -> new IllegalStateException("Código SMS não capturado"));
-        String codigoEmail = codigoCapturador.obterCodigo(registro.registroId(), CanalVerificacao.EMAIL)
+        String codigoEmail = codigoCapturador().obterCodigo(registro.registroId(), CanalVerificacao.EMAIL)
                 .orElseThrow(() -> new IllegalStateException("Código e-mail não capturado"));
 
         ConfirmacaoRegistroResponse confirmacao = confirmarRegistro(registro.registroId(), codigoSms, codigoEmail);
@@ -65,36 +83,56 @@ class RegistroDispositivoControllerIT {
         assertThat(confirmacao.tokenDispositivo()).isNotBlank();
 
         // GET com token válido deve passar pelo filtro e chegar à controller (mesmo que retorne 404)
-        mockMvc.perform(get("/identidade/perfil")
-                        .with(clienteJwt())
+        mockMvc().perform(get("/identidade/perfil")
+                        .with(Objects.requireNonNull(clienteJwt()))
                         .header("X-Device-Token", confirmacao.tokenDispositivo()))
                 .andExpect(status().isNotFound());
 
         // Sem o cabeçalho obrigatório deve retornar 428
-        mockMvc.perform(get("/identidade/perfil")
-                        .with(clienteJwt()))
+        mockMvc().perform(get("/identidade/perfil")
+                        .with(Objects.requireNonNull(clienteJwt())))
                 .andExpect(status().isPreconditionRequired());
+        MvcResult semCabecalho = mockMvc().perform(get("/identidade/perfil")
+                        .with(Objects.requireNonNull(clienteJwt())))
+                .andExpect(status().isPreconditionRequired())
+                .andReturn();
+        assertThat(semCabecalho.getResponse().getContentAsString()).contains("DEVICE_TOKEN_MISSING");
 
         // Token inválido retorna 423
-        mockMvc.perform(get("/identidade/perfil")
-                        .with(clienteJwt())
+        MvcResult tokenInvalido = mockMvc().perform(get("/identidade/perfil")
+                        .with(Objects.requireNonNull(clienteJwt()))
                         .header("X-Device-Token", "token-invalido"))
-                .andExpect(status().isLocked());
+                .andExpect(status().isLocked())
+                .andReturn();
+        assertThat(tokenInvalido.getResponse().getContentAsString()).contains("DEVICE_TOKEN_INVALID");
+
+        MvcResult validacao = mockMvc().perform(get("/identidade/dispositivos/token/validacao")
+                        .with(Objects.requireNonNull(clienteJwt()))
+                        .header("X-Device-Token", confirmacao.tokenDispositivo()))
+                .andExpect(status().isOk())
+                .andReturn();
+        ValidacaoTokenDispositivoResponse payloadValidacao = objectMapper().readValue(
+                validacao.getResponse().getContentAsByteArray(),
+                ValidacaoTokenDispositivoResponse.class);
+        assertThat(payloadValidacao.valido()).isTrue();
+        assertThat(payloadValidacao.codigo()).isEqualTo("DEVICE_TOKEN_VALID");
 
         // Revogação
-        mockMvc.perform(post("/identidade/dispositivos/revogar")
-                        .with(clienteJwt())
+        mockMvc().perform(post("/identidade/dispositivos/revogar")
+                        .with(Objects.requireNonNull(clienteJwt()))
                         .header("X-Device-Token", confirmacao.tokenDispositivo())
-                        .contentType(MediaType.APPLICATION_JSON)
+                        .contentType(Objects.requireNonNull(jsonMediaType()))
                         .content("{\"motivo\":\"SOLICITACAO_CLIENTE\"}"))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/identidade/perfil")
-                        .with(clienteJwt())
+        MvcResult revogado = mockMvc().perform(get("/identidade/perfil")
+                        .with(Objects.requireNonNull(clienteJwt()))
                         .header("X-Device-Token", confirmacao.tokenDispositivo()))
-                .andExpect(status().isLocked());
+                .andExpect(status().isLocked())
+                .andReturn();
+        assertThat(revogado.getResponse().getContentAsString()).contains("DEVICE_TOKEN_REVOKED");
 
-        Optional<TokenDispositivo> tokenPersistido = tokenDispositivoRepositorio.findAll().stream().findFirst();
+        Optional<TokenDispositivo> tokenPersistido = tokenDispositivoRepositorio().findAll().stream().findFirst();
         assertThat(tokenPersistido).isPresent();
         assertThat(tokenPersistido.get().getMotivoRevogacao()).contains(MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
     }
@@ -103,8 +141,8 @@ class RegistroDispositivoControllerIT {
     void reenviarCodigoRespeitaLimites() throws Exception {
         RegistroDispositivoResponse registro = solicitarRegistro();
 
-        mockMvc.perform(post(REGISTRO_ENDPOINT + "/" + registro.registroId() + "/reenviar")
-                        .contentType(MediaType.APPLICATION_JSON)
+        mockMvc().perform(post(REGISTRO_ENDPOINT + "/" + registro.registroId() + "/reenviar")
+                        .contentType(Objects.requireNonNull(jsonMediaType()))
                         .content("{}"))
                 .andExpect(status().isAccepted());
     }
@@ -120,39 +158,43 @@ class RegistroDispositivoControllerIT {
                 }
                 """;
 
-        MvcResult resultado = mockMvc.perform(post(REGISTRO_ENDPOINT)
-                        .with(clienteJwt())
-                        .contentType(MediaType.APPLICATION_JSON)
+        MvcResult resultado = mockMvc().perform(post(REGISTRO_ENDPOINT)
+                        .with(Objects.requireNonNull(clienteJwt()))
+                        .contentType(Objects.requireNonNull(jsonMediaType()))
                         .content(payload))
                 .andExpect(status().isAccepted())
                 .andReturn();
 
-        return objectMapper.readValue(resultado.getResponse().getContentAsByteArray(), RegistroDispositivoResponse.class);
+        return objectMapper().readValue(resultado.getResponse().getContentAsByteArray(), RegistroDispositivoResponse.class);
     }
 
     private ConfirmacaoRegistroResponse confirmarRegistro(UUID registroId, String codigoSms, String codigoEmail) throws Exception {
-        String payload = objectMapper.writeValueAsString(Map.of(
+        String payload = Objects.requireNonNull(objectMapper().writeValueAsString(Map.of(
                 "codigoSms", codigoSms,
                 "codigoEmail", codigoEmail
-        ));
+        )));
 
-        MvcResult resultado = mockMvc.perform(post(REGISTRO_ENDPOINT + "/" + registroId + "/confirmacao")
-                        .with(clienteJwt())
-                        .contentType(MediaType.APPLICATION_JSON)
+        MvcResult resultado = mockMvc().perform(post(REGISTRO_ENDPOINT + "/" + registroId + "/confirmacao")
+                        .with(Objects.requireNonNull(clienteJwt()))
+                        .contentType(Objects.requireNonNull(jsonMediaType()))
                         .content(payload))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        return objectMapper.readValue(resultado.getResponse().getContentAsByteArray(), ConfirmacaoRegistroResponse.class);
+        return objectMapper().readValue(resultado.getResponse().getContentAsByteArray(), ConfirmacaoRegistroResponse.class);
     }
 
-    private SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor clienteJwt() {
-        return jwt().jwt(builder -> builder
+    private RequestPostProcessor clienteJwt() {
+        return Objects.requireNonNull(jwt().jwt(builder -> builder
                         .subject("usuario-xyz")
                         .claim("scope", "identidade:ler"))
                 .authorities(
                         new SimpleGrantedAuthority("ROLE_cliente"),
-                        new SimpleGrantedAuthority("SCOPE_identidade:ler"));
+                        new SimpleGrantedAuthority("SCOPE_identidade:ler")));
+    }
+
+    private MediaType jsonMediaType() {
+        return Objects.requireNonNull(MediaType.APPLICATION_JSON);
     }
 
     @TestConfiguration

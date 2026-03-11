@@ -113,6 +113,9 @@ public class RegistroDispositivoService {
     public ConfirmacaoRegistroResponse confirmarRegistro(UUID id,
                                                          ConfirmacaoRegistroRequest request,
                                                          Optional<String> usuarioSubOpt) {
+        if (id == null) {
+            throw new IllegalArgumentException("Id do registro obrigatorio.");
+        }
         RegistroDispositivo registro = registroRepositorio.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro não encontrado"));
         OffsetDateTime agora = OffsetDateTime.now(clock);
@@ -153,6 +156,9 @@ public class RegistroDispositivoService {
 
     @Transactional
     public void reenviarCodigos(UUID id, ReenvioCodigoRequest request) {
+        if (id == null) {
+            throw new IllegalArgumentException("Id do registro obrigatorio.");
+        }
         RegistroDispositivo registro = registroRepositorio.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registro não encontrado"));
         OffsetDateTime agora = OffsetDateTime.now(clock);

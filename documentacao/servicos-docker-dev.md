@@ -7,7 +7,7 @@ Este guia rápido explica, de forma acessível para quem está começando, os se
 ## eickrono-keycloak-dev
 
 - **O que é:** uma instância do Keycloak (servidor de autorização) configurada com o realm `desenvolvimento`. Ele cuida do login, emissão de tokens e regras de segurança.
-- **Configuração:** fica no container `servidor-autorizacao` definido em `infraestrutura/dev/docker-compose.yml`. Usa a imagem `quay.io/keycloak/keycloak:24.0.5`.
+- **Configuração:** fica no container `servidor-autorizacao` definido em `infraestrutura/dev/docker-compose.yml`. Usa a imagem `quay.io/keycloak/keycloak:26.5.5`.
 
 ### Quando usar
 

@@ -1,4 +1,4 @@
-digraph "Arquitetura Eickrono Autenticacao" {
+digraph "Arquitetura Eickrono Autenticacao Servidor" {
     label="Arquitetura geral da plataforma Eickrono Autenticação";
     labelloc=t;
     fontsize=20;

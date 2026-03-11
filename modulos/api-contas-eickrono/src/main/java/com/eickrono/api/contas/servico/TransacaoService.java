@@ -30,6 +30,9 @@ public class TransacaoService {
 
     @Transactional(readOnly = true)
     public List<TransacaoDto> listarPorConta(Long contaId, String clienteId) {
+        if (contaId == null) {
+            throw new IllegalArgumentException("Id da conta obrigatorio.");
+        }
         Conta conta = contaRepositorio.findById(contaId)
                 .filter(c -> c.getClienteId().equals(clienteId))
                 .orElseThrow(() -> new IllegalArgumentException("Conta não encontrada para o cliente informado"));
@@ -41,8 +44,12 @@ public class TransacaoService {
     }
 
     private TransacaoDto mapear(Transacao transacao) {
+        Long id = transacao.getId();
+        if (id == null) {
+            throw new IllegalStateException("Transacao sem id persistido.");
+        }
         return new TransacaoDto(
-                transacao.getId(),
+                id,
                 transacao.getTipo().name(),
                 transacao.getValor(),
                 transacao.getEfetivadaEm(),

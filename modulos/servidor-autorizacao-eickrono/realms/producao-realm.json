@@ -2,10 +2,230 @@
   "realm": "producao",
   "enabled": true,
   "displayName": "Realm Produção Eickrono",
+  "passwordPolicy": "hashAlgorithm(argon2)",
   "loginWithEmailAllowed": true,
   "registrationEmailAsUsername": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": false,
+  "authenticationFlows": [
+    {
+      "alias": "eickrono browser",
+      "description": "Browser based authentication with custom password derivation",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "identity-provider-redirector",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 25,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 30,
+          "autheticatorFlow": true,
+          "flowAlias": "eickrono browser forms",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "eickrono browser forms",
+      "description": "Username and password form with pepper and birthdate derivation",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "eickrono-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "eickrono registration",
+      "description": "Registration flow with custom password derivation",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "registration-page-form",
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "autheticatorFlow": true,
+          "flowAlias": "eickrono registration form",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "eickrono registration form",
+      "description": "Registration form actions with pepper and birthdate derivation",
+      "providerId": "form-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "registration-user-creation",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "registration-profile-action",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 40,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "eickrono-registration-password-action",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 50,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "CONFIGURE_TOTP",
+      "priority": 20
+    },
+    {
+      "alias": "UPDATE_PASSWORD",
+      "name": "Eickrono Update Password",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "eickrono-update-password",
+      "priority": 30
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "VERIFY_EMAIL",
+      "priority": 40
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "UPDATE_PROFILE",
+      "priority": 50
+    },
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "VERIFY_PROFILE",
+      "priority": 60
+    },
+    {
+      "alias": "terms_and_conditions",
+      "name": "Terms and Conditions",
+      "enabled": false,
+      "defaultAction": false,
+      "providerId": "terms_and_conditions",
+      "priority": 70
+    },
+    {
+      "alias": "webauthn-register",
+      "name": "Webauthn Register",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "webauthn-register",
+      "priority": 80
+    },
+    {
+      "alias": "webauthn-register-passwordless",
+      "name": "Webauthn Register Passwordless",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "webauthn-register-passwordless",
+      "priority": 90
+    },
+    {
+      "alias": "update_user_locale",
+      "name": "Update User Locale",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "update_user_locale",
+      "priority": 100
+    },
+    {
+      "alias": "delete_account",
+      "name": "Delete Account",
+      "enabled": false,
+      "defaultAction": false,
+      "providerId": "delete_account",
+      "priority": 110
+    },
+    {
+      "alias": "delete_credential",
+      "name": "Delete Credential",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "delete_credential",
+      "priority": 120
+    },
+    {
+      "alias": "recovery-authn-codes",
+      "name": "Recovery Authentication Codes",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "recovery-authn-codes",
+      "priority": 130
+    },
+    {
+      "alias": "UPDATE_EMAIL",
+      "name": "Update Email",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "UPDATE_EMAIL",
+      "priority": 140
+    },
+    {
+      "alias": "idp_link",
+      "name": "Link existing account",
+      "enabled": true,
+      "defaultAction": false,
+      "providerId": "idp_link",
+      "priority": 150
+    }
+  ],
+  "browserFlow": "eickrono browser",
+  "registrationFlow": "eickrono registration",
   "clientScopes": [
     {
       "name": "vinculos:ler",

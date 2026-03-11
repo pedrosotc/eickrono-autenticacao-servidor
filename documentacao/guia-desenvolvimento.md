@@ -15,7 +15,7 @@ Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário
 
 1. Execute `mvn -version` para validar a instalação do Maven e do JDK 21.  
 2. Rode `mvn verify` na raiz para baixar dependências e validar qualidade.  
-3. Copie `infraestrutura/dev/.env.dev` para personalização local (use valores seguros).  
+3. Revise `infraestrutura/dev/.env` e personalize os valores locais com segurança.  
 4. Execute `docker compose up` em `infraestrutura/dev` para subir Keycloak, PostgreSQL e as APIs.  
 5. Acesse `http://localhost:8081/actuator/health` e `http://localhost:8082/actuator/health` para verificar se as APIs estão saudáveis.
 

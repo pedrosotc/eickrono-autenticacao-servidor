@@ -1,5 +1,6 @@
 package com.eickrono.api.identidade.servico;
 
+import java.util.Objects;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.cache.Cache;
@@ -34,8 +35,12 @@ public class ChavesPublicasService {
                 return emCache;
             }
         }
-        String resposta = restTemplate.getForObject(properties.getJwt().getJwkSetUri(), String.class);
-        if (cache != null && resposta != null) {
+        String resposta = Objects.requireNonNull(
+                restTemplate.getForObject(
+                        Objects.requireNonNull(properties.getJwt().getJwkSetUri(), "JWK Set URI obrigatoria."),
+                        String.class),
+                "Resposta JWKS obrigatoria.");
+        if (cache != null) {
             cache.put("jwks", resposta);
         }
         return resposta;

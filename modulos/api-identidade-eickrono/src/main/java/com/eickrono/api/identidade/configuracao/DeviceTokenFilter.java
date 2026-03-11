@@ -1,15 +1,19 @@
 package com.eickrono.api.identidade.configuracao;
 
+import com.eickrono.api.identidade.dto.ValidacaoTokenDispositivoResponse;
+import com.eickrono.api.identidade.servico.ResultadoValidacaoTokenDispositivo;
+import com.eickrono.api.identidade.servico.StatusValidacaoTokenDispositivo;
 import com.eickrono.api.identidade.servico.TokenDispositivoService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,15 +33,21 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
     private static final AntPathMatcher PATH_MATCHER = new AntPathMatcher();
 
     private final TokenDispositivoService tokenDispositivoService;
+    private final ObjectMapper objectMapper;
 
     public DeviceTokenFilter(TokenDispositivoService tokenDispositivoService) {
+        this(tokenDispositivoService, new ObjectMapper());
+    }
+
+    public DeviceTokenFilter(TokenDispositivoService tokenDispositivoService, ObjectMapper objectMapper) {
         this.tokenDispositivoService = tokenDispositivoService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
         if (shouldSkip(request)) {
             filterChain.doFilter(request, response);
             return;
@@ -58,14 +68,15 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
 
         String deviceToken = request.getHeader(HEADER_DEVICE_TOKEN);
         if (!StringUtils.hasText(deviceToken)) {
-            responder(response, HttpStatus.PRECONDITION_REQUIRED, "Cabeçalho X-Device-Token é obrigatório");
+            responder(response, HttpStatus.PRECONDITION_REQUIRED,
+                    new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.AUSENTE, null));
             return;
         }
 
         String usuarioSub = jwtAuthenticationToken.getToken().getSubject();
-        boolean valido = tokenDispositivoService.validarTokenAtivo(usuarioSub, deviceToken).isPresent();
-        if (!valido) {
-            responder(response, HttpStatus.LOCKED, "Token de dispositivo revogado ou inválido");
+        ResultadoValidacaoTokenDispositivo resultado = tokenDispositivoService.validarToken(usuarioSub, deviceToken);
+        if (!resultado.valido()) {
+            responder(response, HttpStatus.LOCKED, resultado);
             return;
         }
 
@@ -74,7 +85,14 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
 
     private boolean shouldSkip(HttpServletRequest request) {
         String path = request.getRequestURI();
-        if (HttpMethod.OPTIONS.matches(request.getMethod())) {
+        if (path == null) {
+            throw new IllegalStateException("Request URI obrigatoria.");
+        }
+        String method = request.getMethod();
+        if (method == null) {
+            throw new IllegalStateException("Metodo HTTP obrigatorio.");
+        }
+        if (HttpMethod.OPTIONS.matches(method)) {
             return true;
         }
         if (PATH_MATCHER.match("/actuator/**", path)
@@ -85,12 +103,16 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
         return false;
     }
 
-    private void responder(HttpServletResponse response, HttpStatus status, String mensagem) throws IOException {
+    private void responder(HttpServletResponse response,
+            HttpStatus status,
+            ResultadoValidacaoTokenDispositivo resultado) throws IOException {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        String payload = """
-                {"erro":"%s"}
-                """.formatted(mensagem);
-        response.getOutputStream().write(payload.getBytes(StandardCharsets.UTF_8));
+        ValidacaoTokenDispositivoResponse payload = new ValidacaoTokenDispositivoResponse(
+                resultado.valido(),
+                resultado.codigo(),
+                resultado.mensagem(),
+                resultado.expiraEmOpt().orElse(null));
+        objectMapper.writeValue(response.getOutputStream(), payload);
     }
 }

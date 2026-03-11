@@ -33,6 +33,9 @@ public class ContaService {
 
     @Transactional(readOnly = true)
     public Optional<ContaResumoDto> buscarPorId(Long id, String clienteId) {
+        if (id == null) {
+            throw new IllegalArgumentException("Id da conta obrigatorio.");
+        }
         return contaRepositorio.findById(id)
                 .filter(conta -> conta.getClienteId().equals(clienteId))
                 .map(conta -> {
@@ -42,6 +45,14 @@ public class ContaService {
     }
 
     private ContaResumoDto mapear(Conta conta) {
-        return new ContaResumoDto(conta.getId(), conta.getNumero(), conta.getSaldo(), conta.getAtualizadaEm());
+        Long id = conta.getId();
+        if (id == null) {
+            throw new IllegalStateException("Conta sem id persistido.");
+        }
+        return new ContaResumoDto(
+                id,
+                conta.getNumero(),
+                conta.getSaldo(),
+                conta.getAtualizadaEm());
     }
 }

@@ -37,6 +37,10 @@ fapi:
     audiencia-esperada: api-contas-eickrono
     tolerancia-clock-skew-segundos: 60
 
+integracao:
+  identidade:
+    url-base: ${IDENTIDADE_API_BASE_URL:http://localhost:8081}
+
 springdoc:
   api-docs:
     enabled: false

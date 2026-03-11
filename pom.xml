@@ -9,10 +9,10 @@
         <relativePath/>
     </parent>
     <groupId>com.eickrono</groupId>
-    <artifactId>eickrono-autenticacao</artifactId>
+    <artifactId>eickrono-autenticacao-servidor</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>Eickrono Autenticacao - Monorepo</name>
+    <name>Eickrono Autenticacao Servidor - Monorepo</name>
     <description>Ecossistema de autenticacao e APIs seguindo FAPI com Spring Boot e Keycloak.</description>
 
     <modules>
@@ -26,6 +26,7 @@
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <keycloak.version>26.5.5</keycloak.version>
         <spring-doc.version>2.5.0</spring-doc.version>
         <checkstyle.version>10.14.2</checkstyle.version>
         <spotbugs.version>4.9.0.0</spotbugs.version>

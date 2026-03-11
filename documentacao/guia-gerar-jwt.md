@@ -46,9 +46,9 @@ curl -I http://localhost:8080
 
 **Comandos equivalentes (kcadm)**
 ```bash
-# Carrega as variáveis do arquivo .env.dev (ajuste o caminho/ambiente conforme necessário)
+# Carrega as variaveis do arquivo .env (ajuste o caminho/ambiente conforme necessario)
 set -a
-source infraestrutura/dev/.env.dev
+source infraestrutura/dev/.env
 set +a
 REALM=desenvolvimento
 

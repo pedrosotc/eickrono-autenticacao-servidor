@@ -41,6 +41,7 @@ import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.lang.NonNull;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -66,7 +67,7 @@ class AplicacaoApiIdentidadeTest {
 
     static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
         @Override
-        public void initialize(ConfigurableApplicationContext context) {
+        public void initialize(@NonNull ConfigurableApplicationContext context) {
             iniciarPostgres();
             iniciarOidc();
             registrarPropriedades(context);
@@ -131,7 +132,7 @@ class AplicacaoApiIdentidadeTest {
 
     private static class EncerramentoInfraestruturaListener implements ApplicationListener<ContextClosedEvent> {
         @Override
-        public void onApplicationEvent(ContextClosedEvent event) {
+        public void onApplicationEvent(@NonNull ContextClosedEvent event) {
             encerrarInfraestrutura();
         }
     }
