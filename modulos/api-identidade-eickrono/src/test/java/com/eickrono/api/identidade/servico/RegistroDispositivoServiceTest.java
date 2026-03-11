@@ -1,12 +1,32 @@
 package com.eickrono.api.identidade.servico;
 
+import java.lang.reflect.Proxy;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mock;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.eickrono.api.identidade.configuracao.DispositivoProperties;
 import com.eickrono.api.identidade.dominio.modelo.AuditoriaEventoIdentidade;
@@ -25,26 +45,6 @@ import com.eickrono.api.identidade.dto.ConfirmacaoRegistroRequest;
 import com.eickrono.api.identidade.dto.ReenvioCodigoRequest;
 import com.eickrono.api.identidade.dto.RegistroDispositivoRequest;
 import com.eickrono.api.identidade.dto.RegistroDispositivoResponse;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class RegistroDispositivoServiceTest {
@@ -56,8 +56,6 @@ class RegistroDispositivoServiceTest {
     @Mock
     private CodigoVerificacaoRepositorio codigoRepositorio;
     private TokenDispositivoServiceFake tokenDispositivoService;
-    @Mock
-    private AuditoriaEventoIdentidadeRepositorio auditoriaRepositorio;
 
     private DispositivoProperties properties;
     private RegistroDispositivoService registroDispositivoService;
@@ -65,6 +63,7 @@ class RegistroDispositivoServiceTest {
     private CapturadorCanal canalEmail;
 
     private RegistroDispositivo ultimoRegistro;
+    private final List<AuditoriaEventoIdentidade> auditorias = new ArrayList<>();
 
     private RegistroDispositivoRepositorio registroRepositorio() {
         return Objects.requireNonNull(registroRepositorio);
@@ -75,7 +74,20 @@ class RegistroDispositivoServiceTest {
     }
 
     private AuditoriaEventoIdentidadeRepositorio auditoriaRepositorio() {
-        return Objects.requireNonNull(auditoriaRepositorio);
+        return (AuditoriaEventoIdentidadeRepositorio) Proxy.newProxyInstance(
+                AuditoriaEventoIdentidadeRepositorio.class.getClassLoader(),
+                new Class<?>[] {AuditoriaEventoIdentidadeRepositorio.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "save" -> {
+                        AuditoriaEventoIdentidade auditoria = (AuditoriaEventoIdentidade) Objects.requireNonNull(args)[0];
+                        auditorias.add(auditoria);
+                        yield auditoria;
+                    }
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy == args[0];
+                    case "toString" -> "AuditoriaEventoIdentidadeRepositorioFake";
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
     }
 
     private RegistroDispositivo registroSalvo(InvocationOnMock invocation) {
@@ -103,6 +115,7 @@ class RegistroDispositivoServiceTest {
         properties.getToken().setSegredoHmac("token-secreto-test");
         properties.getToken().setValidadeHoras(48);
         properties.getToken().setTamanhoBytes(16);
+        auditorias.clear();
 
         AuditoriaService auditoriaService = new AuditoriaService(auditoriaRepositorio());
         canalSms = new CapturadorCanal(CanalVerificacao.SMS);
@@ -139,9 +152,8 @@ class RegistroDispositivoServiceTest {
         assertThat(canalSms.codigos(resposta.registroId())).hasSize(1);
         assertThat(canalEmail.codigos(resposta.registroId())).hasSize(1);
 
-        ArgumentCaptor<AuditoriaEventoIdentidade> auditoriaCaptor = ArgumentCaptor.forClass(AuditoriaEventoIdentidade.class);
-        verify(auditoriaRepositorio()).save(Objects.requireNonNull(auditoriaCaptor.capture()));
-        assertThat(Objects.requireNonNull(auditoriaCaptor.getValue()).getTipoEvento())
+        assertThat(auditorias).hasSize(1);
+        assertThat(auditorias.getFirst().getTipoEvento())
                 .isEqualTo("DISPOSITIVO_REGISTRO_SOLICITADO");
 
         assertThat(ultimoRegistro.getStatus()).isEqualTo(StatusRegistroDispositivo.PENDENTE);
@@ -335,9 +347,8 @@ class RegistroDispositivoServiceTest {
         registroDispositivoService.revogarToken("sub-123", "token-claro", MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
 
         assertThat(token.getStatus()).isEqualTo(StatusTokenDispositivo.REVOGADO);
-        ArgumentCaptor<AuditoriaEventoIdentidade> auditoriaCaptor = ArgumentCaptor.forClass(AuditoriaEventoIdentidade.class);
-        verify(auditoriaRepositorio()).save(Objects.requireNonNull(auditoriaCaptor.capture()));
-        assertThat(Objects.requireNonNull(auditoriaCaptor.getValue()).getTipoEvento())
+        assertThat(auditorias).hasSize(1);
+        assertThat(auditorias.getFirst().getTipoEvento())
                 .isEqualTo("DISPOSITIVO_TOKEN_REVOGADO");
     }
 
@@ -352,7 +363,7 @@ class RegistroDispositivoServiceTest {
 
         registroDispositivoService.revogarToken("sub-123", "token-claro", MotivoRevogacaoToken.SOLICITACAO_CLIENTE);
 
-        verify(auditoriaRepositorio(), never()).save(Objects.requireNonNull(anyValue(AuditoriaEventoIdentidade.class)));
+        verifyNoInteractions(auditoriaRepositorio());
     }
 
     private void atingirLimiteReenvios(CodigoVerificacao codigo) {

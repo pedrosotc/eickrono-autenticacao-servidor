@@ -3,6 +3,7 @@ package com.eickrono.api.identidade.servico;
 import com.eickrono.api.identidade.dominio.repositorio.PerfilIdentidadeRepositorio;
 import com.eickrono.api.identidade.dto.PerfilDto;
 import java.util.Optional;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class PerfilService {
 
     private final PerfilIdentidadeRepositorio perfilRepositorio;
+    private final ProvisionamentoIdentidadeService provisionamentoIdentidadeService;
 
-    public PerfilService(PerfilIdentidadeRepositorio perfilRepositorio) {
+    public PerfilService(PerfilIdentidadeRepositorio perfilRepositorio,
+                         ProvisionamentoIdentidadeService provisionamentoIdentidadeService) {
         this.perfilRepositorio = perfilRepositorio;
+        this.provisionamentoIdentidadeService = provisionamentoIdentidadeService;
     }
 
     @Transactional(readOnly = true)
@@ -28,5 +32,12 @@ public class PerfilService {
                         perfil.getPerfis(),
                         perfil.getPapeis(),
                         perfil.getAtualizadoEm()));
+    }
+
+    @Transactional
+    public PerfilDto buscarOuProvisionar(Jwt jwt) {
+        provisionamentoIdentidadeService.provisionarOuAtualizar(jwt);
+        return buscarPorSub(jwt.getSubject())
+                .orElseThrow(() -> new IllegalStateException("Perfil não encontrado após provisionamento controlado"));
     }
 }

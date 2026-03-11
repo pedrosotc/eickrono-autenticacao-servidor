@@ -27,11 +27,8 @@ public class PerfilController {
 
     @GetMapping("/perfil")
     public ResponseEntity<PerfilDto> obterPerfil(@AuthenticationPrincipal Jwt jwt) {
-        return perfilService.buscarPorSub(jwt.getSubject())
-                .map(perfil -> {
-                    auditoriaService.registrarEvento("PERFIL_CONSULTADO", jwt.getSubject(), "Perfil consultado");
-                    return ResponseEntity.ok(perfil);
-                })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        PerfilDto perfil = perfilService.buscarOuProvisionar(jwt);
+        auditoriaService.registrarEvento("PERFIL_CONSULTADO", jwt.getSubject(), "Perfil consultado");
+        return ResponseEntity.ok(perfil);
     }
 }

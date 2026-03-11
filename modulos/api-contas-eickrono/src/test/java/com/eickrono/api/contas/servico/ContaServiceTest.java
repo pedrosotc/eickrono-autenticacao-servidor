@@ -1,10 +1,21 @@
 package com.eickrono.api.contas.servico;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.eickrono.api.contas.dominio.modelo.AuditoriaAcessoContas;
 import com.eickrono.api.contas.dominio.modelo.Conta;
@@ -12,52 +23,53 @@ import com.eickrono.api.contas.dominio.repositorio.AuditoriaAcessoContasReposito
 import com.eickrono.api.contas.dominio.repositorio.AuditoriaEventoContasRepositorio;
 import com.eickrono.api.contas.dominio.repositorio.ContaRepositorio;
 import com.eickrono.api.contas.dto.ContaResumoDto;
-import java.lang.reflect.Field;
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ContaServiceTest {
 
     @Mock
     private ContaRepositorio contaRepositorio;
-    @Mock
-    private AuditoriaEventoContasRepositorio eventoRepositorio;
-    @Mock
-    private AuditoriaAcessoContasRepositorio acessoRepositorio;
-
     private AuditoriaContasService auditoriaContasService;
     private ContaService contaService;
+    private AuditoriaAcessoContas ultimoAcesso;
 
     private ContaRepositorio contaRepositorio() {
         return Objects.requireNonNull(contaRepositorio);
     }
 
     private AuditoriaEventoContasRepositorio eventoRepositorio() {
-        return Objects.requireNonNull(eventoRepositorio);
+        return (AuditoriaEventoContasRepositorio) Proxy.newProxyInstance(
+                AuditoriaEventoContasRepositorio.class.getClassLoader(),
+                new Class<?>[] {AuditoriaEventoContasRepositorio.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "save" -> Objects.requireNonNull(args)[0];
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy == args[0];
+                    case "toString" -> "AuditoriaEventoContasRepositorioFake";
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
     }
 
     private AuditoriaAcessoContasRepositorio acessoRepositorio() {
-        return Objects.requireNonNull(acessoRepositorio);
+        return (AuditoriaAcessoContasRepositorio) Proxy.newProxyInstance(
+                AuditoriaAcessoContasRepositorio.class.getClassLoader(),
+                new Class<?>[] {AuditoriaAcessoContasRepositorio.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "save" -> {
+                        ultimoAcesso = (AuditoriaAcessoContas) Objects.requireNonNull(args)[0];
+                        yield ultimoAcesso;
+                    }
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy == args[0];
+                    case "toString" -> "AuditoriaAcessoContasRepositorioFake";
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
     }
 
     /** Prepara o serviço real com auditoria controlada via mocks. */
     private void inicializarServico() {
         auditoriaContasService = new AuditoriaContasService(eventoRepositorio(), acessoRepositorio());
         contaService = new ContaService(contaRepositorio(), auditoriaContasService);
-    }
-
-    private static <T> T anyValue(Class<T> tipo) {
-        return any(tipo);
     }
 
     /** Esperamos o mapeamento correto dos campos da entidade para o DTO retornado. */
@@ -93,9 +105,7 @@ class ContaServiceTest {
         ContaResumoDto dto = resultado.orElseThrow();
         assertThat(dto.id()).isEqualTo(7L);
 
-        ArgumentCaptor<AuditoriaAcessoContas> captor = ArgumentCaptor.forClass(AuditoriaAcessoContas.class);
-        verify(acessoRepositorio()).save(Objects.requireNonNull(captor.capture()));
-        assertThat(Objects.requireNonNull(captor.getValue()).getEndpoint()).isEqualTo("/contas/7");
+        assertThat(Objects.requireNonNull(ultimoAcesso).getEndpoint()).isEqualTo("/contas/7");
     }
 
     /** Caso a conta não pertença ao cliente informado, nenhum registro deve ser retornado nem auditado. */
@@ -110,7 +120,7 @@ class ContaServiceTest {
         Optional<ContaResumoDto> resultado = contaService.buscarPorId(7L, "cliente-1");
 
         assertThat(resultado).isEmpty();
-        verify(acessoRepositorio(), never()).save(Objects.requireNonNull(anyValue(AuditoriaAcessoContas.class)));
+        verifyNoInteractions(acessoRepositorio());
     }
 
     private Conta novaConta(String numero, String clienteId, BigDecimal saldo) {

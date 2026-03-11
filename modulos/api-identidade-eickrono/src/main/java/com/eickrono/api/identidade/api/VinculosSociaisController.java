@@ -29,13 +29,13 @@ public class VinculosSociaisController {
 
     @GetMapping
     public List<VinculoSocialDto> listar(@AuthenticationPrincipal Jwt jwt) {
-        return vinculoSocialService.listar(jwt.getSubject());
+        return vinculoSocialService.listar(jwt);
     }
 
     @PostMapping
     public ResponseEntity<VinculoSocialDto> criar(@AuthenticationPrincipal Jwt jwt,
                                                   @Valid @RequestBody CriarVinculoSocialRequisicao requisicao) {
-        VinculoSocialDto criado = vinculoSocialService.criar(jwt.getSubject(), requisicao);
+        VinculoSocialDto criado = vinculoSocialService.criar(jwt, requisicao);
         return ResponseEntity.ok(criado);
     }
 }

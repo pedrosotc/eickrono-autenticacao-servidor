@@ -1,6 +1,7 @@
 package com.eickrono.api.identidade.servico;
 
 import com.eickrono.api.identidade.dominio.modelo.PerfilIdentidade;
+import com.eickrono.api.identidade.dominio.modelo.Pessoa;
 import com.eickrono.api.identidade.dominio.modelo.VinculoSocial;
 import com.eickrono.api.identidade.dominio.repositorio.PerfilIdentidadeRepositorio;
 import com.eickrono.api.identidade.dominio.repositorio.VinculoSocialRepositorio;
@@ -9,6 +10,7 @@ import com.eickrono.api.identidade.dto.VinculoSocialDto;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,18 +23,21 @@ public class VinculoSocialService {
     private final PerfilIdentidadeRepositorio perfilRepositorio;
     private final VinculoSocialRepositorio vinculoRepositorio;
     private final AuditoriaService auditoriaService;
+    private final ProvisionamentoIdentidadeService provisionamentoIdentidadeService;
 
     public VinculoSocialService(PerfilIdentidadeRepositorio perfilRepositorio,
                                 VinculoSocialRepositorio vinculoRepositorio,
-                                AuditoriaService auditoriaService) {
+                                AuditoriaService auditoriaService,
+                                ProvisionamentoIdentidadeService provisionamentoIdentidadeService) {
         this.perfilRepositorio = perfilRepositorio;
         this.vinculoRepositorio = vinculoRepositorio;
         this.auditoriaService = auditoriaService;
+        this.provisionamentoIdentidadeService = provisionamentoIdentidadeService;
     }
 
     @Transactional(readOnly = true)
-    public List<VinculoSocialDto> listar(String sub) {
-        PerfilIdentidade perfil = localizarPerfil(sub);
+    public List<VinculoSocialDto> listar(Jwt jwt) {
+        PerfilIdentidade perfil = provisionarELocalizarPerfil(jwt);
         return vinculoRepositorio.findByPerfil(perfil)
                 .stream()
                 .map(vinculo -> new VinculoSocialDto(
@@ -44,21 +49,32 @@ public class VinculoSocialService {
     }
 
     @Transactional
-    public VinculoSocialDto criar(String sub, CriarVinculoSocialRequisicao requisicao) {
-        PerfilIdentidade perfil = localizarPerfil(sub);
+    public VinculoSocialDto criar(Jwt jwt, CriarVinculoSocialRequisicao requisicao) {
+        Pessoa pessoa = provisionamentoIdentidadeService.provisionarOuAtualizar(jwt);
+        PerfilIdentidade perfil = localizarPerfil(jwt.getSubject());
         VinculoSocial novoVinculo = new VinculoSocial(
                 perfil,
                 requisicao.provedor(),
                 requisicao.identificador(),
                 OffsetDateTime.now());
         VinculoSocial salvo = vinculoRepositorio.save(novoVinculo);
-        auditoriaService.registrarEvento("VINCULO_SOCIAL_CRIADO", sub,
+        provisionamentoIdentidadeService.registrarFormaAcessoSocial(
+                pessoa,
+                requisicao.provedor(),
+                requisicao.identificador(),
+                salvo.getVinculadoEm());
+        auditoriaService.registrarEvento("VINCULO_SOCIAL_CRIADO", jwt.getSubject(),
                 "Provedor=" + requisicao.provedor());
         return new VinculoSocialDto(
                 salvo.getId(),
                 salvo.getProvedor(),
                 salvo.getIdentificador(),
                 salvo.getVinculadoEm());
+    }
+
+    private PerfilIdentidade provisionarELocalizarPerfil(Jwt jwt) {
+        provisionamentoIdentidadeService.provisionarOuAtualizar(jwt);
+        return localizarPerfil(jwt.getSubject());
     }
 
     private PerfilIdentidade localizarPerfil(String sub) {

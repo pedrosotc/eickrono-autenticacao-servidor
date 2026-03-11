@@ -62,6 +62,29 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 - **Bloqueio HTTP:** filtros Spring verificam header `X-Device-Token`, consultam `token_dispositivo` (com cache Caffeine de 5 minutos) e recusam requisições com tokens revogados (`423 Locked`).  
 - **Auditoria:** todos os eventos relevantes são enviados para `AuditoriaEventoIdentidade` com detalhes do fingerprint e motivo.
 
+## Evolução do modelo de identidade
+
+- **Raiz nova do domínio:** a identidade do ecossistema passa a ser modelada por `Pessoa` e `FormaAcesso`, permitindo múltiplas credenciais para a mesma pessoa.
+- **Tipos de acesso:** `FormaAcesso` diferencia pelo menos `EMAIL_SENHA` e `SOCIAL`, com provedor e identificador normalizados para vinculação futura com brokers externos.
+- **Compatibilidade durante a migração:** `PerfilIdentidade` continua existindo como projeção legada/compatível para os pontos já integrados da API e do app.
+- **Provisionamento controlado:** o serviço `ProvisionamentoIdentidadeService` cria ou atualiza a `Pessoa`, garante a forma principal `EMAIL_SENHA` e sincroniza a projeção `PerfilIdentidade` somente quando o `Jwt` chega com `sub`, `email` e `name` válidos.
+- **Conflito de identidade:** o provisionamento rejeita a tentativa de associar o mesmo e-mail principal a pessoas diferentes.
+- **Vínculos sociais:** a criação/listagem de vínculos sociais passa a operar sobre a pessoa provisionada e também registra `FormaAcesso` do tipo `SOCIAL`, mantendo o legado compatível enquanto o modelo antigo é retirado.
+
+## Validação executada
+
+Para esta etapa da migração do modelo de identidade, os testes executados foram:
+
+- `mvn -pl modulos/api-identidade-eickrono -am test-compile -DskipITs`
+- `mvn -pl modulos/api-identidade-eickrono -am -Dtest=ProvisionamentoIdentidadeServiceTest,PerfilServiceTest,VinculoSocialServiceTest test`
+
+Esses testes cobrem especificamente:
+
+- provisionamento controlado de `Pessoa` + `FormaAcesso`;
+- manutenção da projeção legada `PerfilIdentidade`;
+- compatibilidade do `PerfilService` durante a migração;
+- criação e listagem de vínculos sociais sobre o novo modelo.
+
 ## Diagramas recomendados
 
 - Fluxo Authorization Code + PKCE com PAR/JAR/JARM.  
