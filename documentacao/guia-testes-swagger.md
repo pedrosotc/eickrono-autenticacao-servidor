@@ -122,15 +122,24 @@ PY
        "versaoAplicativo": "1.4.2"
      }
      ```
-   - Esperado: `202 Accepted` com `registroId`, `expiraEm`, `status=PENDENTE`.
+   - Observação:
+     - `email` é sempre obrigatório.
+     - `telefone` só é obrigatório quando a política `identidade.dispositivo.onboarding.sms-habilitado=true` estiver ativa.
+   - Esperado: `202 Accepted` com `registroId`, `expiraEm`, `status=PENDENTE` e a lista `canaisConfirmacao`.
    - Pegue os códigos SMS/e-mail nos logs:
      `docker logs -f eickrono-api-identidade-dev | grep "Enviando código"`
-     (implementações `CanalEnvioCodigoSmsLog`/`EmailLog` apenas logam os códigos).
+     (o e-mail é enviado por `CanalEnvioCodigoEmailLog`; SMS passa por `CanalEnvioCodigoSms` e pelo `FornecedorEnvioSms` configurado, que em dev usa `FornecedorEnvioSmsLog`).
 
 2. **POST** `http://localhost:8081/identidade/dispositivos/registro/{registroId}/confirmacao`
    - Cabeçalhos:
      - `Authorization: Bearer <token_password>`
    - Payload:
+     ```json
+     {
+       "codigoEmail": "654321"
+     }
+     ```
+   - Se `canaisConfirmacao` contiver `SMS`, inclua também:
      ```json
      {
        "codigoSms": "123456",
@@ -149,6 +158,7 @@ PY
        "reenviarEmail": false
      }
      ```
+   - `reenviarSms` só terá efeito quando o registro tiver sido criado com o canal SMS ativo.
    - Esperado: `202 Accepted` e novos códigos nos logs.
 
 ### 3. Consultas e ações da API Identidade

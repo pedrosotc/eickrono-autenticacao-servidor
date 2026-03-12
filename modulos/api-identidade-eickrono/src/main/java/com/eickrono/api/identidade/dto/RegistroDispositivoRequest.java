@@ -13,7 +13,6 @@ public class RegistroDispositivoRequest {
     @NotBlank
     private String email;
 
-    @NotBlank
     @Size(min = 5, max = 32)
     private String telefone;
 

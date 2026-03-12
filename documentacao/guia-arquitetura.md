@@ -6,7 +6,7 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 
 - **Servidor de autorização (Keycloak/RH-SSO):** responsável pelos realms `desenvolvimento`, `homologacao` e `producao`. Mantém configurações PAR/JAR/JARM, políticas de MFA/WebAuthn/Passkeys e rotação de chaves JWK.
 - **API Identidade Eickrono:** serviço Spring Boot que expõe recursos de perfil e vínculos sociais, validando tokens JWT provenientes do servidor de autorização.
-- **Registro de dispositivos móveis:** conjunto de serviços na API de Identidade (`RegistroDispositivoService`, `TokenDispositivoService`, `CodigoVerificacaoService`) que gerenciam onboarding de novos aparelhos, revogação de tokens antigos e dupla verificação via SMS e e-mail.
+- **Registro de dispositivos móveis:** conjunto de serviços na API de Identidade (`RegistroDispositivoService`, `TokenDispositivoService`, `CodigoVerificacaoService`) que gerenciam onboarding de novos aparelhos, revogação de tokens antigos e verificação por canais configuráveis, com e-mail sempre obrigatório e SMS opcional por política.
 - **API Contas Eickrono:** serviço Spring Boot para operações de contas e transações, com escopos e papéis específicos (`SCOPE_transacoes:ler`, `ROLE_cliente`) e auditoria detalhada.
 - **PostgreSQL:** banco multi-schema, com versionamento por Flyway e separação de usuários por ambiente.
 - **Caffeine Cache:** camada de cache em memória utilizada de forma consistente pelos serviços.
@@ -28,10 +28,11 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 5. **mTLS:**  
    - Clientes confidenciais utilizam certificados gerenciados (ACM/KMS em produção) para autenticação mútua.  
    - Em desenvolvimento e homologação utilizamos certificados autoassinados gerados via scripts no repositório.
-6. **Registro de dispositivo com MFA dupla (SMS + e-mail):**  
-   - O App Flutter envia fingerprint e contatos para `POST /identidade/dispositivos/registro`.  
-   - A API gera duas verificações (`CodigoVerificacao`) e envia códigos pelos canais configurados (`CanalEnvioCodigoSms`, `CanalEnvioCodigoEmail`).  
-   - A confirmação via `POST /identidade/dispositivos/registro/{id}/confirmacao` compara hashes de código, garante tentativas limitadas e expiração em 9 horas.  
+6. **Registro de dispositivo com política de canais:**  
+   - O App Flutter envia fingerprint, e-mail e metadados do aparelho para `POST /identidade/dispositivos/registro`. O telefone só é obrigatório quando a política de SMS estiver habilitada.  
+   - A API sempre gera verificação por e-mail e, opcionalmente, por SMS, conforme `identidade.dispositivo.onboarding.sms-habilitado`.  
+   - O envio de SMS passa por `CanalEnvioCodigoSms`, que delega ao `FornecedorEnvioSms` configurado em `identidade.dispositivo.onboarding.sms-fornecedor`, preparando o backend para múltiplos provedores.  
+   - A confirmação via `POST /identidade/dispositivos/registro/{id}/confirmacao` valida apenas os canais efetivamente criados no registro, mantendo hashes, tentativas limitadas e expiração em 9 horas.  
    - A finalização gera `DispositivoToken` opaco, revoga tokens anteriores e notifica o Keycloak (SPI `DeviceTokenConstraintProvider`) para impedir sessões de aparelhos não validados.
 
 ## Integrações e validações
@@ -50,8 +51,8 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 
 ## Modelo de dados do registro de dispositivos
 
-- **Tabela `registro_dispositivo`:** armazena metadados da solicitação (UUID, e-mail, telefone, fingerprint, status, `criado_em`, `expira_em`, `confirmado_em`).  
-- **Tabela `codigo_verificacao`:** relaciona registro + canal (`SMS`/`EMAIL`), hash do código, tentativas, limite e timestamps de envio/validação.  
+- **Tabela `registro_dispositivo`:** armazena metadados da solicitação (UUID, e-mail, telefone opcional quando SMS estiver desligado, fingerprint, status, `criado_em`, `expira_em`, `confirmado_em`).  
+- **Tabela `codigo_verificacao`:** relaciona registro + canal (`EMAIL` sempre, `SMS` somente quando habilitado), hash do código, tentativas, limite e timestamps de envio/validação.  
 - **Tabela `token_dispositivo`:** mantém tokens opacos vinculados ao usuário (`sub`), fingerprint, data de emissão, revogação e motivo.  
 - Todas têm índices em `status`, `expira_em` e `usuario_sub` para facilitar queries do job de expiração e verificação rápida no filtro HTTP (`DeviceTokenFilter`).
 
@@ -73,17 +74,31 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 
 ## Validação executada
 
-Para esta etapa da migração do modelo de identidade, os testes executados foram:
+Para esta etapa do onboarding de dispositivo, os testes executados foram:
 
-- `mvn -pl modulos/api-identidade-eickrono -am test-compile -DskipITs`
-- `mvn -pl modulos/api-identidade-eickrono -am -Dtest=ProvisionamentoIdentidadeServiceTest,PerfilServiceTest,VinculoSocialServiceTest test`
+- `mvn -U -pl modulos/api-contas-eickrono -am test-compile -DskipITs`
+- `mvn -U -pl modulos/api-identidade-eickrono -am test-compile -DskipITs`
+- `mvn -U -pl modulos/api-identidade-eickrono -am -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,CanalEnvioCodigoSmsTest test`
+- `mvn -U -pl modulos/api-contas-eickrono -am -Dtest=AplicacaoApiContasTest,ApiContasDeviceTokenContractTest test`
 
 Esses testes cobrem especificamente:
 
-- provisionamento controlado de `Pessoa` + `FormaAcesso`;
-- manutenção da projeção legada `PerfilIdentidade`;
-- compatibilidade do `PerfilService` durante a migração;
-- criação e listagem de vínculos sociais sobre o novo modelo.
+- `RegistroDispositivoService` com SMS habilitado e desabilitado por política;
+- obrigatoriedade de e-mail e obrigatoriedade condicional do telefone;
+- confirmação e reenvio obedecendo apenas os canais efetivamente gerados;
+- delegação do canal SMS para um fornecedor configurável;
+- provisionamento controlado de identidade durante o fluxo autenticado;
+- filtros e contratos de `X-Device-Token` com banco PostgreSQL real;
+- compilação dos módulos impactados sem reintroduzir alertas artificiais no estilo já descrito no `guia-desenvolvimento.md`.
+
+Observações de arquitetura e execução:
+
+- os testes Spring Boot de `api-identidade` e `api-contas` foram migrados para PostgreSQL real via Testcontainers;
+- os containers de teste podem reaproveitar `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` do ambiente quando essas variáveis estiverem definidas;
+- host e porta continuam efêmeros e controlados pelo Testcontainers, sem depender do `docker compose` de `dev/hml`;
+- a causa histórica do falso sintoma `permission denied ... docker.sock` não era ausência de acesso ao Docker em si, mas incompatibilidade entre a stack antiga de Testcontainers e a API atual do Docker Desktop local;
+- a correção adotada foi atualizar Testcontainers para `1.21.4`, mantendo PostgreSQL real e preservando o isolamento dos testes;
+- os testes de integração executados nesta etapa passaram com `BUILD SUCCESS` em PostgreSQL real via Testcontainers.
 
 ## Diagramas recomendados
 

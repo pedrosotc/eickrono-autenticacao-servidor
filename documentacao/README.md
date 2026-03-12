@@ -12,7 +12,7 @@ Bem-vinda(o) ao monorepo **Eickrono Autenticação**. Este projeto reúne a plat
 - **Banco de dados:** PostgreSQL com Flyway  
 - **Cache:** Caffeine padronizado  
 - **Ambientes:** desenvolvimento, homologação, produção
-- **Onboarding de dispositivos móveis:** registro controlado por MFA (SMS + e-mail), geração de `device_token` opaco e revogação automática de aparelhos anteriores.
+- **Onboarding de dispositivos móveis:** registro com e-mail obrigatório, SMS opcional por política, geração de `device_token` opaco e revogação automática de aparelhos anteriores.
 
 ## Estrutura principal
 
@@ -23,7 +23,7 @@ Bem-vinda(o) ao monorepo **Eickrono Autenticação**. Este projeto reúne a plat
 
 ## Diagramas e fluxos
 
-Arquivos na pasta `documentacao/diagramas` incluem o fluxo Authorization Code + PKCE e o novo fluxograma de registro de dispositivos móveis com MFA dupla.
+Arquivos na pasta `documentacao/diagramas` incluem o fluxo Authorization Code + PKCE e o fluxograma de registro de dispositivos móveis com política de canais configurável.
 
 ## Próximos passos sugeridos
 

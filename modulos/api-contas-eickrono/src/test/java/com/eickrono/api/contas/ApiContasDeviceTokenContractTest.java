@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.eickrono.api.contas.support.InfraestruturaTesteContas;
 import com.eickrono.api.contas.configuracao.ResultadoValidacaoTokenDispositivoRemoto;
 import com.eickrono.api.contas.configuracao.ValidacaoTokenDispositivoResponse;
 import com.eickrono.api.contas.configuracao.ValidadorTokenDispositivoRemoto;
@@ -16,6 +17,7 @@ import com.eickrono.api.contas.servico.ContaService;
 import com.eickrono.api.contas.servico.TransacaoService;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.List;
 import java.util.Objects;
 import org.junit.jupiter.api.Test;
@@ -24,14 +26,18 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-@SpringBootTest
+@SpringBootTest(classes = AplicacaoApiContas.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@ContextConfiguration(initializers = InfraestruturaTesteContas.Initializer.class)
 class ApiContasDeviceTokenContractTest {
 
     @Autowired
@@ -46,6 +52,9 @@ class ApiContasDeviceTokenContractTest {
     @MockBean
     private TransacaoService transacaoService;
 
+    @MockBean
+    private JwtDecoder jwtDecoder;
+
     private MockMvc mockMvc() {
         return Objects.requireNonNull(mockMvc);
     }
@@ -57,8 +66,24 @@ class ApiContasDeviceTokenContractTest {
                         new SimpleGrantedAuthority(scope)));
     }
 
+    private JwtDecoder jwtDecoder() {
+        return Objects.requireNonNull(jwtDecoder);
+    }
+
+    private Jwt jwtDecodificado(String tokenValue, String scope) {
+        return Jwt.withTokenValue(tokenValue)
+                .header("alg", "none")
+                .claim("sub", "usuario-123")
+                .claim("preferred_username", "usuario.123")
+                .claim("scope", scope.replace("SCOPE_", ""))
+                .claim("realm_access", Map.of("roles", List.of("cliente")))
+                .build();
+    }
+
     @Test
     void deveRetornar428QuandoContasNaoRecebeDeviceToken() throws Exception {
+        when(jwtDecoder().decode("token-sem-device"))
+                .thenReturn(jwtDecodificado("token-sem-device", "SCOPE_contas:ler"));
         MvcResult resultado = mockMvc().perform(get("/contas")
                         .with(Objects.requireNonNull(clienteJwt("token-sem-device", "SCOPE_contas:ler"))))
                 .andExpect(status().isPreconditionRequired())
@@ -69,6 +94,8 @@ class ApiContasDeviceTokenContractTest {
 
     @Test
     void deveRetornar423QuandoContasRecebeDeviceTokenInvalido() throws Exception {
+        when(jwtDecoder().decode("token-teste"))
+                .thenReturn(jwtDecodificado("token-teste", "SCOPE_contas:ler"));
         when(validadorTokenDispositivoRemoto.validar(eq("Bearer token-teste"), eq("token-invalido")))
                 .thenReturn(new ResultadoValidacaoTokenDispositivoRemoto(
                         423,
@@ -89,6 +116,8 @@ class ApiContasDeviceTokenContractTest {
 
     @Test
     void devePermitirContasQuandoDeviceTokenForValido() throws Exception {
+        when(jwtDecoder().decode("token-teste"))
+                .thenReturn(jwtDecodificado("token-teste", "SCOPE_contas:ler"));
         when(validadorTokenDispositivoRemoto.validar(eq("Bearer token-teste"), eq("token-valido")))
                 .thenReturn(new ResultadoValidacaoTokenDispositivoRemoto(
                         200,
@@ -108,6 +137,8 @@ class ApiContasDeviceTokenContractTest {
 
     @Test
     void deveExigirDeviceTokenTambemEmTransacoes() throws Exception {
+        when(jwtDecoder().decode("token-teste"))
+                .thenReturn(jwtDecodificado("token-teste", "SCOPE_transacoes:ler"));
         when(validadorTokenDispositivoRemoto.validar(eq("Bearer token-teste"), eq("token-valido")))
                 .thenReturn(new ResultadoValidacaoTokenDispositivoRemoto(
                         200,

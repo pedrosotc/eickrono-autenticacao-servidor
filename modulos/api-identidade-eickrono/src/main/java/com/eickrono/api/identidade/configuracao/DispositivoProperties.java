@@ -10,6 +10,7 @@ public class DispositivoProperties {
 
     private final Token token = new Token();
     private final Codigo codigo = new Codigo();
+    private final Onboarding onboarding = new Onboarding();
 
     public Token getToken() {
         return token;
@@ -17,6 +18,10 @@ public class DispositivoProperties {
 
     public Codigo getCodigo() {
         return codigo;
+    }
+
+    public Onboarding getOnboarding() {
+        return onboarding;
     }
 
     public static class Token {
@@ -106,6 +111,27 @@ public class DispositivoProperties {
 
         public void setExpiracaoHoras(long expiracaoHoras) {
             this.expiracaoHoras = expiracaoHoras;
+        }
+    }
+
+    public static class Onboarding {
+        private boolean smsHabilitado = false;
+        private String smsFornecedor = "log";
+
+        public boolean isSmsHabilitado() {
+            return smsHabilitado;
+        }
+
+        public void setSmsHabilitado(boolean smsHabilitado) {
+            this.smsHabilitado = smsHabilitado;
+        }
+
+        public String getSmsFornecedor() {
+            return smsFornecedor;
+        }
+
+        public void setSmsFornecedor(String smsFornecedor) {
+            this.smsFornecedor = smsFornecedor;
         }
     }
 }

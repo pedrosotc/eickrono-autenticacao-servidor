@@ -31,6 +31,7 @@
         <checkstyle.version>10.14.2</checkstyle.version>
         <spotbugs.version>4.9.0.0</spotbugs.version>
         <otel.version>1.36.0</otel.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <dependencyManagement>

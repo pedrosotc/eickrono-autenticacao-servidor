@@ -32,7 +32,192 @@ Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário
 - `mvn verify`: executa testes, Checkstyle, SpotBugs e validações do Spring Boot.  
 - `mvn -pl modulos/api-identidade-eickrono spring-boot:run`: inicia apenas a API de identidade.  
 - `mvn -pl modulos/api-contas-eickrono spring-boot:run`: inicia a API de contas.  
-- Testcontainers é utilizado para testes de integração; não é necessário subir um PostgreSQL manualmente para a suíte de testes.
+- Testcontainers é utilizado para testes de integração com PostgreSQL real; não é necessário subir um PostgreSQL manualmente para a suíte de testes, mas o Docker local precisa estar saudável.
+
+### PostgreSQL real nos testes
+
+- os módulos `api-identidade-eickrono` e `api-contas-eickrono` não usam mais H2 nos perfis de teste;
+- os testes Spring Boot/integração sobem PostgreSQL real com Testcontainers;
+- a falha histórica de `permission denied ... docker.sock` e `Could not find a valid Docker environment` não era problema de schema, mas de compatibilidade entre a stack antiga de Testcontainers e a API atual do Docker Desktop local;
+- os testes **não** reutilizam host/porta do `docker compose`; o container de teste continua sendo criado pelo Testcontainers.
+- o que eles reaproveitam, quando disponível, são informações de ambiente já conhecidas do monorepo:
+  - `POSTGRES_USER`
+  - `POSTGRES_PASSWORD`
+  - `POSTGRES_DB`
+- também existem overrides específicos para os testes:
+  - `EICKRONO_TEST_POSTGRES_IMAGE`
+  - `EICKRONO_TEST_POSTGRES_DB_IDENTIDADE`
+  - `EICKRONO_TEST_POSTGRES_DB_CONTAS`
+
+### Diferença entre `.env` do monorepo e Testcontainers
+
+As variáveis de [`infraestrutura/dev/.env`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/.env) e [`infraestrutura/hml/.env`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/hml/.env) descrevem o ambiente da aplicação.
+
+Já os testes de integração fazem outra coisa:
+
+- criam um PostgreSQL efêmero por execução;
+- escolhem porta dinâmica;
+- isolam o banco do estado do `dev`/`hml`;
+- podem reaproveitar nome de banco, usuário e senha via variáveis de ambiente para manter alinhamento sem acoplar os testes ao banco do compose.
+
+Em outras palavras:
+
+- `POSTGRES_PORT` do `docker compose` **não** é usado pelos testes;
+- `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` **podem** ser usados como defaults dos containers de teste;
+- o OIDC dos testes da identidade continua simulado em memória e não depende do `OIDC_ISSUER_URI` do ambiente `dev/hml`.
+
+### Diagnóstico reproduzível do Docker/Testcontainers
+
+Durante esta etapa foi corrigido um sintoma enganoso:
+
+- `permission denied while trying to connect to the docker API at unix:///Users/thiago/.docker/run/docker.sock`
+- ou `Could not find a valid Docker environment`
+
+O problema real não era ausência de rede e nem necessidade de apontar os testes para o PostgreSQL do `docker compose`. O problema era a combinação entre:
+
+- Docker Desktop local saudável;
+- socket Unix local acessível;
+- stack de Testcontainers/docker-java antiga demais para conversar corretamente com a API atual do Docker.
+
+#### Comandos executados no diagnóstico
+
+1. Descobrir qual contexto do Docker estava ativo:
+
+```bash
+docker context show
+```
+
+Saída observada:
+
+```text
+desktop-linux
+```
+
+Interpretação:
+
+- o CLI estava apontando para o daemon local do Docker Desktop;
+- isso eliminou a hipótese de contexto remoto incorreto.
+
+2. Confirmar que o socket local do Docker realmente respondia:
+
+```bash
+curl --silent --show-error --unix-socket "$HOME/.docker/run/docker.sock" http://localhost/version
+```
+
+Saída observada:
+
+```json
+{"Platform":{"Name":"Docker Desktop 4.64.0 (221278)"},"Version":"29.2.1","ApiVersion":"1.53","MinAPIVersion":"1.44","Os":"linux","Arch":"arm64", ...}
+```
+
+Interpretação:
+
+- o daemon local estava vivo;
+- o socket Unix local funcionava;
+- a API efetiva do Docker Desktop era `1.53`, com mínimo `1.44`.
+
+3. Comparar uma rota antiga com uma rota suportada pela API mínima do daemon:
+
+```bash
+curl --silent --show-error --unix-socket "$HOME/.docker/run/docker.sock" http://localhost/v1.41/info
+curl --silent --show-error --unix-socket "$HOME/.docker/run/docker.sock" http://localhost/v1.44/info
+```
+
+Comportamento observado:
+
+- `v1.41/info` respondeu com JSON degradado, com campos essenciais vazios;
+- `v1.44/info` respondeu com dados consistentes do daemon.
+
+Interpretação:
+
+- o Docker Desktop atual ainda atende rotas mais antigas, mas de forma insuficiente para a descoberta automática esperada por clientes antigos;
+- isso explicava por que uma stack velha de Testcontainers podia acusar "permission denied" ou "no valid Docker environment", mesmo com Docker local funcionando.
+
+4. Confirmar a versão final da stack de testes:
+
+```bash
+rg -n "testcontainers.version|<artifactId>testcontainers|postgresql</artifactId>|h2</artifactId>" \
+  pom.xml \
+  modulos/api-identidade-eickrono/pom.xml \
+  modulos/api-contas-eickrono/pom.xml
+```
+
+Estado final esperado:
+
+- `pom.xml` raiz com `testcontainers.version` em `1.21.4`;
+- dependência `org.testcontainers:postgresql` nos módulos de identidade e contas;
+- ausência de `h2` nesses módulos.
+
+#### Correção aplicada
+
+A correção escolhida foi:
+
+- manter Testcontainers;
+- manter PostgreSQL real nos testes;
+- atualizar Testcontainers para `1.21.4`;
+- remover H2 dos testes Spring Boot de `api-identidade-eickrono` e `api-contas-eickrono`;
+- manter o reaproveitamento apenas de `imagem`, `database`, `user` e `password` via variáveis de ambiente, sem reutilizar `host` e `porta` do ambiente `dev/hml`.
+
+Arquivos centrais dessa decisão:
+
+- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/pom.xml)
+- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/pom.xml)
+- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-contas-eickrono/pom.xml)
+- [`InfraestruturaTesteIdentidade.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/test/java/com/eickrono/api/identidade/support/InfraestruturaTesteIdentidade.java)
+- [`InfraestruturaTesteContas.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-contas-eickrono/src/test/java/com/eickrono/api/contas/support/InfraestruturaTesteContas.java)
+
+#### Como repetir a validação final
+
+1. Compilar os testes da identidade:
+
+```bash
+mvn -U -pl modulos/api-identidade-eickrono -am test-compile -DskipITs
+```
+
+2. Compilar os testes de contas:
+
+```bash
+mvn -U -pl modulos/api-contas-eickrono -am test-compile -DskipITs
+```
+
+3. Rodar os testes relevantes da identidade com PostgreSQL real:
+
+```bash
+mvn -U -pl modulos/api-identidade-eickrono -am \
+  -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,CanalEnvioCodigoSmsTest \
+  test
+```
+
+4. Rodar os testes relevantes de contas com PostgreSQL real:
+
+```bash
+mvn -U -pl modulos/api-contas-eickrono -am \
+  -Dtest=AplicacaoApiContasTest,ApiContasDeviceTokenContractTest \
+  test
+```
+
+#### Sinais esperados de sucesso
+
+Durante a execução bem-sucedida, os logs devem conter linhas semelhantes a:
+
+```text
+Testcontainers version: 1.21.4
+Found Docker environment with local Unix socket (unix:///var/run/docker.sock)
+Connected to docker:
+  Server Version: 29.2.1
+  API Version: 1.53
+Container postgres:15.5 started
+BUILD SUCCESS
+```
+
+#### O que esta correção não faz
+
+- não usa o PostgreSQL já criado pelo `docker compose` de `dev`/`hml`;
+- não reaproveita `POSTGRES_PORT` fixo;
+- não elimina a necessidade de Docker local acessível;
+- não substitui Testcontainers por conexão em banco compartilhado.
+
+Ela apenas torna os testes de integração compatíveis com o Docker Desktop atual e com PostgreSQL real de forma isolada.
 
 ## Alertas do Java LS/JDT em testes
 
@@ -95,6 +280,33 @@ Quando surgir esse tipo de alerta, siga esta ordem:
 - não usar `@SuppressWarnings("null")` como solução padrão
 - não espalhar `@NonNull` artificialmente só para satisfazer a IDE
 - preferir testes mais explícitos e menos dependentes de inferência do JDT
+
+## Alertas de "never used" em testes Spring/JUnit
+
+Além dos alertas de nulidade, o Java LS/JDT também pode marcar como "never used" elementos que são usados apenas por reflexão, por exemplo:
+
+- classes com `@TestConfiguration`
+- métodos `@Bean`
+- classes auxiliares importadas por `@Import(...)`
+- callbacks e estruturas que o Spring/JUnit instanciam indiretamente
+
+Esses casos não são, por si só, erro de compilação. O problema é o analisador estático não enxergar o uso indireto feito por annotations.
+
+### Como corrigir do jeito preferido no projeto
+
+1. **Prefira configuração de teste top-level**, em arquivo próprio, em vez de `@TestConfiguration` interna dentro do teste.
+2. **Referencie explicitamente a configuração** no teste com `@SpringBootTest(classes = ...)` e/ou `@Import(...)`.
+3. **Evite depender de uso implícito por varredura** quando o objetivo é apenas fornecer beans fake de teste.
+4. **Não usar `@SuppressWarnings("unused")` como padrão** para esse caso. Primeiro tente tornar a relação explícita no código.
+
+### Exemplo aplicado no projeto
+
+No teste de onboarding do dispositivo, a configuração interna foi extraída para uma classe própria:
+
+- [`RegistroDispositivoControllerIT.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/test/java/com/eickrono/api/identidade/api/RegistroDispositivoControllerIT.java)
+- [`RegistroDispositivoControllerITConfiguration.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/test/java/com/eickrono/api/identidade/api/RegistroDispositivoControllerITConfiguration.java)
+
+Esse padrão é o preferido quando a IDE acusa que `@TestConfiguration` ou métodos `@Bean` "nunca são usados".
 
 ## Dicas adicionais
 

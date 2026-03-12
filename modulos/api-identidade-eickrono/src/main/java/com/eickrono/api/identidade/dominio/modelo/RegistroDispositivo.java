@@ -36,7 +36,7 @@ public class RegistroDispositivo {
     @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String telefone;
 
     @Column(nullable = false)
@@ -91,7 +91,7 @@ public class RegistroDispositivo {
         this.id = Objects.requireNonNull(id, "id é obrigatório");
         this.usuarioSub = usuarioSub;
         this.email = Objects.requireNonNull(email, "email é obrigatório");
-        this.telefone = Objects.requireNonNull(telefone, "telefone é obrigatório");
+        this.telefone = telefone;
         this.fingerprint = Objects.requireNonNull(fingerprint, "fingerprint é obrigatório");
         this.plataforma = Objects.requireNonNull(plataforma, "plataforma é obrigatória");
         this.versaoAplicativo = versaoAplicativo;
@@ -118,8 +118,8 @@ public class RegistroDispositivo {
         return email;
     }
 
-    public String getTelefone() {
-        return telefone;
+    public Optional<String> getTelefone() {
+        return Optional.ofNullable(telefone);
     }
 
     public String getFingerprint() {

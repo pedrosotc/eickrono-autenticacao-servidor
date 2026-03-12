@@ -5,11 +5,11 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
- * Payload para confirmar registro de dispositivo com códigos SMS e e-mail.
+ * Payload para confirmar registro de dispositivo. O código de e-mail é sempre obrigatório
+ * e o código de SMS só é exigido quando o registro foi criado com esse canal habilitado.
  */
 public class ConfirmacaoRegistroRequest {
 
-    @NotBlank
     @Size(min = 6, max = 6)
     @Pattern(regexp = "^[0-9]{6}$")
     private String codigoSms;

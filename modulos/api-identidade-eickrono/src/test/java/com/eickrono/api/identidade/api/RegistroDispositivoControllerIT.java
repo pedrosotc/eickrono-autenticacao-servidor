@@ -8,13 +8,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.eickrono.api.identidade.dominio.modelo.CanalVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
+import com.eickrono.api.identidade.AplicacaoApiIdentidade;
+import com.eickrono.api.identidade.support.InfraestruturaTesteIdentidade;
+import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
 import com.eickrono.api.identidade.dominio.repositorio.TokenDispositivoRepositorio;
 import com.eickrono.api.identidade.dto.ConfirmacaoRegistroResponse;
 import com.eickrono.api.identidade.dto.RegistroDispositivoResponse;
 import com.eickrono.api.identidade.dto.ValidacaoTokenDispositivoResponse;
-import com.eickrono.api.identidade.servico.CanalEnvioCodigo;
-import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.Objects;
@@ -25,18 +26,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-@SpringBootTest
+@SpringBootTest(classes = {
+        AplicacaoApiIdentidade.class,
+        RegistroDispositivoControllerITConfiguration.class
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(RegistroDispositivoControllerITConfiguration.class)
+@ContextConfiguration(initializers = InfraestruturaTesteIdentidade.Initializer.class)
 class RegistroDispositivoControllerIT {
 
     private static final String REGISTRO_ENDPOINT = "/identidade/dispositivos/registro";
@@ -72,6 +78,8 @@ class RegistroDispositivoControllerIT {
     @Test
     void fluxoCompletoDeRegistroConfirmacaoERevogacao() throws Exception {
         RegistroDispositivoResponse registro = solicitarRegistro();
+        assertThat(registro.status()).isEqualTo(StatusRegistroDispositivo.PENDENTE);
+        assertThat(registro.canaisConfirmacao()).containsExactlyInAnyOrder(CanalVerificacao.EMAIL, CanalVerificacao.SMS);
 
         String codigoSms = codigoCapturador().obterCodigo(registro.registroId(), CanalVerificacao.SMS)
                 .orElseThrow(() -> new IllegalStateException("Código SMS não capturado"));
@@ -82,11 +90,11 @@ class RegistroDispositivoControllerIT {
 
         assertThat(confirmacao.tokenDispositivo()).isNotBlank();
 
-        // GET com token válido deve passar pelo filtro e chegar à controller (mesmo que retorne 404)
+        // GET com token válido deve passar pelo filtro e provisionar o perfil controlado
         mockMvc().perform(get("/identidade/perfil")
                         .with(Objects.requireNonNull(clienteJwt()))
                         .header("X-Device-Token", confirmacao.tokenDispositivo()))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
         // Sem o cabeçalho obrigatório deve retornar 428
         mockMvc().perform(get("/identidade/perfil")
@@ -187,6 +195,9 @@ class RegistroDispositivoControllerIT {
     private RequestPostProcessor clienteJwt() {
         return Objects.requireNonNull(jwt().jwt(builder -> builder
                         .subject("usuario-xyz")
+                        .claim("email", "teste@eickrono.com")
+                        .claim("name", "Usuario Teste")
+                        .claim("preferred_username", "usuario.teste")
                         .claim("scope", "identidade:ler"))
                 .authorities(
                         new SimpleGrantedAuthority("ROLE_cliente"),
@@ -195,45 +206,6 @@ class RegistroDispositivoControllerIT {
 
     private MediaType jsonMediaType() {
         return Objects.requireNonNull(MediaType.APPLICATION_JSON);
-    }
-
-    @TestConfiguration
-    static class CanalEnvioCodigoTestConfiguration {
-
-        @Bean
-        CodigoCapturador codigoCapturador() {
-            return new CodigoCapturador();
-        }
-
-        @Bean(name = "canalEnvioCodigoSmsLog")
-        CanalEnvioCodigo canalEnvioSms(CodigoCapturador capturador) {
-            return new CanalEnvioCodigo() {
-                @Override
-                public CanalVerificacao canal() {
-                    return CanalVerificacao.SMS;
-                }
-
-                @Override
-                public void enviar(RegistroDispositivo registro, String destino, String codigo) {
-                    capturador.registrar(registro.getId(), CanalVerificacao.SMS, codigo);
-                }
-            };
-        }
-
-        @Bean(name = "canalEnvioCodigoEmailLog")
-        CanalEnvioCodigo canalEnvioEmail(CodigoCapturador capturador) {
-            return new CanalEnvioCodigo() {
-                @Override
-                public CanalVerificacao canal() {
-                    return CanalVerificacao.EMAIL;
-                }
-
-                @Override
-                public void enviar(RegistroDispositivo registro, String destino, String codigo) {
-                    capturador.registrar(registro.getId(), CanalVerificacao.EMAIL, codigo);
-                }
-            };
-        }
     }
 
     static class CodigoCapturador {

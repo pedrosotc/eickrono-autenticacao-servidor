@@ -33,25 +33,25 @@ Este documento introduz a arquitetura e o funcionamento da plataforma de autenti
 
 ## Registro e vinculação de dispositivos móveis
 
-Esse fluxo garante que cada instalação do App Flutter possua um `device_token` exclusivo, protegido por dupla verificação (SMS + e-mail) e expiração caso não seja concluído.
+Esse fluxo garante que cada instalação do App Flutter possua um `device_token` exclusivo, protegido por verificação por canais configuráveis, com e-mail sempre obrigatório, SMS opcional por política e expiração caso não seja concluído.
 
 1. **Solicitação de registro**  
-   - O App envia `POST /identidade/dispositivos/registro` com e-mail informado, telefone, fingerprint do aparelho (modelo, plataforma, chave pública), versão da aplicação e do SO.  
-   - A API cria um `RegistroDispositivo` com status `PENDENTE` e define `expiraEm = criadoEm + 9h`. Também gera duas entradas de verificação (`CodigoVerificacao`) para os canais **SMS** e **EMAIL**, armazenando apenas o hash do código (6 dígitos), contador de tentativas (máximo 5) e horários de envio.  
-   - Implementações de `CanalEnvioCodigo` acionam provedores externos (ou stubs locais em dev/hml) e registram evento de auditoria `DISPOSITIVO_CODIGO_ENVIADO`. O `registroId` retornado é utilizado pelo App para acompanhar o processo.
+   - O App envia `POST /identidade/dispositivos/registro` com e-mail informado, fingerprint do aparelho (modelo, plataforma, chave pública), versão da aplicação e do SO. O telefone só é exigido quando a política de SMS estiver habilitada.  
+   - A API cria um `RegistroDispositivo` com status `PENDENTE` e define `expiraEm = criadoEm + 9h`. Sempre gera uma entrada de verificação (`CodigoVerificacao`) para **EMAIL** e pode gerar outra para **SMS**, conforme a política ativa.  
+   - Implementações de `CanalEnvioCodigo` acionam provedores externos (ou stubs locais em dev/hml). No caso de SMS, o canal delega para um `FornecedorEnvioSms`, permitindo trocar o provedor sem mexer na regra de domínio. O `registroId` retornado é utilizado pelo App para acompanhar o processo.
 
 2. **Usuário existente**  
    - Durante a criação, o serviço tenta localizar o usuário pelo e-mail informado ou pelo `sub` recebido do Keycloak (quando o app solicita o registro já autenticado).  
    - Havendo correspondência, os `DispositivoToken` ativos são marcados como `REVOGADO` e a sessão atual será a única autorizada quando a verificação terminar.
 
 3. **Usuário novo**  
-   - Se não houver usuário vinculado, o `RegistroDispositivo` permanece associado apenas ao e-mail e telefone fornecidos.  
+   - Se não houver usuário vinculado, o `RegistroDispositivo` permanece associado ao e-mail e, quando houver SMS habilitado, também ao telefone fornecido.  
    - Após a confirmação, a API promove o registro para `CONFIRMADO`, emite o primeiro `DispositivoToken` e dispara evento interno para criação do usuário definitivo no Keycloak via SPI dedicada (detalhada no `guia-arquitetura.md`).
 
 4. **Confirmação dos códigos**  
-   - O App solicita que a pessoa usuária informe os códigos recebidos por SMS e e-mail e envia ambos via `POST /identidade/dispositivos/registro/{id}/confirmacao`.  
+   - O App solicita que a pessoa usuária informe os códigos recebidos e envia ao menos o código de e-mail via `POST /identidade/dispositivos/registro/{id}/confirmacao`. O código de SMS só é exigido se o registro tiver sido criado com esse canal.  
    - A API valida: existência do registro, status `PENDENTE`, ausência de expiração (`agora <= expiraEm`), tentativas disponíveis (`tentativas < limite`) e correspondência dos hashes. Cada canal é marcado como `VALIDADO` individualmente.  
-   - Quando ambos os canais estão válidos, o registro muda para `CONFIRMADO`, gera um `DispositivoToken` opaco (UUID + assinatura HMAC), armazena o hash e devolve o token ao App em DTO próprio.
+   - Quando todos os canais daquele registro estão válidos, o registro muda para `CONFIRMADO`, gera um `DispositivoToken` opaco (UUID + assinatura HMAC), armazena o hash e devolve o token ao App em DTO próprio.
 
 5. **Expiração e cancelamento**  
    - Um job `RegistroDispositivoScheduler` executa a cada 15 minutos `RegistroDispositivoService.expirarRegistros()`, marcando como `EXPIRADO` entradas com `expiraEm` ultrapassado.  

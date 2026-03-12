@@ -46,6 +46,9 @@ fapi:
 
 identidade:
   dispositivo:
+    onboarding:
+      sms-habilitado: false
+      sms-fornecedor: log
     token:
       segredo-hmac: ${IDENTIDADE_DEVICE_TOKEN_SECRET:local-device-token-secret}
       tamanho-bytes: 32

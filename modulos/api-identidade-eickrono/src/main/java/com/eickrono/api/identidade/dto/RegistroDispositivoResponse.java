@@ -1,7 +1,9 @@
 package com.eickrono.api.identidade.dto;
 
+import com.eickrono.api.identidade.dominio.modelo.CanalVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -9,5 +11,10 @@ import java.util.UUID;
  */
 public record RegistroDispositivoResponse(UUID registroId,
                                           OffsetDateTime expiraEm,
-                                          StatusRegistroDispositivo status) {
+                                          StatusRegistroDispositivo status,
+                                          List<CanalVerificacao> canaisConfirmacao) {
+
+    public RegistroDispositivoResponse {
+        canaisConfirmacao = List.copyOf(canaisConfirmacao);
+    }
 }

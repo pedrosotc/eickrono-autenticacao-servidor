@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -75,38 +76,53 @@ public class RegistroDispositivoService {
         OffsetDateTime agora = OffsetDateTime.now(clock);
         OffsetDateTime expiraEm = agora.plusHours(propriedades.getCodigo().getExpiracaoHoras());
         UUID id = UUID.randomUUID();
-        String emailNormalizado = request.getEmail().trim().toLowerCase();
+        String emailNormalizado = normalizarObrigatorio(request.getEmail(), "email").toLowerCase();
+        String telefoneNormalizado = normalizarTelefone(request.getTelefone());
         RegistroDispositivo registro = new RegistroDispositivo(
                 id,
                 usuarioSubOpt.orElse(null),
                 emailNormalizado,
-                request.getTelefone().trim(),
-                request.getFingerprint().trim(),
-                request.getPlataforma().trim(),
-                request.getVersaoAplicativo().trim(),
+                telefoneNormalizado,
+                normalizarObrigatorio(request.getFingerprint(), "fingerprint"),
+                normalizarObrigatorio(request.getPlataforma(), "plataforma"),
+                normalizarObrigatorio(request.getVersaoAplicativo(), "versaoAplicativo"),
                 request.getChavePublica(),
                 StatusRegistroDispositivo.PENDENTE,
                 agora,
                 expiraEm
         );
 
-        CodigoGerado codigoSms = gerarCodigo(registro, CanalVerificacao.SMS, request.getTelefone().trim(), agora, expiraEm);
-        CodigoGerado codigoEmail = gerarCodigo(registro, CanalVerificacao.EMAIL, emailNormalizado, agora, expiraEm);
-        registro.adicionarCodigo(codigoSms.entidade());
-        registro.adicionarCodigo(codigoEmail.entidade());
+        List<CodigoGerado> codigosGerados = new ArrayList<>();
+        codigosGerados.add(gerarCodigo(registro, CanalVerificacao.EMAIL, emailNormalizado, agora, expiraEm));
+        if (smsHabilitado()) {
+            codigosGerados.add(gerarCodigo(
+                    registro,
+                    CanalVerificacao.SMS,
+                    Objects.requireNonNull(telefoneNormalizado),
+                    agora,
+                    expiraEm));
+        }
+        codigosGerados.forEach(codigo -> registro.adicionarCodigo(codigo.entidade()));
 
         registroRepositorio.save(registro);
 
-        enviarCodigo(codigoSms);
-        enviarCodigo(codigoEmail);
+        codigosGerados.forEach(this::enviarCodigo);
 
         auditoriaService.registrarEvento("DISPOSITIVO_REGISTRO_SOLICITADO",
                 usuarioSubOpt.orElse(emailNormalizado),
                 "Registro de dispositivo iniciado");
 
-        LOGGER.info("Registro de dispositivo criado id={} email={} fingerprint={}", id, emailNormalizado, request.getFingerprint());
+        LOGGER.info("Registro de dispositivo criado id={} email={} fingerprint={} canais={}",
+                id,
+                emailNormalizado,
+                registro.getFingerprint(),
+                codigosGerados.stream().map(codigo -> codigo.entidade().getCanal()).toList());
 
-        return new RegistroDispositivoResponse(id, expiraEm, StatusRegistroDispositivo.PENDENTE);
+        return new RegistroDispositivoResponse(
+                id,
+                expiraEm,
+                StatusRegistroDispositivo.PENDENTE,
+                codigosGerados.stream().map(codigo -> codigo.entidade().getCanal()).toList());
     }
 
     @Transactional
@@ -128,13 +144,12 @@ public class RegistroDispositivoService {
             throw new ResponseStatusException(HttpStatus.GONE, "Registro expirado");
         }
 
-        CodigoVerificacao codigoSms = registro.codigoPorCanal(CanalVerificacao.SMS)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Código SMS ausente"));
         CodigoVerificacao codigoEmail = registro.codigoPorCanal(CanalVerificacao.EMAIL)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Código e-mail ausente"));
 
-        validarCodigo(codigoSms, request.getCodigoSms(), agora);
         validarCodigo(codigoEmail, request.getCodigoEmail(), agora);
+        registro.codigoPorCanal(CanalVerificacao.SMS)
+                .ifPresent(codigoSms -> validarCodigo(codigoSms, request.getCodigoSms(), agora));
 
         String usuarioSub = registro.getUsuarioSub()
                 .or(() -> usuarioSubOpt)
@@ -172,7 +187,9 @@ public class RegistroDispositivoService {
 
         boolean reenviou = false;
         if (request.deveReenviarSms()) {
-            reenviou |= reenviarCodigo(registro, CanalVerificacao.SMS, registro.getTelefone(), agora);
+            reenviou |= registro.getTelefone()
+                    .map(telefone -> reenviarCodigo(registro, CanalVerificacao.SMS, telefone, agora))
+                    .orElse(false);
         }
         if (request.deveReenviarEmail()) {
             reenviou |= reenviarCodigo(registro, CanalVerificacao.EMAIL, registro.getEmail(), agora);
@@ -326,6 +343,29 @@ public class RegistroDispositivoService {
             mapa.put(canalEnvio.canal(), canalEnvio);
         }
         return mapa;
+    }
+
+    private boolean smsHabilitado() {
+        return propriedades.getOnboarding().isSmsHabilitado();
+    }
+
+    private String normalizarObrigatorio(String valor, String campo) {
+        if (!StringUtils.hasText(valor)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Campo obrigatório ausente: " + campo);
+        }
+        return valor.trim();
+    }
+
+    private String normalizarTelefone(String telefone) {
+        if (!StringUtils.hasText(telefone)) {
+            if (smsHabilitado()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Telefone é obrigatório quando a confirmação por SMS estiver habilitada");
+            }
+            return null;
+        }
+        return telefone.trim();
     }
 
     private record CodigoGerado(CodigoVerificacao entidade, String codigoClaro) {

@@ -1,6 +1,8 @@
 package com.eickrono.api.identidade.configuracao;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.eickrono.api.identidade.servico.TokenDispositivoService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -79,6 +81,12 @@ public class SegurancaConfiguracao {
     @Bean
     public ConversorJwtFapi conversorJwtFapi() {
         return new ConversorJwtFapi();
+    }
+
+    @Bean
+    public DeviceTokenFilter deviceTokenFilter(TokenDispositivoService tokenDispositivoService,
+                                               ObjectMapper objectMapper) {
+        return new DeviceTokenFilter(tokenDispositivoService, objectMapper);
     }
 
     @Bean

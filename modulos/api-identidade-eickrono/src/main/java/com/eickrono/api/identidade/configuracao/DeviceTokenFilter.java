@@ -18,7 +18,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -26,7 +25,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Garante que requisições autenticadas contenham um token de dispositivo ativo.
  */
-@Component
 public class DeviceTokenFilter extends OncePerRequestFilter {
 
     private static final String HEADER_DEVICE_TOKEN = "X-Device-Token";
