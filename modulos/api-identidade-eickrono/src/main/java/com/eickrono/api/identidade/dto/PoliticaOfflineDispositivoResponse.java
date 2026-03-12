@@ -11,4 +11,7 @@ public record PoliticaOfflineDispositivoResponse(
         boolean exigeReconciliacao,
         List<String> condicoesBloqueio
 ) {
+    public PoliticaOfflineDispositivoResponse {
+        condicoesBloqueio = condicoesBloqueio == null ? List.of() : List.copyOf(condicoesBloqueio);
+    }
 }

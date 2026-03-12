@@ -20,12 +20,12 @@ public final class RefreshTokenDispositivoExecutor
 
     static final String PROVIDER_ID = "eickrono-device-token-refresh";
 
-    private final KeycloakSession session;
+    private final String usuarioSub;
     private final ValidadorRefreshDispositivo validador;
 
     public RefreshTokenDispositivoExecutor(KeycloakSession session,
                                            ValidadorRefreshDispositivo validador) {
-        this.session = session;
+        this.usuarioSub = resolverUsuarioSub(session);
         this.validador = validador;
     }
 
@@ -34,7 +34,12 @@ public final class RefreshTokenDispositivoExecutor
         if (context.getEvent() != ClientPolicyEvent.TOKEN_REFRESH) {
             return;
         }
-        TokenRefreshContext refreshContext = (TokenRefreshContext) context;
+        if (!(context instanceof TokenRefreshContext refreshContext)) {
+            throw new ClientPolicyException(
+                    "server_error",
+                    "Contexto invalido para refresh token.",
+                    Response.Status.INTERNAL_SERVER_ERROR);
+        }
         String deviceToken = refreshContext.getParams().getFirst("device_token");
         if (deviceToken == null || deviceToken.isBlank()) {
             throw new ClientPolicyException(
@@ -43,7 +48,6 @@ public final class RefreshTokenDispositivoExecutor
                     Response.Status.BAD_REQUEST);
         }
 
-        String usuarioSub = resolverUsuarioSub();
         try {
             ResultadoValidacaoRefreshDispositivo resultado =
                     validador.validar(usuarioSub, deviceToken);
@@ -69,7 +73,7 @@ public final class RefreshTokenDispositivoExecutor
         return PROVIDER_ID;
     }
 
-    private String resolverUsuarioSub() {
+    private static String resolverUsuarioSub(KeycloakSession session) {
         UserSessionModel userSession = session.getContext().getUserSession();
         if (userSession != null && userSession.getUser() != null) {
             return userSession.getUser().getId();

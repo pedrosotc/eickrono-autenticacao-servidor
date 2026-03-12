@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Objects;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -34,7 +35,7 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
     public DeviceTokenFilter(ValidadorTokenDispositivoRemoto validadorTokenDispositivoRemoto,
                              ObjectMapper objectMapper) {
         this.validadorTokenDispositivoRemoto = validadorTokenDispositivoRemoto;
-        this.objectMapper = objectMapper;
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper e obrigatorio").copy();
     }
 
     @Override

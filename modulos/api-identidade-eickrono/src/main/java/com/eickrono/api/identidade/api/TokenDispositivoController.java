@@ -26,12 +26,15 @@ public class TokenDispositivoController {
     private static final String HEADER_SEGREDO_INTERNO = "X-Eickrono-Internal-Secret";
 
     private final TokenDispositivoService tokenDispositivoService;
-    private final IntegracaoInternaProperties integracaoInternaProperties;
+    private final String segredoInternoEsperado;
 
     public TokenDispositivoController(TokenDispositivoService tokenDispositivoService,
                                       IntegracaoInternaProperties integracaoInternaProperties) {
         this.tokenDispositivoService = tokenDispositivoService;
-        this.integracaoInternaProperties = integracaoInternaProperties;
+        this.segredoInternoEsperado = Objects.requireNonNull(
+                Objects.requireNonNull(integracaoInternaProperties, "integracaoInternaProperties e obrigatorio")
+                        .getSegredo(),
+                "integracao.interna.segredo e obrigatorio");
     }
 
     @GetMapping("/token/validacao")
@@ -63,8 +66,7 @@ public class TokenDispositivoController {
     }
 
     private void validarSegredo(String segredoInformado) {
-        String segredoEsperado = integracaoInternaProperties.getSegredo();
-        if (!Objects.equals(segredoEsperado, segredoInformado)) {
+        if (!Objects.equals(segredoInternoEsperado, segredoInformado)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.UNAUTHORIZED,
                     "Segredo interno invalido");

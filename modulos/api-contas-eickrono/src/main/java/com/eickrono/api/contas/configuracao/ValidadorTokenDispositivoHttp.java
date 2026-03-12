@@ -11,6 +11,7 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -21,21 +22,19 @@ public class ValidadorTokenDispositivoHttp implements ValidadorTokenDispositivoR
 
     private static final String HEADER_DEVICE_TOKEN = "X-Device-Token";
     private static final String CAMINHO_VALIDACAO = "/identidade/dispositivos/token/validacao";
+    private static final DefaultResponseErrorHandler NO_OP_ERROR_HANDLER = new NoOpResponseErrorHandler();
 
     private final RestTemplate restTemplate;
-    private final IntegracaoIdentidadeProperties properties;
+    private final String urlBase;
 
     public ValidadorTokenDispositivoHttp(RestTemplateBuilder restTemplateBuilder,
                                          IntegracaoIdentidadeProperties properties) {
         this.restTemplate = restTemplateBuilder
-                .errorHandler(new org.springframework.web.client.DefaultResponseErrorHandler() {
-                    @Override
-                    public boolean hasError(@NonNull ClientHttpResponse response) {
-                        return false;
-                    }
-                })
+                .errorHandler(NO_OP_ERROR_HANDLER)
                 .build();
-        this.properties = properties;
+        this.urlBase = Objects.requireNonNull(
+                Objects.requireNonNull(properties, "properties e obrigatorio").getUrlBase(),
+                "integracao.identidade.url-base e obrigatorio");
     }
 
     @Override
@@ -46,11 +45,11 @@ public class ValidadorTokenDispositivoHttp implements ValidadorTokenDispositivoR
         }
         headers.set(HEADER_DEVICE_TOKEN, tokenDispositivo);
 
-        URI endpoint = Objects.requireNonNull(URI.create(properties.getUrlBase() + CAMINHO_VALIDACAO));
-        HttpMethod metodo = Objects.requireNonNull(HttpMethod.GET);
         ResponseEntity<ValidacaoTokenDispositivoResponse> response = restTemplate.exchange(
-                endpoint,
-                metodo,
+                Objects.requireNonNull(
+                        URI.create(urlBase + CAMINHO_VALIDACAO),
+                        "uri de validacao obrigatoria"),
+                Objects.requireNonNull(HttpMethod.GET, "metodo HTTP obrigatorio"),
                 new HttpEntity<Void>(headers),
                 ValidacaoTokenDispositivoResponse.class);
 
@@ -62,5 +61,12 @@ public class ValidadorTokenDispositivoHttp implements ValidadorTokenDispositivoR
                     null);
         }
         return new ResultadoValidacaoTokenDispositivoRemoto(response.getStatusCode().value(), payload);
+    }
+
+    private static final class NoOpResponseErrorHandler extends DefaultResponseErrorHandler {
+        @Override
+        public boolean hasError(@NonNull ClientHttpResponse response) {
+            return false;
+        }
     }
 }

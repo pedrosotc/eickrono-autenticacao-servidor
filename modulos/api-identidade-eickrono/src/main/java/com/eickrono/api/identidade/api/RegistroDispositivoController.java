@@ -12,6 +12,7 @@ import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
 import com.eickrono.api.identidade.servico.OfflineDispositivoService;
 import com.eickrono.api.identidade.servico.RegistroDispositivoService;
 import jakarta.validation.Valid;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -104,7 +105,7 @@ public class RegistroDispositivoController {
             return Optional.empty();
         }
         try {
-            return Optional.of(MotivoRevogacaoToken.valueOf(valor.toUpperCase()));
+            return Optional.of(MotivoRevogacaoToken.valueOf(valor.toUpperCase(Locale.ROOT)));
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }

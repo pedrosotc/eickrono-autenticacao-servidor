@@ -16,14 +16,13 @@ import org.keycloak.provider.ProviderConfigProperty;
 public class EickronoUsernamePasswordFormFactory implements AuthenticatorFactory {
 
     public static final String PROVIDER_ID = "eickrono-username-password-form";
-    private static final EickronoUsernamePasswordForm SINGLETON = new EickronoUsernamePasswordForm();
     private static final AuthenticationExecutionModel.Requirement[] REQUIREMENT_CHOICES = {
         AuthenticationExecutionModel.Requirement.REQUIRED
     };
 
     @Override
     public Authenticator create(KeycloakSession session) {
-        return SINGLETON;
+        return new EickronoUsernamePasswordForm();
     }
 
     @Override
@@ -55,7 +54,7 @@ public class EickronoUsernamePasswordFormFactory implements AuthenticatorFactory
 
     @Override
     public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
-        return REQUIREMENT_CHOICES;
+        return REQUIREMENT_CHOICES.clone();
     }
 
     @Override
@@ -70,7 +69,7 @@ public class EickronoUsernamePasswordFormFactory implements AuthenticatorFactory
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        return null;
+        return List.of();
     }
 
     @Override

@@ -17,14 +17,19 @@ public class ChavesPublicasService {
     private static final String CACHE_JWKS = "jwks-cache";
 
     private final RestTemplate restTemplate;
-    private final OAuth2ResourceServerProperties properties;
+    private final String jwkSetUri;
     private final Cache cache;
 
     public ChavesPublicasService(RestTemplateBuilder builder,
                                  OAuth2ResourceServerProperties properties,
                                  CacheManager cacheManager) {
         this.restTemplate = builder.build();
-        this.properties = properties;
+        this.jwkSetUri = Objects.requireNonNull(
+                Objects.requireNonNull(
+                        Objects.requireNonNull(properties, "properties e obrigatorio").getJwt(),
+                        "JWT properties obrigatorias")
+                        .getJwkSetUri(),
+                "JWK Set URI obrigatoria.");
         this.cache = cacheManager.getCache(CACHE_JWKS);
     }
 
@@ -35,11 +40,12 @@ public class ChavesPublicasService {
                 return emCache;
             }
         }
-        String resposta = Objects.requireNonNull(
-                restTemplate.getForObject(
-                        Objects.requireNonNull(properties.getJwt().getJwkSetUri(), "JWK Set URI obrigatoria."),
-                        String.class),
-                "Resposta JWKS obrigatoria.");
+        String resposta = restTemplate.getForObject(
+                Objects.requireNonNull(jwkSetUri, "JWK Set URI obrigatoria."),
+                String.class);
+        if (resposta == null) {
+            throw new IllegalStateException("Resposta JWKS obrigatoria.");
+        }
         if (cache != null) {
             cache.put("jwks", resposta);
         }

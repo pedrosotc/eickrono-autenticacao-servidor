@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -85,7 +86,7 @@ public class RegistroDispositivoService {
         OffsetDateTime agora = OffsetDateTime.now(clock);
         OffsetDateTime expiraEm = agora.plusHours(propriedades.getCodigo().getExpiracaoHoras());
         UUID id = UUID.randomUUID();
-        String emailNormalizado = normalizarObrigatorio(request.getEmail(), "email").toLowerCase();
+        String emailNormalizado = normalizarObrigatorio(request.getEmail(), "email").toLowerCase(Locale.ROOT);
         String telefoneNormalizado = normalizarTelefone(request.getTelefone());
         RegistroDispositivo registro = new RegistroDispositivo(
                 id,

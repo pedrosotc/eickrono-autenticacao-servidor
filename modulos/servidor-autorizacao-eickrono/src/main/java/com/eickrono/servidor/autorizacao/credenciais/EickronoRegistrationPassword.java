@@ -78,13 +78,16 @@ public class EickronoRegistrationPassword implements FormAction, FormActionFacto
         UserModel user = context.getUser();
         String dataNascimento = DerivadorSenhaEickrono.obterDataNascimento(formData);
         user.setSingleAttribute(DerivadorSenhaEickrono.ATRIBUTO_DATA_NASCIMENTO, dataNascimento);
+        boolean atualizacaoSenhaFalhou = true;
         try {
             String senhaDerivada = DerivadorSenhaEickrono.derivar(formData.getFirst(RegistrationPage.FIELD_PASSWORD),
                     dataNascimento);
             user.credentialManager().updateCredential(UserCredentialModel.password(senhaDerivada, false));
-        } catch (RuntimeException ex) {
-            user.addRequiredAction(EickronoUpdatePassword.PROVIDER_ID);
-            throw ex;
+            atualizacaoSenhaFalhou = false;
+        } finally {
+            if (atualizacaoSenhaFalhou) {
+                user.addRequiredAction(EickronoUpdatePassword.PROVIDER_ID);
+            }
         }
     }
 
@@ -133,7 +136,7 @@ public class EickronoRegistrationPassword implements FormAction, FormActionFacto
 
     @Override
     public AuthenticationExecutionModel.Requirement[] getRequirementChoices() {
-        return REQUIREMENT_CHOICES;
+        return REQUIREMENT_CHOICES.clone();
     }
 
     @Override
@@ -161,6 +164,6 @@ public class EickronoRegistrationPassword implements FormAction, FormActionFacto
 
     @Override
     public List<ProviderConfigProperty> getConfigProperties() {
-        return null;
+        return List.of();
     }
 }

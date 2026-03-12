@@ -10,6 +10,7 @@ import com.eickrono.api.identidade.dominio.repositorio.PessoaRepositorio;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -54,7 +55,7 @@ public class ProvisionamentoIdentidadeService {
     public Pessoa provisionarOuAtualizar(String sub, String email, String nome, Set<String> perfis,
                                          Set<String> papeis, OffsetDateTime atualizadoEm) {
         String subNormalizado = obrigatorio(sub, "sub");
-        String emailNormalizado = obrigatorio(email, "email").toLowerCase();
+        String emailNormalizado = obrigatorio(email, "email").toLowerCase(Locale.ROOT);
         String nomeNormalizado = obrigatorio(nome, "nome");
         OffsetDateTime instante = Objects.requireNonNull(atualizadoEm, "atualizadoEm é obrigatório");
 
@@ -75,7 +76,7 @@ public class ProvisionamentoIdentidadeService {
     public FormaAcesso registrarFormaAcessoSocial(Pessoa pessoa, String provedor, String identificador,
                                                   OffsetDateTime vinculadoEm) {
         Pessoa pessoaObrigatoria = Objects.requireNonNull(pessoa, "pessoa é obrigatória");
-        String provedorNormalizado = obrigatorio(provedor, "provedor").toUpperCase();
+        String provedorNormalizado = obrigatorio(provedor, "provedor").toUpperCase(Locale.ROOT);
         String identificadorNormalizado = obrigatorio(identificador, "identificador");
         OffsetDateTime instante = Objects.requireNonNull(vinculadoEm, "vinculadoEm é obrigatório");
 
