@@ -4,6 +4,7 @@ import com.eickrono.api.identidade.configuracao.DispositivoProperties;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
 import com.eickrono.api.identidade.dominio.modelo.StatusTokenDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
+import com.eickrono.api.identidade.dominio.modelo.DispositivoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
 import com.eickrono.api.identidade.dominio.repositorio.TokenDispositivoRepositorio;
 import jakarta.transaction.Transactional;
@@ -50,8 +51,11 @@ public class TokenDispositivoService {
     }
 
     @Transactional
-    public TokenEmitido emitirToken(RegistroDispositivo registro, String usuarioSub) {
+    public TokenEmitido emitirToken(RegistroDispositivo registro,
+                                    DispositivoIdentidade dispositivo,
+                                    String usuarioSub) {
         Objects.requireNonNull(registro, "registro é obrigatório");
+        Objects.requireNonNull(dispositivo, "dispositivo é obrigatório");
         Objects.requireNonNull(usuarioSub, "usuarioSub é obrigatório");
 
         revogarTokensAtivos(usuarioSub, MotivoRevogacaoToken.NOVO_DISPOSITIVO_CONFIRMANDO);
@@ -64,6 +68,7 @@ public class TokenDispositivoService {
         TokenDispositivo entidade = new TokenDispositivo(
                 UUID.randomUUID(),
                 registro,
+                dispositivo,
                 usuarioSub,
                 registro.getFingerprint(),
                 registro.getPlataforma(),
@@ -74,6 +79,7 @@ public class TokenDispositivoService {
                 expiraEm
         );
         tokenRepositorio.save(entidade);
+        dispositivo.registrarTokenEmitido(agora);
 
         LOGGER.info("Token de dispositivo emitido para usuarioSub={} registro={} fingerprint={}",
                 usuarioSub, registro.getId(), registro.getFingerprint());

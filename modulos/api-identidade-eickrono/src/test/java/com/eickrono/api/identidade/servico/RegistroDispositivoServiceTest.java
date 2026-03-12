@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,7 +26,10 @@ import com.eickrono.api.identidade.dominio.modelo.AuditoriaEventoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.CanalVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.CodigoVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
+import com.eickrono.api.identidade.dominio.modelo.DispositivoIdentidade;
+import com.eickrono.api.identidade.dominio.modelo.Pessoa;
 import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
+import com.eickrono.api.identidade.dominio.modelo.StatusDispositivoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.StatusCodigoVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusTokenDispositivo;
@@ -37,12 +41,15 @@ import com.eickrono.api.identidade.dto.ConfirmacaoRegistroRequest;
 import com.eickrono.api.identidade.dto.ReenvioCodigoRequest;
 import com.eickrono.api.identidade.dto.RegistroDispositivoRequest;
 import com.eickrono.api.identidade.dto.RegistroDispositivoResponse;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 class RegistroDispositivoServiceTest {
 
     private static final Clock CLOCK_FIXO = Clock.fixed(Instant.parse("2024-05-10T12:00:00Z"), ZoneOffset.UTC);
 
     private TokenDispositivoServiceFake tokenDispositivoService;
+    private ProvisionamentoIdentidadeServiceFake provisionamentoIdentidadeService;
+    private DispositivoIdentidadeServiceFake dispositivoIdentidadeService;
 
     private DispositivoProperties properties;
     private RegistroDispositivoService registroDispositivoService;
@@ -128,11 +135,15 @@ class RegistroDispositivoServiceTest {
         canalEmail = new CapturadorCanal(CanalVerificacao.EMAIL);
 
         tokenDispositivoService = new TokenDispositivoServiceFake(properties, CLOCK_FIXO);
+        provisionamentoIdentidadeService = new ProvisionamentoIdentidadeServiceFake();
+        dispositivoIdentidadeService = new DispositivoIdentidadeServiceFake(CLOCK_FIXO);
 
         registroDispositivoService = new RegistroDispositivoService(
                 registroRepositorio(),
                 codigoRepositorio(),
                 tokenDispositivoService,
+                provisionamentoIdentidadeService,
+                dispositivoIdentidadeService,
                 properties,
                 auditoriaService,
                 List.of(canalSms, canalEmail),
@@ -191,7 +202,7 @@ class RegistroDispositivoServiceTest {
         request.setPlataforma("IOS");
         request.setVersaoAplicativo("1.2.3");
 
-        RegistroDispositivoResponse resposta = registroDispositivoService.solicitarRegistro(request, Optional.of("sub-123"));
+        RegistroDispositivoResponse resposta = registroDispositivoService.solicitarRegistro(request, Optional.of(criarJwt("sub-123")));
 
         assertThat(resposta.canaisConfirmacao()).containsExactly(CanalVerificacao.EMAIL);
         assertThat(canalEmail.codigos(resposta.registroId())).hasSize(1);
@@ -209,7 +220,7 @@ class RegistroDispositivoServiceTest {
         request.setPlataforma("IOS");
         request.setVersaoAplicativo("1.2.3");
 
-        assertThatThrownBy(() -> registroDispositivoService.solicitarRegistro(request, Optional.of("sub-123")))
+        assertThatThrownBy(() -> registroDispositivoService.solicitarRegistro(request, Optional.of(criarJwt("sub-123"))))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.BAD_REQUEST);
@@ -231,6 +242,7 @@ class RegistroDispositivoServiceTest {
         TokenDispositivo tokenEntidade = new TokenDispositivo(
                 UUID.randomUUID(),
                 registro,
+                dispositivoIdentidadeService.garantirDispositivo(provisionamentoIdentidadeService.pessoa(), registro),
                 "sub-123",
                 registro.getFingerprint(),
                 registro.getPlataforma(),
@@ -245,7 +257,8 @@ class RegistroDispositivoServiceTest {
         request.setCodigoSms(codigoSms);
         request.setCodigoEmail(codigoEmail);
 
-        var respostaConfirmacao = registroDispositivoService.confirmarRegistro(resposta.registroId(), request, Optional.of("sub-123"));
+        var respostaConfirmacao = registroDispositivoService.confirmarRegistro(
+                resposta.registroId(), request, Optional.of(criarJwt("sub-123")));
 
         assertThat(respostaConfirmacao.tokenDispositivo()).isEqualTo("token-dispositivo");
         assertThat(tokenDispositivoService.getUltimoUsuario()).isEqualTo("sub-123");
@@ -271,7 +284,8 @@ class RegistroDispositivoServiceTest {
         request.setCodigoSms("000000");
         request.setCodigoEmail(canalEmail.codigos(resposta.registroId()).getFirst());
 
-        assertThatThrownBy(() -> registroDispositivoService.confirmarRegistro(resposta.registroId(), request, Optional.of("sub-123")))
+        assertThatThrownBy(() -> registroDispositivoService.confirmarRegistro(
+                resposta.registroId(), request, Optional.of(criarJwt("sub-123"))))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(ex -> ((ResponseStatusException) ex).getStatusCode())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -381,6 +395,7 @@ class RegistroDispositivoServiceTest {
         TokenDispositivo token = new TokenDispositivo(
                 UUID.randomUUID(),
                 registro,
+                dispositivoIdentidadeService.garantirDispositivo(provisionamentoIdentidadeService.pessoa(), registro),
                 "sub-123",
                 "fingerprint",
                 "IOS",
@@ -428,7 +443,18 @@ class RegistroDispositivoServiceTest {
         request.setVersaoAplicativo("1.2.3");
         request.setChavePublica("chave-publica");
 
-        return registroDispositivoService.solicitarRegistro(request, Optional.of("sub-123"));
+        return registroDispositivoService.solicitarRegistro(request, Optional.of(criarJwt("sub-123")));
+    }
+
+    private Jwt criarJwt(String sub) {
+        return Jwt.withTokenValue("jwt-teste-" + sub)
+                .header("alg", "none")
+                .subject(sub)
+                .claim("email", "teste@eickrono.com")
+                .claim("name", "Pessoa Teste")
+                .claim("perfis", List.of("CLIENTE"))
+                .claim("papeis", List.of("ROLE_cliente"))
+                .build();
     }
 
     private static class CapturadorCanal implements CanalEnvioCodigo {
@@ -483,7 +509,9 @@ class RegistroDispositivoServiceTest {
         }
 
         @Override
-        public TokenEmitido emitirToken(RegistroDispositivo registro, String usuarioSub) {
+        public TokenEmitido emitirToken(RegistroDispositivo registro,
+                                        DispositivoIdentidade dispositivo,
+                                        String usuarioSub) {
             this.ultimoRegistro = registro;
             this.ultimoUsuario = usuarioSub;
             return emissao;
@@ -497,6 +525,66 @@ class RegistroDispositivoServiceTest {
         @Override
         public void revogarTokensAtivos(String usuarioSub, MotivoRevogacaoToken motivo) {
             // comportamento controlado pelos testes
+        }
+    }
+
+    private static class ProvisionamentoIdentidadeServiceFake extends ProvisionamentoIdentidadeService {
+
+        private final Pessoa pessoa;
+
+        ProvisionamentoIdentidadeServiceFake() {
+            super(
+                    org.mockito.Mockito.mock(com.eickrono.api.identidade.dominio.repositorio.PessoaRepositorio.class),
+                    org.mockito.Mockito.mock(com.eickrono.api.identidade.dominio.repositorio.FormaAcessoRepositorio.class),
+                    org.mockito.Mockito.mock(com.eickrono.api.identidade.dominio.repositorio.PerfilIdentidadeRepositorio.class));
+            this.pessoa = new Pessoa(
+                    "sub-123",
+                    "teste@eickrono.com",
+                    "Pessoa Teste",
+                    Set.of("CLIENTE"),
+                    Set.of("ROLE_cliente"),
+                    OffsetDateTime.parse("2024-05-10T12:00:00Z"));
+        }
+
+        Pessoa pessoa() {
+            return pessoa;
+        }
+
+        @Override
+        public Pessoa provisionarOuAtualizar(Jwt jwt) {
+            return pessoa;
+        }
+
+        @Override
+        public Optional<Pessoa> localizarPessoaPorSub(String sub) {
+            return Objects.equals(pessoa.getSub(), sub) ? Optional.of(pessoa) : Optional.empty();
+        }
+    }
+
+    private static class DispositivoIdentidadeServiceFake extends DispositivoIdentidadeService {
+
+        private final Clock clock;
+
+        DispositivoIdentidadeServiceFake(Clock clock) {
+            super(
+                    org.mockito.Mockito.mock(com.eickrono.api.identidade.dominio.repositorio.DispositivoIdentidadeRepositorio.class),
+                    org.mockito.Mockito.mock(com.eickrono.api.identidade.dominio.repositorio.PessoaRepositorio.class),
+                    clock);
+            this.clock = clock;
+        }
+
+        @Override
+        public DispositivoIdentidade garantirDispositivo(Pessoa pessoa, RegistroDispositivo registro) {
+            OffsetDateTime agora = OffsetDateTime.now(clock);
+            return new DispositivoIdentidade(
+                    pessoa,
+                    registro.getFingerprint(),
+                    registro.getPlataforma(),
+                    registro.getVersaoAplicativo().orElse(null),
+                    registro.getChavePublica().orElse(null),
+                    StatusDispositivoIdentidade.ATIVO,
+                    agora,
+                    agora);
         }
     }
 }

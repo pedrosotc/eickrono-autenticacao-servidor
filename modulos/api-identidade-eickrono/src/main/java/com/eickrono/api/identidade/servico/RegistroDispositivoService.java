@@ -3,7 +3,9 @@ package com.eickrono.api.identidade.servico;
 import com.eickrono.api.identidade.configuracao.DispositivoProperties;
 import com.eickrono.api.identidade.dominio.modelo.CanalVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.CodigoVerificacao;
+import com.eickrono.api.identidade.dominio.modelo.DispositivoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
+import com.eickrono.api.identidade.dominio.modelo.Pessoa;
 import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusCodigoVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
@@ -34,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -49,6 +52,8 @@ public class RegistroDispositivoService {
     private final RegistroDispositivoRepositorio registroRepositorio;
     private final CodigoVerificacaoRepositorio codigoRepositorio;
     private final TokenDispositivoService tokenDispositivoService;
+    private final ProvisionamentoIdentidadeService provisionamentoIdentidadeService;
+    private final DispositivoIdentidadeService dispositivoIdentidadeService;
     private final DispositivoProperties propriedades;
     private final AuditoriaService auditoriaService;
     private final Map<CanalVerificacao, CanalEnvioCodigo> canaisEnvio;
@@ -58,6 +63,8 @@ public class RegistroDispositivoService {
     public RegistroDispositivoService(RegistroDispositivoRepositorio registroRepositorio,
                                       CodigoVerificacaoRepositorio codigoRepositorio,
                                       TokenDispositivoService tokenDispositivoService,
+                                      ProvisionamentoIdentidadeService provisionamentoIdentidadeService,
+                                      DispositivoIdentidadeService dispositivoIdentidadeService,
                                       DispositivoProperties propriedades,
                                       AuditoriaService auditoriaService,
                                       List<CanalEnvioCodigo> canaisEnvio,
@@ -65,6 +72,8 @@ public class RegistroDispositivoService {
         this.registroRepositorio = registroRepositorio;
         this.codigoRepositorio = codigoRepositorio;
         this.tokenDispositivoService = tokenDispositivoService;
+        this.provisionamentoIdentidadeService = provisionamentoIdentidadeService;
+        this.dispositivoIdentidadeService = dispositivoIdentidadeService;
         this.propriedades = propriedades;
         this.auditoriaService = auditoriaService;
         this.canaisEnvio = construirMapaCanais(canaisEnvio);
@@ -72,7 +81,7 @@ public class RegistroDispositivoService {
     }
 
     @Transactional
-    public RegistroDispositivoResponse solicitarRegistro(RegistroDispositivoRequest request, Optional<String> usuarioSubOpt) {
+    public RegistroDispositivoResponse solicitarRegistro(RegistroDispositivoRequest request, Optional<Jwt> jwtOpt) {
         OffsetDateTime agora = OffsetDateTime.now(clock);
         OffsetDateTime expiraEm = agora.plusHours(propriedades.getCodigo().getExpiracaoHoras());
         UUID id = UUID.randomUUID();
@@ -80,7 +89,7 @@ public class RegistroDispositivoService {
         String telefoneNormalizado = normalizarTelefone(request.getTelefone());
         RegistroDispositivo registro = new RegistroDispositivo(
                 id,
-                usuarioSubOpt.orElse(null),
+                jwtOpt.map(Jwt::getSubject).orElse(null),
                 emailNormalizado,
                 telefoneNormalizado,
                 normalizarObrigatorio(request.getFingerprint(), "fingerprint"),
@@ -109,7 +118,7 @@ public class RegistroDispositivoService {
         codigosGerados.forEach(this::enviarCodigo);
 
         auditoriaService.registrarEvento("DISPOSITIVO_REGISTRO_SOLICITADO",
-                usuarioSubOpt.orElse(emailNormalizado),
+                jwtOpt.map(Jwt::getSubject).orElse(emailNormalizado),
                 "Registro de dispositivo iniciado");
 
         LOGGER.info("Registro de dispositivo criado id={} email={} fingerprint={} canais={}",
@@ -128,7 +137,7 @@ public class RegistroDispositivoService {
     @Transactional
     public ConfirmacaoRegistroResponse confirmarRegistro(UUID id,
                                                          ConfirmacaoRegistroRequest request,
-                                                         Optional<String> usuarioSubOpt) {
+                                                         Optional<Jwt> jwtOpt) {
         if (id == null) {
             throw new IllegalArgumentException("Id do registro obrigatorio.");
         }
@@ -151,14 +160,13 @@ public class RegistroDispositivoService {
         registro.codigoPorCanal(CanalVerificacao.SMS)
                 .ifPresent(codigoSms -> validarCodigo(codigoSms, request.getCodigoSms(), agora));
 
-        String usuarioSub = registro.getUsuarioSub()
-                .or(() -> usuarioSubOpt)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Usuário não identificado para emissão de token"));
+        Pessoa pessoa = localizarOuProvisionarPessoa(registro, jwtOpt);
+        String usuarioSub = pessoa.getSub();
         registro.definirUsuarioSub(usuarioSub);
         registro.definirStatus(StatusRegistroDispositivo.CONFIRMADO, agora);
+        DispositivoIdentidade dispositivo = dispositivoIdentidadeService.garantirDispositivo(pessoa, registro);
 
-        ConfirmacaoRegistroResponse response = emitirToken(registro, usuarioSub, agora);
+        ConfirmacaoRegistroResponse response = emitirToken(registro, dispositivo, usuarioSub, agora);
 
         auditoriaService.registrarEvento("DISPOSITIVO_VERIFICACAO_SUCESSO",
                 usuarioSub,
@@ -236,8 +244,11 @@ public class RegistroDispositivoService {
                 }, () -> LOGGER.warn("Tentativa de revogar token inexistente usuarioSub={}", usuarioSub));
     }
 
-    private ConfirmacaoRegistroResponse emitirToken(RegistroDispositivo registro, String usuarioSub, OffsetDateTime agora) {
-        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registro, usuarioSub);
+    private ConfirmacaoRegistroResponse emitirToken(RegistroDispositivo registro,
+                                                    DispositivoIdentidade dispositivo,
+                                                    String usuarioSub,
+                                                    OffsetDateTime agora) {
+        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registro, dispositivo, usuarioSub);
         return new ConfirmacaoRegistroResponse(
                 tokenEmitido.tokenClaro(),
                 tokenEmitido.entidade().getExpiraEm(),
@@ -347,6 +358,17 @@ public class RegistroDispositivoService {
 
     private boolean smsHabilitado() {
         return propriedades.getOnboarding().isSmsHabilitado();
+    }
+
+    private Pessoa localizarOuProvisionarPessoa(RegistroDispositivo registro, Optional<Jwt> jwtOpt) {
+        if (jwtOpt.isPresent()) {
+            return provisionamentoIdentidadeService.provisionarOuAtualizar(jwtOpt.orElseThrow());
+        }
+        return registro.getUsuarioSub()
+                .flatMap(provisionamentoIdentidadeService::localizarPessoaPorSub)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Pessoa não provisionada para o dispositivo confirmado"));
     }
 
     private String normalizarObrigatorio(String valor, String campo) {

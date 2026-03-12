@@ -196,6 +196,14 @@ mvn -U -pl modulos/api-contas-eickrono -am \
   test
 ```
 
+5. Rodar os testes relevantes da política offline da identidade:
+
+```bash
+mvn -U -pl modulos/api-identidade-eickrono -am \
+  -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,OfflineDispositivoServiceTest \
+  test
+```
+
 #### Sinais esperados de sucesso
 
 Durante a execução bem-sucedida, os logs devem conter linhas semelhantes a:
@@ -207,6 +215,15 @@ Connected to docker:
   Server Version: 29.2.1
   API Version: 1.53
 Container postgres:15.5 started
+BUILD SUCCESS
+```
+
+Quando a etapa de política offline estiver correta, também é esperado encontrar nos logs linhas semelhantes a:
+
+```text
+Mapped to com.eickrono.api.identidade.api.RegistroDispositivoController#obterPoliticaOffline()
+Mapped to com.eickrono.api.identidade.api.RegistroDispositivoController#registrarEventosOffline(Jwt, String, RegistrarEventosOfflineRequest)
+insert into eventos_offline_dispositivo
 BUILD SUCCESS
 ```
 
@@ -234,6 +251,7 @@ Esses alertas nem sempre indicam erro real de compilação. O caso mais comum no
 - `invocation.getArgument(...)`
 - `save(any(...))`
 - repositórios Spring Data/JPA usados como mocks
+- serialização Jackson, por exemplo `objectMapper.writeValueAsString(...)`
 
 ### Como corrigir do jeito preferido no projeto
 
@@ -261,7 +279,15 @@ Esses alertas nem sempre indicam erro real de compilação. O caso mais comum no
        "entidade salva é obrigatória");
    ```
 
-5. **Se o teste depender só de auditoria/captura simples**, substitua `ArgumentCaptor` por uma lista/variável em memória dentro de um fake.
+5. **Quando a origem do valor for biblioteca externa sem anotação de nulidade confiável**, normalize o retorno no ponto de leitura.
+   Exemplo típico no projeto:
+   ```java
+   String payload = Objects.requireNonNull(
+       objectMapper.writeValueAsString(Map.of("chave", "valor")));
+   ```
+   Isso vale para casos como `MockMvc.content(...)`, em que a API de destino exige `@NonNull String` e o JDT não consegue provar isso a partir do Jackson.
+
+6. **Se o teste depender só de auditoria/captura simples**, substitua `ArgumentCaptor` por uma lista/variável em memória dentro de um fake.
 
 ### Ordem prática de tratamento
 

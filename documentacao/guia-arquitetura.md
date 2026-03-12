@@ -7,6 +7,7 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 - **Servidor de autorização (Keycloak/RH-SSO):** responsável pelos realms `desenvolvimento`, `homologacao` e `producao`. Mantém configurações PAR/JAR/JARM, políticas de MFA/WebAuthn/Passkeys e rotação de chaves JWK.
 - **API Identidade Eickrono:** serviço Spring Boot que expõe recursos de perfil e vínculos sociais, validando tokens JWT provenientes do servidor de autorização.
 - **Registro de dispositivos móveis:** conjunto de serviços na API de Identidade (`RegistroDispositivoService`, `TokenDispositivoService`, `CodigoVerificacaoService`) que gerenciam onboarding de novos aparelhos, revogação de tokens antigos e verificação por canais configuráveis, com e-mail sempre obrigatório e SMS opcional por política.
+- **Política offline centralizada:** a API de Identidade publica uma política central de uso offline e recebe a reconciliação dos eventos offline do aplicativo, sempre vinculando esses eventos a uma identidade explícita de dispositivo.
 - **API Contas Eickrono:** serviço Spring Boot para operações de contas e transações, com escopos e papéis específicos (`SCOPE_transacoes:ler`, `ROLE_cliente`) e auditoria detalhada.
 - **PostgreSQL:** banco multi-schema, com versionamento por Flyway e separação de usuários por ambiente.
 - **Caffeine Cache:** camada de cache em memória utilizada de forma consistente pelos serviços.
@@ -34,6 +35,12 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
    - O envio de SMS passa por `CanalEnvioCodigoSms`, que delega ao `FornecedorEnvioSms` configurado em `identidade.dispositivo.onboarding.sms-fornecedor`, preparando o backend para múltiplos provedores.  
    - A confirmação via `POST /identidade/dispositivos/registro/{id}/confirmacao` valida apenas os canais efetivamente criados no registro, mantendo hashes, tentativas limitadas e expiração em 9 horas.  
    - A finalização gera `DispositivoToken` opaco, revoga tokens anteriores e notifica o Keycloak (SPI `DeviceTokenConstraintProvider`) para impedir sessões de aparelhos não validados.
+7. **Política offline do aplicativo móvel:**  
+   - O app consulta `GET /identidade/dispositivos/offline/politica` para descobrir se o backend permite modo offline, por quanto tempo e quais condições exigem bloqueio imediato.  
+   - A API exige `Authorization` + `X-Device-Token` também nesse endpoint, preservando o mesmo contrato das demais APIs protegidas do ecossistema.  
+   - O app envia `POST /identidade/dispositivos/offline/eventos` para reconciliar os eventos ocorridos fora de linha.  
+   - Cada evento reconciliado é persistido em `eventos_offline_dispositivo` e auditado em `auditoria_eventos_identidade`.  
+   - Nesta etapa não foi criada uma entidade de “janela offline”; o backend publica política e registra eventos, deixando a modelagem de janela explícita para quando a lógica antifraude realmente precisar de estado aberto/fechado.
 
 ## Integrações e validações
 
@@ -54,6 +61,8 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 - **Tabela `registro_dispositivo`:** armazena metadados da solicitação (UUID, e-mail, telefone opcional quando SMS estiver desligado, fingerprint, status, `criado_em`, `expira_em`, `confirmado_em`).  
 - **Tabela `codigo_verificacao`:** relaciona registro + canal (`EMAIL` sempre, `SMS` somente quando habilitado), hash do código, tentativas, limite e timestamps de envio/validação.  
 - **Tabela `token_dispositivo`:** mantém tokens opacos vinculados ao usuário (`sub`), fingerprint, data de emissão, revogação e motivo.  
+- **Tabela `dispositivos_identidade`:** modela explicitamente o aparelho confiável vinculado à `Pessoa`, com fingerprint, plataforma, versão do app, chave pública, status e último token emitido.  
+- **Tabela `eventos_offline_dispositivo`:** registra a reconciliação dos eventos offline reportados pelo aplicativo, incluindo tipo do evento, token associado, instante de ocorrência e instante de registro.  
 - Todas têm índices em `status`, `expira_em` e `usuario_sub` para facilitar queries do job de expiração e verificação rápida no filtro HTTP (`DeviceTokenFilter`).
 
 ## Políticas de expiração e revogação
@@ -72,14 +81,21 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 - **Conflito de identidade:** o provisionamento rejeita a tentativa de associar o mesmo e-mail principal a pessoas diferentes.
 - **Vínculos sociais:** a criação/listagem de vínculos sociais passa a operar sobre a pessoa provisionada e também registra `FormaAcesso` do tipo `SOCIAL`, mantendo o legado compatível enquanto o modelo antigo é retirado.
 
+## Política offline implementada
+
+- **Política central no backend:** as regras vivem em `identidade.dispositivo.offline.*` e são publicadas pela API de Identidade.
+- **Identidade explícita do dispositivo:** a emissão do `TokenDispositivo` agora referencia `DispositivoIdentidade`, evitando que o app trabalhe apenas com fingerprint solto.
+- **Reconciliação auditável:** o backend persiste os eventos do app em `eventos_offline_dispositivo` e sempre registra auditoria com o sujeito autenticado.
+- **Bloqueio por confiança:** a reconciliação offline é recusada quando o token do dispositivo não está ativo ou quando o dispositivo está sem confiança e a política central determina bloqueio.
+- **Sem entidade de janela offline nesta etapa:** o backend não abriu uma entidade de ciclo de vida offline; essa modelagem foi conscientemente adiada para quando a análise antifraude exigir estado aberto/fechado.
+
 ## Validação executada
 
-Para esta etapa do onboarding de dispositivo, os testes executados foram:
+Para esta etapa de política offline do dispositivo, os testes executados foram:
 
 - `mvn -U -pl modulos/api-contas-eickrono -am test-compile -DskipITs`
 - `mvn -U -pl modulos/api-identidade-eickrono -am test-compile -DskipITs`
-- `mvn -U -pl modulos/api-identidade-eickrono -am -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,CanalEnvioCodigoSmsTest test`
-- `mvn -U -pl modulos/api-contas-eickrono -am -Dtest=AplicacaoApiContasTest,ApiContasDeviceTokenContractTest test`
+- `mvn -U -pl modulos/api-identidade-eickrono -am -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,OfflineDispositivoServiceTest test`
 
 Esses testes cobrem especificamente:
 
@@ -88,6 +104,9 @@ Esses testes cobrem especificamente:
 - confirmação e reenvio obedecendo apenas os canais efetivamente gerados;
 - delegação do canal SMS para um fornecedor configurável;
 - provisionamento controlado de identidade durante o fluxo autenticado;
+- publicação da política offline central do backend;
+- reconciliação de eventos offline vinculados ao dispositivo autenticado;
+- persistência de `dispositivos_identidade` e `eventos_offline_dispositivo`;
 - filtros e contratos de `X-Device-Token` com banco PostgreSQL real;
 - compilação dos módulos impactados sem reintroduzir alertas artificiais no estilo já descrito no `guia-desenvolvimento.md`.
 

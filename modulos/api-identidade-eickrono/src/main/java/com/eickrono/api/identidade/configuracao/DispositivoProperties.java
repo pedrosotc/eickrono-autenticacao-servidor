@@ -11,6 +11,7 @@ public class DispositivoProperties {
     private final Token token = new Token();
     private final Codigo codigo = new Codigo();
     private final Onboarding onboarding = new Onboarding();
+    private final Offline offline = new Offline();
 
     public Token getToken() {
         return token;
@@ -22,6 +23,10 @@ public class DispositivoProperties {
 
     public Onboarding getOnboarding() {
         return onboarding;
+    }
+
+    public Offline getOffline() {
+        return offline;
     }
 
     public static class Token {
@@ -132,6 +137,63 @@ public class DispositivoProperties {
 
         public void setSmsFornecedor(String smsFornecedor) {
             this.smsFornecedor = smsFornecedor;
+        }
+    }
+
+    public static class Offline {
+        private boolean permitido = true;
+        private long tempoMaximoMinutos = 1440;
+        private boolean exigeReconciliacao = true;
+        private boolean bloquearQuandoTokenRevogado = true;
+        private boolean bloquearQuandoTokenExpirado = true;
+        private boolean bloquearQuandoDispositivoSemConfianca = true;
+
+        public boolean isPermitido() {
+            return permitido;
+        }
+
+        public void setPermitido(boolean permitido) {
+            this.permitido = permitido;
+        }
+
+        public long getTempoMaximoMinutos() {
+            return tempoMaximoMinutos;
+        }
+
+        public void setTempoMaximoMinutos(long tempoMaximoMinutos) {
+            this.tempoMaximoMinutos = tempoMaximoMinutos;
+        }
+
+        public boolean isExigeReconciliacao() {
+            return exigeReconciliacao;
+        }
+
+        public void setExigeReconciliacao(boolean exigeReconciliacao) {
+            this.exigeReconciliacao = exigeReconciliacao;
+        }
+
+        public boolean isBloquearQuandoTokenRevogado() {
+            return bloquearQuandoTokenRevogado;
+        }
+
+        public void setBloquearQuandoTokenRevogado(boolean bloquearQuandoTokenRevogado) {
+            this.bloquearQuandoTokenRevogado = bloquearQuandoTokenRevogado;
+        }
+
+        public boolean isBloquearQuandoTokenExpirado() {
+            return bloquearQuandoTokenExpirado;
+        }
+
+        public void setBloquearQuandoTokenExpirado(boolean bloquearQuandoTokenExpirado) {
+            this.bloquearQuandoTokenExpirado = bloquearQuandoTokenExpirado;
+        }
+
+        public boolean isBloquearQuandoDispositivoSemConfianca() {
+            return bloquearQuandoDispositivoSemConfianca;
+        }
+
+        public void setBloquearQuandoDispositivoSemConfianca(boolean bloquearQuandoDispositivoSemConfianca) {
+            this.bloquearQuandoDispositivoSemConfianca = bloquearQuandoDispositivoSemConfianca;
         }
     }
 }

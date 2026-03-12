@@ -161,6 +161,46 @@ PY
    - `reenviarSms` só terá efeito quando o registro tiver sido criado com o canal SMS ativo.
    - Esperado: `202 Accepted` e novos códigos nos logs.
 
+4. **GET** `http://localhost:8081/identidade/dispositivos/offline/politica`
+   - Cabeçalhos:
+     - `Authorization: Bearer <token_password>`
+     - `X-Device-Token: <tokenDispositivo>`
+   - Esperado: `200 OK` com a política central do backend:
+     ```json
+     {
+       "permitido": true,
+       "tempoMaximoMinutos": 720,
+       "exigeReconciliacao": true,
+       "condicoesBloqueio": [
+         "TOKEN_REVOGADO",
+         "TOKEN_EXPIRADO",
+         "DISPOSITIVO_SEM_CONFIANCA"
+       ]
+     }
+     ```
+
+5. **POST** `http://localhost:8081/identidade/dispositivos/offline/eventos`
+   - Cabeçalhos:
+     - `Authorization: Bearer <token_password>`
+     - `X-Device-Token: <tokenDispositivo>`
+   - Payload:
+     ```json
+     {
+       "eventos": [
+         {
+           "tipoEvento": "MODO_OFFLINE_ATIVADO",
+           "detalhes": "usuario entrou em modo offline"
+         },
+         {
+           "tipoEvento": "RECONCILIACAO_REALIZADA",
+           "detalhes": "sincronizacao concluida"
+         }
+       ]
+     }
+     ```
+   - Esperado: `202 Accepted`.
+   - Objetivo: registrar no backend os eventos relevantes do período offline do app sem criar ainda uma entidade de janela offline.
+
 ### 3. Consultas e ações da API Identidade
 > As chamadas abaixo exigem **dois cabeçalhos**:
 > - `Authorization: Bearer <token_password>`

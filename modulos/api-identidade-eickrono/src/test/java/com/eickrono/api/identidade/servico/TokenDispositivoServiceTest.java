@@ -6,8 +6,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.eickrono.api.identidade.configuracao.DispositivoProperties;
+import com.eickrono.api.identidade.dominio.modelo.DispositivoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
+import com.eickrono.api.identidade.dominio.modelo.Pessoa;
 import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
+import com.eickrono.api.identidade.dominio.modelo.StatusDispositivoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusTokenDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
@@ -19,6 +22,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +41,7 @@ class TokenDispositivoServiceTest {
     private TokenDispositivoService tokenDispositivoService;
     private DispositivoProperties propriedades;
     private RegistroDispositivo registroDispositivo;
+    private DispositivoIdentidade dispositivoIdentidade;
 
     private TokenDispositivoRepositorio tokenRepositorio() {
         return Objects.requireNonNull(tokenRepositorio);
@@ -75,6 +80,22 @@ class TokenDispositivoServiceTest {
                 OffsetDateTime.now(CLOCK_FIXO),
                 OffsetDateTime.now(CLOCK_FIXO).plusHours(9)
         );
+        Pessoa pessoa = new Pessoa(
+                "usuario-123",
+                "usuario@test.com",
+                "Usuario Teste",
+                Set.of("CLIENTE"),
+                Set.of("ROLE_cliente"),
+                OffsetDateTime.now(CLOCK_FIXO));
+        dispositivoIdentidade = new DispositivoIdentidade(
+                pessoa,
+                registroDispositivo.getFingerprint(),
+                registroDispositivo.getPlataforma(),
+                registroDispositivo.getVersaoAplicativo().orElse(null),
+                null,
+                StatusDispositivoIdentidade.ATIVO,
+                OffsetDateTime.now(CLOCK_FIXO),
+                OffsetDateTime.now(CLOCK_FIXO));
     }
 
     /**
@@ -87,6 +108,7 @@ class TokenDispositivoServiceTest {
         TokenDispositivo tokenAnterior = new TokenDispositivo(
                 UUID.randomUUID(),
                 registroDispositivo,
+                dispositivoIdentidade,
                 "usuario-123",
                 "android|pixel",
                 "Android",
@@ -101,7 +123,8 @@ class TokenDispositivoServiceTest {
                 .thenReturn(List.of(tokenAnterior));
         when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
 
-        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
+        TokenDispositivoService.TokenEmitido tokenEmitido =
+                tokenDispositivoService.emitirToken(registroDispositivo, dispositivoIdentidade, "usuario-123");
 
         assertThat(tokenEmitido.tokenClaro()).isNotBlank();
         assertThat(tokenEmitido.entidade().getStatus()).isEqualTo(StatusTokenDispositivo.ATIVO);
@@ -122,7 +145,8 @@ class TokenDispositivoServiceTest {
                 .thenReturn(List.of());
         when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
 
-        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
+        TokenDispositivoService.TokenEmitido tokenEmitido =
+                tokenDispositivoService.emitirToken(registroDispositivo, dispositivoIdentidade, "usuario-123");
 
         when(tokenRepositorio().findByUsuarioSubAndTokenHashAndStatus(
                 "usuario-123",
@@ -145,7 +169,8 @@ class TokenDispositivoServiceTest {
                 .thenReturn(List.of());
         when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
 
-        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
+        TokenDispositivoService.TokenEmitido tokenEmitido =
+                tokenDispositivoService.emitirToken(registroDispositivo, dispositivoIdentidade, "usuario-123");
         tokenEmitido.entidade().revogar(MotivoRevogacaoToken.SOLICITACAO_CLIENTE, OffsetDateTime.now(CLOCK_FIXO));
 
         when(tokenRepositorio().findByUsuarioSubAndTokenHash("usuario-123", tokenEmitido.entidade().getTokenHash()))
@@ -163,10 +188,12 @@ class TokenDispositivoServiceTest {
                 .thenReturn(List.of());
         when(tokenRepositorio().save(Objects.requireNonNull(anyValue(TokenDispositivo.class)))).thenAnswer(this::tokenSalvo);
 
-        TokenDispositivoService.TokenEmitido tokenEmitido = tokenDispositivoService.emitirToken(registroDispositivo, "usuario-123");
+        TokenDispositivoService.TokenEmitido tokenEmitido =
+                tokenDispositivoService.emitirToken(registroDispositivo, dispositivoIdentidade, "usuario-123");
         TokenDispositivo tokenExpirado = new TokenDispositivo(
                 tokenEmitido.entidade().getId(),
                 registroDispositivo,
+                dispositivoIdentidade,
                 "usuario-123",
                 tokenEmitido.entidade().getFingerprint(),
                 tokenEmitido.entidade().getPlataforma(),
@@ -195,6 +222,7 @@ class TokenDispositivoServiceTest {
         TokenDispositivo tokenAtivo = new TokenDispositivo(
                 UUID.randomUUID(),
                 registroDispositivo,
+                dispositivoIdentidade,
                 "usuario-123",
                 "fingerprint",
                 "Android",

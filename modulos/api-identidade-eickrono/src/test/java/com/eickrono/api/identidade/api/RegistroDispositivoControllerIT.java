@@ -7,13 +7,17 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.eickrono.api.identidade.dominio.modelo.CanalVerificacao;
+import com.eickrono.api.identidade.dominio.modelo.EventoOfflineDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
+import com.eickrono.api.identidade.dominio.modelo.TipoEventoOfflineDispositivo;
 import com.eickrono.api.identidade.AplicacaoApiIdentidade;
 import com.eickrono.api.identidade.support.InfraestruturaTesteIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
+import com.eickrono.api.identidade.dominio.repositorio.EventoOfflineDispositivoRepositorio;
 import com.eickrono.api.identidade.dominio.repositorio.TokenDispositivoRepositorio;
 import com.eickrono.api.identidade.dto.ConfirmacaoRegistroResponse;
+import com.eickrono.api.identidade.dto.PoliticaOfflineDispositivoResponse;
 import com.eickrono.api.identidade.dto.RegistroDispositivoResponse;
 import com.eickrono.api.identidade.dto.ValidacaoTokenDispositivoResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,6 +63,9 @@ class RegistroDispositivoControllerIT {
     @Autowired
     private TokenDispositivoRepositorio tokenDispositivoRepositorio;
 
+    @Autowired
+    private EventoOfflineDispositivoRepositorio eventoOfflineDispositivoRepositorio;
+
     private MockMvc mockMvc() {
         return Objects.requireNonNull(mockMvc);
     }
@@ -73,6 +80,10 @@ class RegistroDispositivoControllerIT {
 
     private TokenDispositivoRepositorio tokenDispositivoRepositorio() {
         return Objects.requireNonNull(tokenDispositivoRepositorio);
+    }
+
+    private EventoOfflineDispositivoRepositorio eventoOfflineDispositivoRepositorio() {
+        return Objects.requireNonNull(eventoOfflineDispositivoRepositorio);
     }
 
     @Test
@@ -124,6 +135,34 @@ class RegistroDispositivoControllerIT {
                 ValidacaoTokenDispositivoResponse.class);
         assertThat(payloadValidacao.valido()).isTrue();
         assertThat(payloadValidacao.codigo()).isEqualTo("DEVICE_TOKEN_VALID");
+
+        MvcResult politicaOffline = mockMvc().perform(get("/identidade/dispositivos/offline/politica")
+                        .with(Objects.requireNonNull(clienteJwt()))
+                        .header("X-Device-Token", confirmacao.tokenDispositivo()))
+                .andExpect(status().isOk())
+                .andReturn();
+        PoliticaOfflineDispositivoResponse politica = objectMapper().readValue(
+                politicaOffline.getResponse().getContentAsByteArray(),
+                PoliticaOfflineDispositivoResponse.class);
+        assertThat(politica.permitido()).isTrue();
+        assertThat(politica.exigeReconciliacao()).isTrue();
+        assertThat(politica.condicoesBloqueio()).contains("TOKEN_REVOGADO");
+
+        String payloadEventosOffline = Objects.requireNonNull(objectMapper().writeValueAsString(Map.of(
+                "eventos", java.util.List.of(Map.of(
+                        "tipoEvento", TipoEventoOfflineDispositivo.MODO_OFFLINE_ATIVADO.name(),
+                        "detalhes", "usuario entrou em modo offline"
+                )))));
+        mockMvc().perform(post("/identidade/dispositivos/offline/eventos")
+                        .with(Objects.requireNonNull(clienteJwt()))
+                        .header("X-Device-Token", confirmacao.tokenDispositivo())
+                        .contentType(Objects.requireNonNull(jsonMediaType()))
+                        .content(payloadEventosOffline))
+                .andExpect(status().isAccepted());
+
+        assertThat(eventoOfflineDispositivoRepositorio().findAll())
+                .extracting(EventoOfflineDispositivo::getTipoEvento)
+                .contains(TipoEventoOfflineDispositivo.MODO_OFFLINE_ATIVADO);
 
         // Revogação
         mockMvc().perform(post("/identidade/dispositivos/revogar")

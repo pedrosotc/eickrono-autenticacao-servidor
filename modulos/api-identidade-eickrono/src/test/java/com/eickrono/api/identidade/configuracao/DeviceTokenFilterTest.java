@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,7 +19,10 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
+import com.eickrono.api.identidade.dominio.modelo.DispositivoIdentidade;
+import com.eickrono.api.identidade.dominio.modelo.Pessoa;
 import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
+import com.eickrono.api.identidade.dominio.modelo.StatusDispositivoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusTokenDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
@@ -154,6 +158,7 @@ class DeviceTokenFilterTest {
         return new TokenDispositivo(
                 UUID.randomUUID(),
                 registro,
+                criarDispositivo(),
                 "usuario-xyz",
                 "fingerprint",
                 "plataforma",
@@ -163,6 +168,26 @@ class DeviceTokenFilterTest {
                 OffsetDateTime.now(Clock.systemUTC()),
                 OffsetDateTime.now(Clock.systemUTC()).plusHours(24)
         );
+    }
+
+    private DispositivoIdentidade criarDispositivo() {
+        OffsetDateTime agora = OffsetDateTime.now(Clock.systemUTC());
+        Pessoa pessoa = new Pessoa(
+                "usuario-xyz",
+                "teste@eickrono.com",
+                "Pessoa Teste",
+                Set.of("CLIENTE"),
+                Set.of("ROLE_cliente"),
+                agora);
+        return new DispositivoIdentidade(
+                pessoa,
+                "fingerprint",
+                "plataforma",
+                "1.0.0",
+                null,
+                StatusDispositivoIdentidade.ATIVO,
+                agora,
+                agora);
     }
 
     private static class TokenDispositivoServiceStub extends com.eickrono.api.identidade.servico.TokenDispositivoService {
@@ -190,7 +215,9 @@ class DeviceTokenFilterTest {
         }
 
         @Override
-        public TokenEmitido emitirToken(RegistroDispositivo registro, String usuarioSub) {
+        public TokenEmitido emitirToken(RegistroDispositivo registro,
+                                        DispositivoIdentidade dispositivo,
+                                        String usuarioSub) {
             throw new UnsupportedOperationException();
         }
 

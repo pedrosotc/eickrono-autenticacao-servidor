@@ -2,11 +2,14 @@ package com.eickrono.api.identidade.api;
 
 import com.eickrono.api.identidade.dto.ConfirmacaoRegistroRequest;
 import com.eickrono.api.identidade.dto.ConfirmacaoRegistroResponse;
+import com.eickrono.api.identidade.dto.PoliticaOfflineDispositivoResponse;
 import com.eickrono.api.identidade.dto.ReenvioCodigoRequest;
+import com.eickrono.api.identidade.dto.RegistrarEventosOfflineRequest;
 import com.eickrono.api.identidade.dto.RegistroDispositivoRequest;
 import com.eickrono.api.identidade.dto.RegistroDispositivoResponse;
 import com.eickrono.api.identidade.dto.RevogarTokenRequest;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
+import com.eickrono.api.identidade.servico.OfflineDispositivoService;
 import com.eickrono.api.identidade.servico.RegistroDispositivoService;
 import jakarta.validation.Valid;
 import java.util.Optional;
@@ -31,15 +34,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class RegistroDispositivoController {
 
     private final RegistroDispositivoService registroDispositivoService;
+    private final OfflineDispositivoService offlineDispositivoService;
 
-    public RegistroDispositivoController(RegistroDispositivoService registroDispositivoService) {
+    public RegistroDispositivoController(RegistroDispositivoService registroDispositivoService,
+                                         OfflineDispositivoService offlineDispositivoService) {
         this.registroDispositivoService = registroDispositivoService;
+        this.offlineDispositivoService = offlineDispositivoService;
     }
 
     @PostMapping("/registro")
     public ResponseEntity<RegistroDispositivoResponse> solicitarRegistro(@Valid @RequestBody RegistroDispositivoRequest request,
                                                                          @AuthenticationPrincipal Jwt jwt) {
-        RegistroDispositivoResponse resposta = registroDispositivoService.solicitarRegistro(request, extrairSub(jwt));
+        RegistroDispositivoResponse resposta = registroDispositivoService.solicitarRegistro(request, Optional.ofNullable(jwt));
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(resposta);
     }
 
@@ -47,8 +53,24 @@ public class RegistroDispositivoController {
     public ResponseEntity<ConfirmacaoRegistroResponse> confirmarRegistro(@PathVariable("id") UUID id,
                                                                          @Valid @RequestBody ConfirmacaoRegistroRequest request,
                                                                          @AuthenticationPrincipal Jwt jwt) {
-        ConfirmacaoRegistroResponse resposta = registroDispositivoService.confirmarRegistro(id, request, extrairSub(jwt));
+        ConfirmacaoRegistroResponse resposta = registroDispositivoService.confirmarRegistro(id, request, Optional.ofNullable(jwt));
         return ResponseEntity.ok(resposta);
+    }
+
+    @PostMapping("/offline/eventos")
+    public ResponseEntity<Void> registrarEventosOffline(@AuthenticationPrincipal Jwt jwt,
+                                                        @RequestHeader("X-Device-Token") String tokenDispositivo,
+                                                        @RequestBody RegistrarEventosOfflineRequest request) {
+        offlineDispositivoService.registrarEventosOffline(
+                extrairSub(jwt).orElseThrow(),
+                tokenDispositivo,
+                request);
+        return ResponseEntity.accepted().build();
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/offline/politica")
+    public ResponseEntity<PoliticaOfflineDispositivoResponse> obterPoliticaOffline() {
+        return ResponseEntity.ok(offlineDispositivoService.obterPolitica());
     }
 
     @PostMapping("/registro/{id}/reenviar")

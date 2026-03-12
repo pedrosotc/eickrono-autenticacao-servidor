@@ -29,6 +29,10 @@ public class TokenDispositivo {
     @JoinColumn(name = "registro_id", nullable = false)
     private RegistroDispositivo registro;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "dispositivo_id")
+    private DispositivoIdentidade dispositivo;
+
     @Column(name = "usuario_sub", nullable = false)
     private String usuarioSub;
 
@@ -67,6 +71,7 @@ public class TokenDispositivo {
 
     public TokenDispositivo(UUID id,
                             RegistroDispositivo registro,
+                            DispositivoIdentidade dispositivo,
                             String usuarioSub,
                             String fingerprint,
                             String plataforma,
@@ -77,6 +82,7 @@ public class TokenDispositivo {
                             OffsetDateTime expiraEm) {
         this.id = Objects.requireNonNull(id, "id é obrigatório");
         this.registro = Objects.requireNonNull(registro, "registro é obrigatório");
+        this.dispositivo = dispositivo;
         this.usuarioSub = Objects.requireNonNull(usuarioSub, "usuarioSub é obrigatório");
         this.fingerprint = Objects.requireNonNull(fingerprint, "fingerprint é obrigatório");
         this.plataforma = Objects.requireNonNull(plataforma, "plataforma é obrigatória");
@@ -93,6 +99,10 @@ public class TokenDispositivo {
 
     public RegistroDispositivo getRegistro() {
         return registro;
+    }
+
+    public Optional<DispositivoIdentidade> getDispositivo() {
+        return Optional.ofNullable(dispositivo);
     }
 
     public String getUsuarioSub() {

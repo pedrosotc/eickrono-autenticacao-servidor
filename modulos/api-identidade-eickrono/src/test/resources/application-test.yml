@@ -23,6 +23,13 @@ identidade:
     onboarding:
       sms-habilitado: true
       sms-fornecedor: teste
+    offline:
+      permitido: true
+      tempo-maximo-minutos: 720
+      exige-reconciliacao: true
+      bloquear-quando-token-revogado: true
+      bloquear-quando-token-expirado: true
+      bloquear-quando-dispositivo-sem-confianca: true
     token:
       segredo-hmac: test-device-token-secret
       tamanho-bytes: 16

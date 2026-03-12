@@ -100,6 +100,13 @@ public class ProvisionamentoIdentidadeService {
         return formaAcessoRepositorio.save(forma);
     }
 
+    public Optional<Pessoa> localizarPessoaPorSub(String sub) {
+        if (sub == null || sub.isBlank()) {
+            return Optional.empty();
+        }
+        return pessoaRepositorio.findBySub(sub.trim());
+    }
+
     private void sincronizarFormaAcessoEmail(Pessoa pessoa, String email, OffsetDateTime atualizadoEm) {
         Optional<FormaAcesso> conflito = formaAcessoRepositorio.findByTipoAndProvedorAndIdentificador(
                 TipoFormaAcesso.EMAIL_SENHA, PROVEDOR_EMAIL, email);

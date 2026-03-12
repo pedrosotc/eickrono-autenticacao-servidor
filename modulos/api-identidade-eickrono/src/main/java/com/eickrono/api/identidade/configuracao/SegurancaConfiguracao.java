@@ -71,6 +71,10 @@ public class SegurancaConfiguracao {
                         .hasAuthority("SCOPE_vinculos:escrever")
                         .requestMatchers(HttpMethod.POST, "/identidade/dispositivos/revogar")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
+                        .requestMatchers(HttpMethod.GET, "/identidade/dispositivos/offline/politica")
+                        .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
+                        .requestMatchers(HttpMethod.POST, "/identidade/dispositivos/offline/eventos")
+                        .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
                         .anyRequest()
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
