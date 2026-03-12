@@ -40,3 +40,32 @@ Empacotamento:
 ```bash
 mvn -pl modulos/servidor-autorizacao-eickrono -am package -DskipITs
 ```
+
+## Client policy de refresh por device token
+
+Este módulo também publica o executor de client policy `eickrono-device-token-refresh`.
+
+Responsabilidade:
+
+- interceptar `grant_type=refresh_token`;
+- exigir o parâmetro adicional `device_token` no refresh;
+- consultar a API de Identidade em `/identidade/dispositivos/token/validacao/interna`;
+- bloquear o refresh quando o dispositivo perdeu confiança.
+
+Configuração esperada no ambiente do Keycloak:
+
+- `EICKRONO_IDENTIDADE_API_BASE_URL`
+- `EICKRONO_INTERNAL_SECRET`
+- `EICKRONO_IDENTIDADE_TIMEOUT_MS`
+
+Os realms versionados já saem com:
+
+- `clientProfiles` contendo `eickrono-device-token-refresh-profile`;
+- `clientPolicies` contendo `eickrono-device-token-refresh-policy`;
+- o cliente `app-flutter-local` marcado com `eickrono.device-token-refresh=true`.
+
+Teste do módulo:
+
+```bash
+mvn -pl modulos/servidor-autorizacao-eickrono -am test
+```

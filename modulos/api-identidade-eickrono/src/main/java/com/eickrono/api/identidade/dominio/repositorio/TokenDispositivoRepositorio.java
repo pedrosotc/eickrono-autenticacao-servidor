@@ -17,4 +17,6 @@ public interface TokenDispositivoRepositorio extends JpaRepository<TokenDisposit
     Optional<TokenDispositivo> findByUsuarioSubAndTokenHashAndStatus(String usuarioSub,
                                                                      String tokenHash,
                                                                      StatusTokenDispositivo status);
+
+    Optional<TokenDispositivo> findByTokenHash(String tokenHash);
 }

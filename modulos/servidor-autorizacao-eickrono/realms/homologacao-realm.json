@@ -324,6 +324,49 @@
       ]
     }
   },
+  "clientProfiles": {
+    "profiles": [
+      {
+        "name": "eickrono-device-token-refresh-profile",
+        "description": "Bloqueia refresh token quando o device token perde confianca.",
+        "executors": [
+          {
+            "executorProviderId": "eickrono-device-token-refresh"
+          }
+        ]
+      }
+    ]
+  },
+  "clientPolicies": {
+    "policies": [
+      {
+        "name": "eickrono-device-token-refresh-policy",
+        "description": "Aplica a validacao do device token no grant refresh_token para apps moveis.",
+        "enabled": true,
+        "conditions": [
+          {
+            "conditionProviderId": "grant-type",
+            "configuration": {
+              "grant_types": [
+                "refresh_token"
+              ]
+            }
+          },
+          {
+            "conditionProviderId": "client-attributes",
+            "configuration": {
+              "attributes": {
+                "eickrono.device-token-refresh": "true"
+              }
+            }
+          }
+        ],
+        "profiles": [
+          "eickrono-device-token-refresh-profile"
+        ]
+      }
+    ]
+  },
   "clients": [
     {
       "clientId": "api-contas-eickrono",
@@ -338,7 +381,9 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "frontchannelLogout": false,
-      "attributes": {},
+      "attributes": {
+        "eickrono.device-token-refresh": "true"
+      },
       "optionalClientScopes": [
         "address",
         "phone",

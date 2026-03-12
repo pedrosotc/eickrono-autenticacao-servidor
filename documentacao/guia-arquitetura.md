@@ -34,7 +34,9 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
    - A API sempre gera verificação por e-mail e, opcionalmente, por SMS, conforme `identidade.dispositivo.onboarding.sms-habilitado`.  
    - O envio de SMS passa por `CanalEnvioCodigoSms`, que delega ao `FornecedorEnvioSms` configurado em `identidade.dispositivo.onboarding.sms-fornecedor`, preparando o backend para múltiplos provedores.  
    - A confirmação via `POST /identidade/dispositivos/registro/{id}/confirmacao` valida apenas os canais efetivamente criados no registro, mantendo hashes, tentativas limitadas e expiração em 9 horas.  
-   - A finalização gera `DispositivoToken` opaco, revoga tokens anteriores e notifica o Keycloak (SPI `DeviceTokenConstraintProvider`) para impedir sessões de aparelhos não validados.
+   - A finalização gera `DispositivoToken` opaco e revoga tokens anteriores.
+   - O refresh de sessão no Keycloak passa pelo executor de client policy `eickrono-device-token-refresh`, que consulta a API de Identidade antes de aceitar `grant_type=refresh_token`.
+   - O refresh só é aceito quando o `device_token` enviado pelo cliente continua válido para o usuário e para o aparelho confiável correspondente.
 7. **Política offline do aplicativo móvel:**  
    - O app consulta `GET /identidade/dispositivos/offline/politica` para descobrir se o backend permite modo offline, por quanto tempo e quais condições exigem bloqueio imediato.  
    - A API exige `Authorization` + `X-Device-Token` também nesse endpoint, preservando o mesmo contrato das demais APIs protegidas do ecossistema.  
@@ -89,6 +91,14 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 - **Bloqueio por confiança:** a reconciliação offline é recusada quando o token do dispositivo não está ativo ou quando o dispositivo está sem confiança e a política central determina bloqueio.
 - **Sem entidade de janela offline nesta etapa:** o backend não abriu uma entidade de ciclo de vida offline; essa modelagem foi conscientemente adiada para quando a análise antifraude exigir estado aberto/fechado.
 
+## Refresh token vinculado ao dispositivo
+
+- **Refresh condicionado ao device token:** o servidor de autorização não aceita mais `refresh_token` sem o parâmetro adicional `device_token`.
+- **Validação centralizada no backend:** o Keycloak chama `GET /identidade/dispositivos/token/validacao/interna`, autenticado pelo header `X-Eickrono-Internal-Secret`, para verificar se o `device_token` ainda está válido.
+- **Códigos de falha preservados:** a API de Identidade continua classificando `DEVICE_TOKEN_MISSING`, `DEVICE_TOKEN_INVALID`, `DEVICE_TOKEN_REVOKED` e `DEVICE_TOKEN_EXPIRED`; o servidor de autorização converte isso em `invalid_grant`.
+- **Escopo da política:** o bloqueio foi ligado via client policy apenas para clientes com atributo `eickrono.device-token-refresh=true`, evitando impactar clientes que não usam onboarding de dispositivo.
+- **Contrato com o cliente móvel:** o app precisa anexar `device_token` no refresh OIDC. O pacote `eickrono-autenticacao-cliente` já faz isso automaticamente quando a sessão atual possui `X-Device-Token`.
+
 ## Validação executada
 
 Para esta etapa de política offline do dispositivo, os testes executados foram:
@@ -96,6 +106,7 @@ Para esta etapa de política offline do dispositivo, os testes executados foram:
 - `mvn -U -pl modulos/api-contas-eickrono -am test-compile -DskipITs`
 - `mvn -U -pl modulos/api-identidade-eickrono -am test-compile -DskipITs`
 - `mvn -U -pl modulos/api-identidade-eickrono -am -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,OfflineDispositivoServiceTest test`
+- `mvn -U -pl modulos/servidor-autorizacao-eickrono -am test`
 
 Esses testes cobrem especificamente:
 
@@ -107,6 +118,8 @@ Esses testes cobrem especificamente:
 - publicação da política offline central do backend;
 - reconciliação de eventos offline vinculados ao dispositivo autenticado;
 - persistência de `dispositivos_identidade` e `eventos_offline_dispositivo`;
+- bloqueio do `refresh_token` quando o `device_token` está ausente, inválido, revogado ou expirado;
+- comunicação interna entre Keycloak e API de Identidade via segredo compartilhado;
 - filtros e contratos de `X-Device-Token` com banco PostgreSQL real;
 - compilação dos módulos impactados sem reintroduzir alertas artificiais no estilo já descrito no `guia-desenvolvimento.md`.
 

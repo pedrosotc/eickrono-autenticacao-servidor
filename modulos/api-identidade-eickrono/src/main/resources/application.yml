@@ -102,3 +102,7 @@ logging:
     org.springframework.security: INFO
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%X{traceId:-}/%X{spanId:-}] %logger{36} - %msg%n"
+
+integracao:
+  interna:
+    segredo: ${EICKRONO_INTERNAL_SECRET:local-internal-secret}

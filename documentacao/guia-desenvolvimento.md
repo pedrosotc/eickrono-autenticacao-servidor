@@ -204,6 +204,12 @@ mvn -U -pl modulos/api-identidade-eickrono -am \
   test
 ```
 
+6. Rodar os testes do servidor de autorização que bloqueiam refresh por device token:
+
+```bash
+mvn -U -pl modulos/servidor-autorizacao-eickrono -am test
+```
+
 #### Sinais esperados de sucesso
 
 Durante a execução bem-sucedida, os logs devem conter linhas semelhantes a:
@@ -226,6 +232,34 @@ Mapped to com.eickrono.api.identidade.api.RegistroDispositivoController#registra
 insert into eventos_offline_dispositivo
 BUILD SUCCESS
 ```
+
+Quando a etapa de refresh vinculado ao dispositivo estiver correta, também é esperado encontrar nos logs linhas semelhantes a:
+
+```text
+ClientPolicyEvent.TOKEN_REFRESH
+GET /identidade/dispositivos/token/validacao/interna
+DEVICE_TOKEN_REVOKED
+BUILD SUCCESS
+```
+
+### Refresh token vinculado ao device token
+
+O fluxo final ficou assim:
+
+1. O app autentica via OIDC e conclui o onboarding do aparelho.
+2. O `device_token` opaco passa a ser persistido junto da sessão local.
+3. Ao pedir refresh, o cliente envia o parâmetro adicional `device_token`.
+4. O Keycloak aplica o executor `eickrono-device-token-refresh`.
+5. O executor consulta a API de Identidade em `/identidade/dispositivos/token/validacao/interna`.
+6. Se a API responder que o token está revogado, expirado, inválido ou ausente, o refresh falha com `invalid_grant`.
+
+Variáveis de ambiente relevantes para reproduzir esse fluxo:
+
+- `EICKRONO_IDENTIDADE_API_BASE_URL`
+- `EICKRONO_INTERNAL_SECRET`
+- `EICKRONO_IDENTIDADE_TIMEOUT_MS`
+
+Essas variáveis precisam existir no container do Keycloak e na API de Identidade. O `docker compose` de `dev` e `hml` já foi alinhado com isso.
 
 #### O que esta correção não faz
 

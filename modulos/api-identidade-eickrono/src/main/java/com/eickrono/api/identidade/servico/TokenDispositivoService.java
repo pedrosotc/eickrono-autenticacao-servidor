@@ -129,6 +129,27 @@ public class TokenDispositivoService {
         return new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.VALIDO, token.getExpiraEm());
     }
 
+    public ResultadoValidacaoTokenDispositivo validarTokenSemUsuario(String tokenClaro) {
+        if (!StringUtils.hasText(tokenClaro)) {
+            return new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.AUSENTE, null);
+        }
+        String hash = gerarHashToken(tokenClaro);
+        Optional<TokenDispositivo> tokenOpt = tokenRepositorio.findByTokenHash(hash);
+        if (tokenOpt.isEmpty()) {
+            return new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.INVALIDO, null);
+        }
+
+        TokenDispositivo token = tokenOpt.orElseThrow();
+        OffsetDateTime agora = OffsetDateTime.now(clock);
+        if (token.getStatus() == StatusTokenDispositivo.REVOGADO) {
+            return new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.REVOGADO, token.getExpiraEm());
+        }
+        if (!token.estaAtivo(agora)) {
+            return new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.EXPIRADO, token.getExpiraEm());
+        }
+        return new ResultadoValidacaoTokenDispositivo(StatusValidacaoTokenDispositivo.VALIDO, token.getExpiraEm());
+    }
+
     private String gerarTokenClaro() {
         byte[] buffer = new byte[dispositivoProperties.getToken().getTamanhoBytes()];
         secureRandom.nextBytes(buffer);

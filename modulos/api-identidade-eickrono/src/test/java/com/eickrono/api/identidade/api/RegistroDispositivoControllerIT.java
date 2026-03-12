@@ -136,6 +136,17 @@ class RegistroDispositivoControllerIT {
         assertThat(payloadValidacao.valido()).isTrue();
         assertThat(payloadValidacao.codigo()).isEqualTo("DEVICE_TOKEN_VALID");
 
+        MvcResult validacaoInterna = mockMvc().perform(get("/identidade/dispositivos/token/validacao/interna")
+                        .header("X-Eickrono-Internal-Secret", "local-internal-secret")
+                        .header("X-Usuario-Sub", "usuario-xyz")
+                        .header("X-Device-Token", confirmacao.tokenDispositivo()))
+                .andExpect(status().isOk())
+                .andReturn();
+        ValidacaoTokenDispositivoResponse payloadInterno = objectMapper().readValue(
+                validacaoInterna.getResponse().getContentAsByteArray(),
+                ValidacaoTokenDispositivoResponse.class);
+        assertThat(payloadInterno.valido()).isTrue();
+
         MvcResult politicaOffline = mockMvc().perform(get("/identidade/dispositivos/offline/politica")
                         .with(Objects.requireNonNull(clienteJwt()))
                         .header("X-Device-Token", confirmacao.tokenDispositivo()))

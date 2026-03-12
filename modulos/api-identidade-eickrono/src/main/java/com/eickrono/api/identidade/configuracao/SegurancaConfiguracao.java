@@ -37,7 +37,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * Configuração de segurança, recursos OAuth2 e mTLS.
  */
 @Configuration
-@EnableConfigurationProperties({FapiProperties.class, CorsProperties.class, TlsMutuoProperties.class, SwaggerSegurancaProperties.class})
+@EnableConfigurationProperties({FapiProperties.class, CorsProperties.class, TlsMutuoProperties.class, SwaggerSegurancaProperties.class,
+        IntegracaoInternaProperties.class})
 public class SegurancaConfiguracao {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SegurancaConfiguracao.class);
@@ -75,6 +76,7 @@ public class SegurancaConfiguracao {
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
                         .requestMatchers(HttpMethod.POST, "/identidade/dispositivos/offline/eventos")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
+                        .requestMatchers(HttpMethod.GET, "/identidade/dispositivos/token/validacao/interna").permitAll()
                         .anyRequest()
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
