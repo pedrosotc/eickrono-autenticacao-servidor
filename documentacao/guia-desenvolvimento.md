@@ -19,6 +19,25 @@ Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário
 4. Execute `docker compose up` em `infraestrutura/dev` para subir Keycloak, PostgreSQL e as APIs.  
 5. Acesse `http://localhost:8081/actuator/health` e `http://localhost:8082/actuator/health` para verificar se as APIs estão saudáveis.
 
+## PostgreSQL compartilhado em dev
+
+O ambiente `dev` usa um PostgreSQL externo já existente no Docker local, compartilhado pelos projetos.
+
+Credenciais de acesso manual:
+
+- **Host:** `localhost`
+- **Porta:** `5432`
+- **Usuário:** `adm`
+- **Senha:** `AdmDev2026!`
+- **JDBC URL do autorização:** `jdbc:postgresql://localhost:5432/eickrono_dev`
+- **JDBC URL do flashcard:** `jdbc:postgresql://localhost:5432/eickrono_flashcard`
+
+Observações:
+
+- essas credenciais servem apenas para desenvolvimento local;
+- o usuário `adm` foi criado como `SUPERUSER` para facilitar inspeção e administração do banco;
+- as aplicações continuam usando seus próprios usuários técnicos configurados em `infraestrutura/dev/.env`.
+
 ## Fluxo Git recomendado
 
 - Branch principal: `main`.  
@@ -227,8 +246,8 @@ BUILD SUCCESS
 Quando a etapa de política offline estiver correta, também é esperado encontrar nos logs linhas semelhantes a:
 
 ```text
-Mapped to com.eickrono.api.identidade.api.RegistroDispositivoController#obterPoliticaOffline()
-Mapped to com.eickrono.api.identidade.api.RegistroDispositivoController#registrarEventosOffline(Jwt, String, RegistrarEventosOfflineRequest)
+Mapped to com.eickrono.api.identidade.apresentacao.api.RegistroDispositivoController#obterPoliticaOffline()
+Mapped to com.eickrono.api.identidade.apresentacao.api.RegistroDispositivoController#registrarEventosOffline(Jwt, String, RegistrarEventosOfflineRequest)
 insert into eventos_offline_dispositivo
 BUILD SUCCESS
 ```

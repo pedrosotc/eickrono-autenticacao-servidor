@@ -1,1 +1,1 @@
-com.eickrono.servidor.autorizacao.dispositivo.RefreshTokenDispositivoExecutorFactory
+com.eickrono.servidor.autorizacao.infraestrutura.dispositivo.RefreshTokenDispositivoExecutorFactory

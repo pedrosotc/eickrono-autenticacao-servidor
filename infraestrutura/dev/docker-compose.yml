@@ -1,27 +1,4 @@
-version: "3.9"
-
 services:
-  banco-postgres:
-    image: postgres:15.5
-    container_name: eickrono-postgres-dev
-    env_file:
-      - .env
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT}:5432"
-    volumes:
-      - banco_postgres_dev:/var/lib/postgresql/data
-    networks:
-      - rede_interna_dev
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   servidor-autorizacao:
     image: quay.io/keycloak/keycloak:26.5.5
     container_name: eickrono-keycloak-dev
@@ -39,17 +16,14 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_DB: ${KC_DB}
-      KC_DB_URL_HOST: ${KC_DB_URL_HOST}
-      KC_DB_URL_DATABASE: ${KC_DB_URL_DATABASE}
-      KC_DB_USERNAME: ${KC_DB_USERNAME}
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_DB_URL_HOST: ${POSTGRES_HOST}
+      KC_DB_URL_DATABASE: ${POSTGRES_DB}
+      KC_DB_USERNAME: ${POSTGRES_USER}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
       KC_PROXY: ${KC_PROXY}
       EICKRONO_PASSWORD_PEPPER: ${EICKRONO_PASSWORD_PEPPER}
       EICKRONO_IDENTIDADE_API_BASE_URL: http://api-identidade-eickrono:8081
       EICKRONO_INTERNAL_SECRET: ${EICKRONO_INTERNAL_SECRET}
-    depends_on:
-      banco-postgres:
-        condition: service_healthy
     ports:
       - "8080:8080"
     healthcheck:
@@ -66,6 +40,8 @@ services:
       - ../../modulos/servidor-autorizacao-eickrono/mapeamentos-atributos:/opt/keycloak/providers/mapeamentos-atributos:ro
       - ../../modulos/servidor-autorizacao-eickrono/scripts-spi:/opt/keycloak/providers/scripts-spi:ro
       - ./certificados:/certificados:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - rede_interna_dev
     # Mantemos o container em execução assim que iniciar; as APIs aguardam apenas a inicialização.
@@ -79,7 +55,7 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://banco-postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_FLYWAY_SCHEMAS: identidade
@@ -95,10 +71,10 @@ services:
       - "${API_IDENTIDADE_PORT}:8081"
       - "${API_IDENTIDADE_DEBUG_PORT}:5005"
     depends_on:
-      banco-postgres:
-        condition: service_healthy
       servidor-autorizacao:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - rede_interna_dev
 
@@ -111,7 +87,7 @@ services:
       - .env
     environment:
       SPRING_PROFILES_ACTIVE: dev
-      SPRING_DATASOURCE_URL: jdbc:postgresql://banco-postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_FLYWAY_SCHEMAS: contas
@@ -125,10 +101,10 @@ services:
       - "${API_CONTAS_PORT}:8082"
       - "${API_CONTAS_DEBUG_PORT}:5006"
     depends_on:
-      banco-postgres:
-        condition: service_healthy
       servidor-autorizacao:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - rede_interna_dev
 
@@ -144,6 +120,3 @@ services:
 networks:
   rede_interna_dev:
     driver: bridge
-
-volumes:
-  banco_postgres_dev:

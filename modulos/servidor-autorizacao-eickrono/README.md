@@ -25,7 +25,7 @@ Fórmula aplicada:
 Providers registrados:
 
 - `eickrono-username-password-form`
-- `eickrono-registration-password-action`
+- `eickrono-registration-password`
 - `eickrono-update-password`
 
 Observação:

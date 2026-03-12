@@ -100,7 +100,7 @@
           "userSetupAllowed": false
         },
         {
-          "authenticator": "eickrono-registration-password-action",
+          "authenticator": "eickrono-registration-password",
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
           "priority": 50,

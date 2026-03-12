@@ -8,13 +8,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.eickrono.api.contas.support.InfraestruturaTesteContas;
-import com.eickrono.api.contas.configuracao.ResultadoValidacaoTokenDispositivoRemoto;
-import com.eickrono.api.contas.configuracao.ValidacaoTokenDispositivoResponse;
-import com.eickrono.api.contas.configuracao.ValidadorTokenDispositivoRemoto;
-import com.eickrono.api.contas.dto.ContaResumoDto;
-import com.eickrono.api.contas.dto.TransacaoDto;
-import com.eickrono.api.contas.servico.ContaService;
-import com.eickrono.api.contas.servico.TransacaoService;
+import com.eickrono.api.contas.infraestrutura.configuracao.ResultadoValidacaoTokenDispositivoRemoto;
+import com.eickrono.api.contas.infraestrutura.configuracao.ValidacaoTokenDispositivoResponse;
+import com.eickrono.api.contas.infraestrutura.configuracao.ValidadorTokenDispositivoRemoto;
+import com.eickrono.api.contas.apresentacao.dto.ContaResumoDto;
+import com.eickrono.api.contas.apresentacao.dto.TransacaoDto;
+import com.eickrono.api.contas.aplicacao.servico.ContaService;
+import com.eickrono.api.contas.aplicacao.servico.TransacaoService;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Map;
