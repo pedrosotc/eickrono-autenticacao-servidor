@@ -32,7 +32,7 @@ Observação:
 
 - os realms deste repositório já ligam os providers aos fluxos de browser, registro e `requiredActions`;
 - o alias `UPDATE_PASSWORD` do realm aponta para `eickrono-update-password`, então reset de senha e required action passam pela derivação customizada;
-- o realm ainda precisa garantir que `data_nascimento` exista como atributo do usuário antes da criação ou validação da credencial;
+- os realms versionados garantem que `data_nascimento` exista no User Profile declarativo antes da criação ou validação da credencial;
 - o `docker-compose` monta o JAR gerado em `/opt/keycloak/providers/servidor-autorizacao-eickrono.jar`, então é preciso empacotar o módulo antes de subir o ambiente.
 
 Empacotamento:
