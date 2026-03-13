@@ -431,16 +431,19 @@
       "name": "App Flutter (hml)",
       "description": "Aplicativo Flutter homologação consumindo APIs Identidade/Contas",
       "enabled": true,
-      "publicClient": false,
+      "publicClient": true,
       "bearerOnly": false,
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true,
+      "serviceAccountsEnabled": false,
       "frontchannelLogout": false,
       "attributes": {},
-      "redirectUris": [],
+      "redirectUris": [
+        "com.eickrono.flashcards:/oauth2redirect",
+        "com.eickrono.flashcards:/logout"
+      ],
       "webOrigins": [],
       "optionalClientScopes": [
         "vinculos:escrever",

@@ -431,23 +431,20 @@
       "name": "App Flutter (dev)",
       "description": "Aplicativo Flutter local consumindo APIs Identidade/Contas",
       "enabled": true,
-      "publicClient": false,
+      "publicClient": true,
       "bearerOnly": false,
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true,
+      "serviceAccountsEnabled": false,
       "frontchannelLogout": false,
       "attributes": {},
       "redirectUris": [
-        "http://localhost/*",
-        "http://127.0.0.1/*"
+        "com.eickrono.flashcards:/oauth2redirect",
+        "com.eickrono.flashcards:/logout"
       ],
-      "webOrigins": [
-        "http://127.0.0.1",
-        "http://localhost"
-      ],
+      "webOrigins": [],
       "optionalClientScopes": [
         "vinculos:escrever",
         "vinculos:ler",
