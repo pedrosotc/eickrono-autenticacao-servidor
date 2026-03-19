@@ -64,7 +64,7 @@ public class EickronoUsernamePasswordFormFactory implements AuthenticatorFactory
 
     @Override
     public String getHelpText() {
-        return "Valida a senha derivada usando senha + pepper + data_nascimento.";
+        return "Valida a senha derivada usando senha + pepper + createdTimestamp do usuario.";
     }
 
     @Override

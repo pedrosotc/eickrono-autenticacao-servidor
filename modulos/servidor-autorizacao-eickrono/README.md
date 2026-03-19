@@ -16,11 +16,11 @@ Este módulo também fornece providers customizados para derivar a senha efetiva
 
 - `senha informada pelo usuario`
 - `pepper` lido da variável de ambiente `EICKRONO_PASSWORD_PEPPER`
-- `data_nascimento` armazenada no atributo de usuário `data_nascimento`
+- `createdTimestamp` interno do usuário no Keycloak
 
 Fórmula aplicada:
 
-- `senha_efetiva = senha + pepper + data_nascimento`
+- `senha_efetiva = senha + pepper + createdTimestamp`
 
 Providers registrados:
 
@@ -32,7 +32,7 @@ Observação:
 
 - os realms deste repositório já ligam os providers aos fluxos de browser, registro e `requiredActions`;
 - o alias `UPDATE_PASSWORD` do realm aponta para `eickrono-update-password`, então reset de senha e required action passam pela derivação customizada;
-- os realms versionados garantem que `data_nascimento` exista no User Profile declarativo antes da criação ou validação da credencial;
+- o `createdTimestamp` é garantido na criação do usuário e, se necessário, é materializado pela própria SPI antes da primeira gravação da credencial;
 - o `docker-compose` monta o JAR gerado em `/opt/keycloak/providers/servidor-autorizacao-eickrono.jar`, então é preciso empacotar o módulo antes de subir o ambiente.
 
 Empacotamento:

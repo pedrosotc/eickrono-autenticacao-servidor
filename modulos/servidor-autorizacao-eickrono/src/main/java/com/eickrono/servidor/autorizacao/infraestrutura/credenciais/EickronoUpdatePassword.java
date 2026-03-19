@@ -21,7 +21,7 @@ import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 
 /**
- * Required action de atualizacao de senha com derivacao por pepper + data_nascimento.
+ * Required action de atualizacao de senha com derivacao por pepper + createdTimestamp do usuario.
  */
 public class EickronoUpdatePassword implements RequiredActionProvider, RequiredActionFactory {
 

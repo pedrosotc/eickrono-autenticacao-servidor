@@ -19,6 +19,10 @@ logging:
     com.eickrono.api.identidade: DEBUG
 
 identidade:
+  atestacao:
+    app:
+      numero-projeto-nuvem-android: "123456789"
+      permitir-validacao-local-sem-provedor-oficial: true
   dispositivo:
     onboarding:
       sms-habilitado: true

@@ -26,7 +26,7 @@ import org.keycloak.services.messages.Messages;
 import org.keycloak.services.validation.Validation;
 
 /**
- * FormAction de cadastro que grava senha derivada usando data_nascimento + pepper.
+ * FormAction de cadastro que grava senha derivada usando pepper + marcador de criacao da conta.
  */
 public class EickronoRegistrationPassword implements FormAction, FormActionFactory {
 
@@ -47,10 +47,6 @@ public class EickronoRegistrationPassword implements FormAction, FormActionFacto
             errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD, Messages.MISSING_PASSWORD));
         } else if (!senha.equals(confirmacao)) {
             errors.add(new FormMessage(RegistrationPage.FIELD_PASSWORD_CONFIRM, Messages.INVALID_PASSWORD_CONFIRM));
-        }
-        if (DerivadorSenhaEickrono.obterDataNascimento(formData) == null) {
-            errors.add(new FormMessage(DerivadorSenhaEickrono.ATRIBUTO_DATA_NASCIMENTO,
-                    "Data de nascimento obrigatoria para derivacao da senha."));
         }
         if (senha != null) {
             PolicyError err = context.getSession()
@@ -77,11 +73,16 @@ public class EickronoRegistrationPassword implements FormAction, FormActionFacto
         MultivaluedMap<String, String> formData = context.getHttpRequest().getDecodedFormParameters();
         UserModel user = context.getUser();
         String dataNascimento = DerivadorSenhaEickrono.obterDataNascimento(formData);
-        user.setSingleAttribute(DerivadorSenhaEickrono.ATRIBUTO_DATA_NASCIMENTO, dataNascimento);
+        if (dataNascimento != null && !dataNascimento.isBlank()) {
+            user.setSingleAttribute(DerivadorSenhaEickrono.ATRIBUTO_DATA_NASCIMENTO, dataNascimento);
+        }
         boolean atualizacaoSenhaFalhou = true;
         try {
-            String senhaDerivada = DerivadorSenhaEickrono.derivar(formData.getFirst(RegistrationPage.FIELD_PASSWORD),
-                    dataNascimento);
+            String marcadorCriacao = DerivadorSenhaEickrono.garantirMarcadorCriacao(user);
+            String senhaDerivada = DerivadorSenhaEickrono.derivar(
+                    formData.getFirst(RegistrationPage.FIELD_PASSWORD),
+                    marcadorCriacao
+            );
             user.credentialManager().updateCredential(UserCredentialModel.password(senhaDerivada, false));
             atualizacaoSenhaFalhou = false;
         } finally {
@@ -159,7 +160,7 @@ public class EickronoRegistrationPassword implements FormAction, FormActionFacto
 
     @Override
     public String getHelpText() {
-        return "Valida e grava senha derivada usando senha + pepper + data_nascimento.";
+        return "Valida e grava senha derivada usando senha + pepper + createdTimestamp do usuario.";
     }
 
     @Override

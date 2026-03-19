@@ -29,6 +29,7 @@ import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -38,7 +39,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  */
 @Configuration
 @EnableConfigurationProperties({FapiProperties.class, CorsProperties.class, TlsMutuoProperties.class, SwaggerSegurancaProperties.class,
-        IntegracaoInternaProperties.class})
+        IntegracaoInternaProperties.class, AtestacaoAppProperties.class, SessaoInternaKeycloakProperties.class})
 public class SegurancaConfiguracao {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SegurancaConfiguracao.class);
@@ -50,6 +51,18 @@ public class SegurancaConfiguracao {
     private static final Duration CORS_MAX_AGE = Duration.ofHours(CORS_MAX_AGE_HORAS);
     private static final List<String> CORS_METODOS = List.of("GET", "POST", "OPTIONS");
     private static final List<String> CORS_CABECALHOS = List.of("Authorization", "Content-Type", "X-Device-Token");
+    private static final AntPathRequestMatcher ACTUATOR_HEALTH_MATCHER = AntPathRequestMatcher.antMatcher("/actuator/health");
+    private static final AntPathRequestMatcher ACTUATOR_INFO_MATCHER = AntPathRequestMatcher.antMatcher("/actuator/info");
+    private static final AntPathRequestMatcher JWKS_PUBLICAS_MATCHER =
+            AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/.well-known/chaves-publicas");
+    private static final AntPathRequestMatcher REGISTRO_DISPOSITIVO_MATCHER =
+            AntPathRequestMatcher.antMatcher("/identidade/dispositivos/registro/**");
+    private static final AntPathRequestMatcher ATESTACAO_INTERNA_MATCHER =
+            AntPathRequestMatcher.antMatcher("/identidade/atestacoes/interna/**");
+    private static final AntPathRequestMatcher SESSAO_INTERNA_MATCHER =
+            AntPathRequestMatcher.antMatcher(HttpMethod.POST, "/identidade/sessoes/interna");
+    private static final AntPathRequestMatcher VALIDACAO_TOKEN_INTERNA_MATCHER =
+            AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/identidade/dispositivos/token/validacao/interna");
 
     @Bean
     public SecurityFilterChain apiSecurity(HttpSecurity http,
@@ -61,9 +74,11 @@ public class SegurancaConfiguracao {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/.well-known/chaves-publicas").permitAll()
-                        .requestMatchers("/identidade/dispositivos/registro/**").permitAll()
+                        .requestMatchers(ACTUATOR_HEALTH_MATCHER, ACTUATOR_INFO_MATCHER).permitAll()
+                        .requestMatchers(JWKS_PUBLICAS_MATCHER).permitAll()
+                        .requestMatchers(REGISTRO_DISPOSITIVO_MATCHER).permitAll()
+                        .requestMatchers(ATESTACAO_INTERNA_MATCHER).permitAll()
+                        .requestMatchers(SESSAO_INTERNA_MATCHER).permitAll()
                         .requestMatchers(HttpMethod.GET, "/identidade/perfil")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
                         .requestMatchers(HttpMethod.GET, "/identidade/vinculos-sociais")
@@ -76,7 +91,7 @@ public class SegurancaConfiguracao {
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
                         .requestMatchers(HttpMethod.POST, "/identidade/dispositivos/offline/eventos")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
-                        .requestMatchers(HttpMethod.GET, "/identidade/dispositivos/token/validacao/interna").permitAll()
+                        .requestMatchers(VALIDACAO_TOKEN_INTERNA_MATCHER).permitAll()
                         .anyRequest()
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));

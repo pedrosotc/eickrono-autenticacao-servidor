@@ -43,6 +43,13 @@ logging:
     com.eickrono.api.identidade: DEBUG
 
 identidade:
+  atestacao:
+    app:
+      permitir-validacao-local-sem-provedor-oficial: true
+  sessao:
+    interna:
+      keycloak:
+        client-id: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID:app-flutter-local}
   dispositivo:
     token:
       segredo-hmac: ${IDENTIDADE_DEVICE_TOKEN_SECRET:dev-device-token-secret}

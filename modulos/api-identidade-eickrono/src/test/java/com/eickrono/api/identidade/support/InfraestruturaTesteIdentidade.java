@@ -56,6 +56,7 @@ public final class InfraestruturaTesteIdentidade {
                     "spring.datasource.driver-class-name=" + postgres.getDriverClassName(),
                     "spring.flyway.enabled=true",
                     "spring.security.oauth2.resourceserver.jwt.issuer-uri=" + issuer,
+                    "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=" + oidcServer.url(JWKS_PATH),
                     "fapi.seguranca.audiencia-esperada=" + EXPECTED_AUDIENCE
             ).applyTo(context.getEnvironment());
             context.addApplicationListener(new EncerramentoInfraestruturaListener());

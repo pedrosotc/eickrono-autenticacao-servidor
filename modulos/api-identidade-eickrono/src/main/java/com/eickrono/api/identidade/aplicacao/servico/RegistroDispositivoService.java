@@ -19,6 +19,7 @@ import com.eickrono.api.identidade.apresentacao.dto.RegistroDispositivoResponse;
 import jakarta.transaction.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -30,7 +31,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
@@ -49,6 +49,7 @@ public class RegistroDispositivoService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RegistroDispositivoService.class);
     private static final String HMAC_ALG = "HmacSHA256";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final RegistroDispositivoRepositorio registroRepositorio;
     private final CodigoVerificacaoRepositorio codigoRepositorio;
@@ -316,10 +317,9 @@ public class RegistroDispositivoService {
     }
 
     private String gerarCodigoAleatorio(int tamanho) {
-        ThreadLocalRandom random = ThreadLocalRandom.current();
         StringBuilder builder = new StringBuilder(tamanho);
         for (int i = 0; i < tamanho; i++) {
-            builder.append(random.nextInt(0, 10));
+            builder.append(SECURE_RANDOM.nextInt(10));
         }
         return builder.toString();
     }

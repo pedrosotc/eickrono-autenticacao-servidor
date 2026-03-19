@@ -19,6 +19,12 @@ Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário
 4. Execute `docker compose up` em `infraestrutura/dev` para subir Keycloak, PostgreSQL e as APIs.  
 5. Acesse `http://localhost:8081/actuator/health` e `http://localhost:8082/actuator/health` para verificar se as APIs estão saudáveis.
 
+Observações importantes do fluxo atual:
+
+- a API de identidade expõe `POST /identidade/sessoes/interna` para os servidores de produto abrirem sessão no Keycloak por `backchannel`;
+- em `docker compose`, a própria API de identidade precisa apontar o Keycloak interno para `http://servidor-autorizacao:8080`, não para `localhost`;
+- a derivação da senha efetiva no servidor de autorização usa `pepper + createdTimestamp`, e não mais `data_nascimento`.
+
 ## PostgreSQL compartilhado em dev
 
 O ambiente `dev` usa um PostgreSQL externo já existente no Docker local, compartilhado pelos projetos.
@@ -37,6 +43,38 @@ Observações:
 - essas credenciais servem apenas para desenvolvimento local;
 - o usuário `adm` foi criado como `SUPERUSER` para facilitar inspeção e administração do banco;
 - as aplicações continuam usando seus próprios usuários técnicos configurados em `infraestrutura/dev/.env`.
+
+## Homologação local no mesmo PostgreSQL
+
+O ambiente `hml` local também usa o mesmo servidor PostgreSQL em `localhost:5432`, mas com bancos separados para evitar mistura com o `dev`.
+
+Bancos usados no `hml` local:
+
+- `keycloak_hml`
+- `eickrono_identidade_hml`
+- `eickrono_contas_hml`
+
+Portas publicadas no `hml` local:
+
+- Keycloak: `18080`
+- API identidade: `18081`
+- API contas: `18082`
+
+Credenciais de acesso manual ao mesmo PostgreSQL compartilhado:
+
+- **Host:** `localhost`
+- **Porta:** `5432`
+- **Usuário:** `adm`
+- **Senha:** `AdmDev2026!`
+- **JDBC URL do Keycloak em hml:** `jdbc:postgresql://localhost:5432/keycloak_hml`
+- **JDBC URL da identidade em hml:** `jdbc:postgresql://localhost:5432/eickrono_identidade_hml`
+- **JDBC URL de contas em hml:** `jdbc:postgresql://localhost:5432/eickrono_contas_hml`
+
+Observações do `hml` local:
+
+- para viabilizar a homologação local, as APIs usam `mTLS` desabilitado por variável de ambiente;
+- localmente, as APIs de identidade e contas usam `ddl-auto=update` para complementar tabelas ainda não cobertas pelas migrations atuais;
+- o objetivo desse perfil local é testar o fluxo real de login sem dividir estado com o `dev`.
 
 ## Fluxo Git recomendado
 
@@ -71,6 +109,11 @@ Observações:
 ### Diferença entre `.env` do monorepo e Testcontainers
 
 As variáveis de [`infraestrutura/dev/.env`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/.env) e [`infraestrutura/hml/.env`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/hml/.env) descrevem o ambiente da aplicação.
+
+Para a abertura de sessão interna por `backchannel`, mantenha o `client_id` do app alinhado ao realm de cada ambiente:
+- `dev`: `app-flutter-local`
+- `hml`: `app-flutter-hml`
+- `prod`: `app-flutter-prod`
 
 Já os testes de integração fazem outra coisa:
 

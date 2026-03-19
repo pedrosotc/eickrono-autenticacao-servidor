@@ -12,7 +12,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.representations.idm.CredentialRepresentation;
 
 /**
- * Autenticador que valida senha derivada por senha + pepper + data_nascimento.
+ * Autenticador que valida senha derivada por senha + pepper + createdTimestamp do usuario.
  */
 public class EickronoUsernamePasswordForm extends UsernamePasswordForm {
 

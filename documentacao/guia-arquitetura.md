@@ -2,10 +2,13 @@
 
 Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, destacando componentes, integrações e fluxos compatíveis com o padrão FAPI.
 
+> Atualizacao de diretriz para o app `flashcard`: o cadastro e o login do aplicativo nao devem usar OIDC interativo com navegador. A UX passa a ser nativa, com `flashcard-servidor` orquestrando o fluxo do produto e `autenticacao-servidor` mantendo identidade, verificacao e emissao de sessao. O contrato canônico desse fluxo foi registrado em `../../eickrono-flashcard-servidor/docs/fluxo_cadastro_login_nativo.md`.
+
 ## Componentes principais
 
 - **Servidor de autorização (Keycloak/RH-SSO):** responsável pelos realms `desenvolvimento`, `homologacao` e `producao`. Mantém configurações PAR/JAR/JARM, políticas de MFA/WebAuthn/Passkeys e rotação de chaves JWK.
 - **API Identidade Eickrono:** serviço Spring Boot que expõe recursos de perfil e vínculos sociais, validando tokens JWT provenientes do servidor de autorização.
+- **Atestação nativa de app/dispositivo:** a API de Identidade também centraliza a emissão autoritativa de desafios e a validação de `Play Integrity` e `App Attest`, consumidas por `backchannel` pelos servidores de produto.
 - **Registro de dispositivos móveis:** conjunto de serviços na API de Identidade (`RegistroDispositivoService`, `TokenDispositivoService`, `CodigoVerificacaoService`) que gerenciam onboarding de novos aparelhos, revogação de tokens antigos e verificação por canais configuráveis, com e-mail sempre obrigatório e SMS opcional por política.
 - **Política offline centralizada:** a API de Identidade publica uma política central de uso offline e recebe a reconciliação dos eventos offline do aplicativo, sempre vinculando esses eventos a uma identidade explícita de dispositivo.
 - **API Contas Eickrono:** serviço Spring Boot para operações de contas e transações, com escopos e papéis específicos (`SCOPE_transacoes:ler`, `ROLE_cliente`) e auditoria detalhada.
@@ -51,6 +54,8 @@ Este guia descreve a arquitetura do ecossistema de autenticação da Eickrono, d
 - **Anti-replay:** armazenamento temporário de `jti` e uso de PKCE e nonce reduzem ataques de repetição.  
 - **Clock skew mínimo:** tolerância configurável (padrão 1 minuto) e auditoria das discrepâncias.  
 - **Logs mascarados:** dados sensíveis (tokens, CPFs, e-mails) são ofuscados antes da persistência ou envio a ferramentas externas.
+- **Backchannel interno de atestação:** `POST /identidade/atestacoes/interna/desafios` e `POST /identidade/atestacoes/interna/validacoes` são protegidos por `X-Eickrono-Internal-Secret` e usados pelos servidores de produto para obter/verificar o veredito de confiança do app/dispositivo.
+- **Backchannel interno de sessão:** `POST /identidade/sessoes/interna` recebe login e senha do servidor de produto, autentica no Keycloak e devolve a sessão centralizada sem expor telas do `realm` ao app.
 
 ## Estratégia de chaves e segredos
 

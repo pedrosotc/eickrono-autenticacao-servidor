@@ -4,6 +4,7 @@
   "displayName": "Realm Produção Eickrono",
   "passwordPolicy": "hashAlgorithm(argon2)",
   "loginWithEmailAllowed": true,
+  "registrationAllowed": true,
   "registrationEmailAsUsername": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": false,
@@ -43,7 +44,7 @@
     },
     {
       "alias": "eickrono browser forms",
-      "description": "Username and password form with pepper and birthdate derivation",
+      "description": "Username and password form with pepper and account creation timestamp derivation",
       "providerId": "basic-flow",
       "topLevel": false,
       "builtIn": false,
@@ -60,7 +61,7 @@
     },
     {
       "alias": "eickrono registration",
-      "description": "Registration flow with custom password derivation",
+      "description": "Registration flow with custom password derivation based on account creation timestamp",
       "providerId": "basic-flow",
       "topLevel": true,
       "builtIn": false,
@@ -78,7 +79,7 @@
     },
     {
       "alias": "eickrono registration form",
-      "description": "Registration form actions with pepper and birthdate derivation",
+      "description": "Registration form actions with pepper and account creation timestamp derivation",
       "providerId": "form-flow",
       "topLevel": false,
       "builtIn": false,
@@ -198,14 +199,6 @@
       "defaultAction": false,
       "providerId": "delete_credential",
       "priority": 120
-    },
-    {
-      "alias": "recovery-authn-codes",
-      "name": "Recovery Authentication Codes",
-      "enabled": true,
-      "defaultAction": false,
-      "providerId": "recovery-authn-codes",
-      "priority": 130
     },
     {
       "alias": "UPDATE_EMAIL",

@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Test;
 class DerivadorSenhaEickronoTest {
 
     @Test
-    void deveDerivarSenhaConcatenandoSenhaPepperEDataNascimento() {
-        String derivada = DerivadorSenhaEickrono.derivar("Senha@123", "1990-05-20", "pepper-secreto");
-        assertEquals("Senha@123pepper-secreto1990-05-20", derivada);
+    void deveDerivarSenhaConcatenandoSenhaPepperEMarcadorDeCriacao() {
+        String derivada = DerivadorSenhaEickrono.derivar("Senha@123", "1710792000000", "pepper-secreto");
+        assertEquals("Senha@123pepper-secreto1710792000000", derivada);
     }
 }

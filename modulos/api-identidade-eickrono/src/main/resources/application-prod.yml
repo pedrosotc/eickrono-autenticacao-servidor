@@ -57,6 +57,13 @@ logging:
     com.eickrono.api.identidade: INFO
 
 identidade:
+  sessao:
+    interna:
+      keycloak:
+        url-base: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_URL_BASE}
+        realm: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_REALM:producao}
+        client-id: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID:app-flutter-prod}
+        client-secret: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_SECRET:}
   dispositivo:
     token:
       segredo-hmac: ${IDENTIDADE_DEVICE_TOKEN_SECRET}

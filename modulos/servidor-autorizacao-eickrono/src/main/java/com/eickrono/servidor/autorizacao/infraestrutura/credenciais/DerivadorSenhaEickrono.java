@@ -6,49 +6,69 @@ import org.keycloak.models.UserModel;
 
 /**
  * Deriva a senha efetiva usada pelo Keycloak a partir da senha informada,
- * do pepper do ambiente e da data de nascimento do usuario.
+ * do pepper do ambiente e do marcador interno de criacao da conta.
  */
 public final class DerivadorSenhaEickrono {
 
     public static final String ENV_PASSWORD_PEPPER = "EICKRONO_PASSWORD_PEPPER";
     public static final String ATRIBUTO_DATA_NASCIMENTO = "data_nascimento";
     public static final String ATRIBUTO_DATA_NASCIMENTO_FALLBACK = "birthdate";
+    public static final String ATRIBUTO_MARCADOR_CRIACAO = "data_criacao_conta";
 
     private DerivadorSenhaEickrono() {
     }
 
-    public static String derivarParaUsuario(UserModel user, String senhaPura) {
-        String dataNascimento = obterDataNascimento(user);
-        return derivar(senhaPura, dataNascimento);
+    public static String derivarParaUsuario(final UserModel user, final String senhaPura) {
+        String marcadorCriacao = obterMarcadorCriacao(user);
+        return derivar(senhaPura, marcadorCriacao);
     }
 
-    public static String derivarParaFormulario(UserModel user, MultivaluedMap<String, String> formData, String senhaPura) {
-        String dataNascimento = obterDataNascimento(formData);
-        if (dataNascimento == null || dataNascimento.isBlank()) {
-            dataNascimento = obterDataNascimento(user);
-        }
-        return derivar(senhaPura, dataNascimento);
-    }
-
-    public static String derivar(String senhaPura, String dataNascimento) {
+    public static String derivar(final String senhaPura, final String marcadorCriacao) {
         String pepper = System.getenv(ENV_PASSWORD_PEPPER);
-        return derivar(senhaPura, dataNascimento, pepper);
+        return derivar(senhaPura, marcadorCriacao, pepper);
     }
 
-    static String derivar(String senhaPura, String dataNascimento, String pepper) {
+    static String derivar(final String senhaPura, final String marcadorCriacao, final String pepper) {
         if (senhaPura == null || senhaPura.isBlank()) {
             throw new IllegalArgumentException("Senha obrigatoria para derivacao.");
         }
-        if (dataNascimento == null || dataNascimento.isBlank()) {
-            throw new IllegalStateException("Data de nascimento obrigatoria para derivacao da senha.");
+        if (marcadorCriacao == null || marcadorCriacao.isBlank()) {
+            throw new IllegalStateException("Data de criacao da conta obrigatoria para derivacao da senha.");
         }
         if (pepper == null || pepper.isBlank()) {
             throw new IllegalStateException("Variavel de ambiente EICKRONO_PASSWORD_PEPPER nao configurada.");
         }
-        return senhaPura + pepper + dataNascimento.trim();
+        return senhaPura + pepper + marcadorCriacao.trim();
     }
 
-    public static String obterDataNascimento(UserModel user) {
+    public static String garantirMarcadorCriacao(final UserModel user) {
+        if (user == null) {
+            throw new IllegalStateException("Usuario obrigatorio para derivacao da senha.");
+        }
+        Long createdTimestamp = user.getCreatedTimestamp();
+        if (createdTimestamp == null || createdTimestamp <= 0L) {
+            createdTimestamp = System.currentTimeMillis();
+            user.setCreatedTimestamp(createdTimestamp);
+        }
+        return Long.toString(createdTimestamp);
+    }
+
+    public static String obterMarcadorCriacao(final UserModel user) {
+        if (user == null) {
+            return null;
+        }
+        Long createdTimestamp = user.getCreatedTimestamp();
+        if (createdTimestamp != null && createdTimestamp > 0L) {
+            return Long.toString(createdTimestamp);
+        }
+        String fallback = user.getFirstAttribute(ATRIBUTO_MARCADOR_CRIACAO);
+        if (fallback != null && !fallback.isBlank()) {
+            return fallback;
+        }
+        return null;
+    }
+
+    public static String obterDataNascimento(final UserModel user) {
         if (user == null) {
             return null;
         }
@@ -63,7 +83,7 @@ public final class DerivadorSenhaEickrono {
         return null;
     }
 
-    public static String obterDataNascimento(MultivaluedMap<String, String> formData) {
+    public static String obterDataNascimento(final MultivaluedMap<String, String> formData) {
         if (formData == null) {
             return null;
         }

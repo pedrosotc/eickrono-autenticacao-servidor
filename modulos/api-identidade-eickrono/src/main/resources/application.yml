@@ -45,6 +45,27 @@ fapi:
     tolerancia-clock-skew-segundos: 60
 
 identidade:
+  atestacao:
+    app:
+      duracao-desafio: PT5M
+      numero-projeto-nuvem-android: ${IDENTIDADE_ATESTACAO_APP_ANDROID_NUMERO_PROJETO_NUVEM:}
+      permitir-validacao-local-sem-provedor-oficial: false
+      google:
+        habilitado: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO:false}
+        package-name: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_PACKAGE_NAME:}
+        service-account-json-arquivo: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_SERVICE_ACCOUNT_JSON_ARQUIVO:}
+        tolerancia-tempo-token: PT2M
+        exigir-play-recognized: true
+        exigir-device-integrity: true
+        exigir-licenciado: true
+  sessao:
+    interna:
+      keycloak:
+        url-base: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_URL_BASE:http://localhost:8080}
+        realm: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_REALM:desenvolvimento}
+        client-id: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID:app-flutter-local}
+        client-secret: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_SECRET:}
+        timeout: PT5S
   dispositivo:
     onboarding:
       sms-habilitado: false

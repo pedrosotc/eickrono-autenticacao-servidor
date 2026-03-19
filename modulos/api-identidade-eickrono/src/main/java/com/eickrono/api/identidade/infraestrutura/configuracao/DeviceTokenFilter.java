@@ -97,6 +97,8 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
         if (PATH_MATCHER.match("/actuator/**", path)
                 || PATH_MATCHER.match("/.well-known/**", path)
                 || PATH_MATCHER.match("/identidade/dispositivos/registro/**", path)
+                || PATH_MATCHER.match("/identidade/atestacoes/interna/**", path)
+                || PATH_MATCHER.match("/identidade/sessoes/interna", path)
                 || PATH_MATCHER.match("/identidade/dispositivos/token/validacao/interna", path)) {
             return true;
         }
