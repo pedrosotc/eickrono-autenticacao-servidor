@@ -20,17 +20,17 @@ public class CanalEnvioCodigoCadastroEmailSmtp implements CanalEnvioCodigoCadast
 
     public CanalEnvioCodigoCadastroEmailSmtp(final JavaMailSender javaMailSender,
                                              final CadastroEmailProperties cadastroEmailProperties) {
-        this.javaMailSender = Objects.requireNonNull(javaMailSender, "javaMailSender é obrigatório");
+        this.javaMailSender = Objects.requireNonNull(javaMailSender, "javaMailSender e obrigatorio");
         this.cadastroEmailProperties = Objects.requireNonNull(
-                cadastroEmailProperties, "cadastroEmailProperties é obrigatório");
+                cadastroEmailProperties, "cadastroEmailProperties e obrigatorio");
     }
 
     @Override
     public void enviar(final CadastroConta cadastroConta, final String codigo) {
-        CadastroConta cadastro = Objects.requireNonNull(cadastroConta, "cadastroConta é obrigatório");
-        String codigoConfirmacao = Objects.requireNonNull(codigo, "codigo é obrigatório").trim();
+        CadastroConta cadastro = Objects.requireNonNull(cadastroConta, "cadastroConta e obrigatorio");
+        String codigoConfirmacao = Objects.requireNonNull(codigo, "codigo e obrigatorio").trim();
         if (codigoConfirmacao.isBlank()) {
-            throw new IllegalArgumentException("codigo é obrigatório");
+            throw new IllegalArgumentException("codigo e obrigatorio");
         }
 
         SimpleMailMessage mensagem = new SimpleMailMessage();
@@ -46,27 +46,24 @@ public class CanalEnvioCodigoCadastroEmailSmtp implements CanalEnvioCodigoCadast
         try {
             javaMailSender.send(mensagem);
             LOGGER.info(
-                    "Código de confirmação de cadastro enviado por SMTP para {} (cadastroId={}, sistema={})",
+                    "Codigo de confirmacao de cadastro enviado por SMTP para {} (cadastroId={}, sistema={})",
                     cadastro.getEmailPrincipal(),
                     cadastro.getCadastroId(),
                     cadastro.getSistemaSolicitante()
             );
         } catch (MailException ex) {
-            throw new IllegalStateException("Falha ao enviar o código de confirmação do cadastro por SMTP.", ex);
+            throw new IllegalStateException("Falha ao enviar o codigo de confirmacao do cadastro por SMTP.", ex);
         }
     }
 
     private String criarCorpoMensagem(final CadastroConta cadastroConta, final String codigo) {
         return """
-                Olá,
-
-                Você solicitou a confirmação de cadastro da sua conta no %s.
-
-                Código de confirmação: %s
-                Cadastro: %s
-                Validade até: %s
-
-                Se você não reconhece esta solicitação, ignore esta mensagem.
+                Ola,%n%n\
+                Voce solicitou a confirmacao de cadastro da sua conta no %s.%n%n\
+                Codigo de confirmacao: %s%n\
+                Cadastro: %s%n\
+                Validade ate: %s%n%n\
+                Se voce nao reconhece esta solicitacao, ignore esta mensagem.%n\
                 """
                 .formatted(
                         cadastroEmailProperties.getNomeAplicacao(),

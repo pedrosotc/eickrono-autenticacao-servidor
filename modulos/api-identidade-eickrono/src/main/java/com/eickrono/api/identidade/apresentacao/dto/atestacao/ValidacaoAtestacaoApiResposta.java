@@ -7,6 +7,8 @@ import com.eickrono.api.identidade.dominio.modelo.PlataformaAtestacaoApp;
 import com.eickrono.api.identidade.dominio.modelo.ProvedorAtestacaoApp;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -26,6 +28,12 @@ public record ValidacaoAtestacaoApiResposta(
         List<String> deviceRecognitionVerdict,
         String chaveId
 ) {
+
+    public ValidacaoAtestacaoApiResposta {
+        deviceRecognitionVerdict = deviceRecognitionVerdict == null
+                ? null
+                : Collections.unmodifiableList(new ArrayList<>(deviceRecognitionVerdict));
+    }
 
     public static ValidacaoAtestacaoApiResposta de(final ValidacaoAtestacaoAppConcluida validacao) {
         return new ValidacaoAtestacaoApiResposta(

@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.lang.NonNull;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -32,7 +33,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @SpringBootTest(classes = AplicacaoApiContas.class)
 @AutoConfigureMockMvc
@@ -59,11 +60,11 @@ class ApiContasDeviceTokenContractTest {
         return Objects.requireNonNull(mockMvc);
     }
 
-    private JwtRequestPostProcessor clienteJwt(String tokenValue, String scope) {
-        return jwt().jwt(builder -> builder.subject("usuario-123").tokenValue(tokenValue))
+    private @NonNull RequestPostProcessor clienteJwt(String tokenValue, String scope) {
+        return Objects.requireNonNull(jwt().jwt(builder -> builder.subject("usuario-123").tokenValue(tokenValue))
                 .authorities(
                         new SimpleGrantedAuthority("ROLE_cliente"),
-                        new SimpleGrantedAuthority(scope));
+                        new SimpleGrantedAuthority(scope)));
     }
 
     private JwtDecoder jwtDecoder() {

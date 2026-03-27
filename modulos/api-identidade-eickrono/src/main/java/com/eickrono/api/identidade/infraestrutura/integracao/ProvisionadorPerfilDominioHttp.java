@@ -1,5 +1,8 @@
 package com.eickrono.api.identidade.infraestrutura.integracao;
 
+import static org.springframework.http.HttpStatus.BAD_GATEWAY;
+import static org.springframework.http.HttpStatus.CONFLICT;
+
 import com.eickrono.api.identidade.aplicacao.modelo.ProvisionamentoPerfilRealizado;
 import com.eickrono.api.identidade.aplicacao.servico.ProvisionadorPerfilDominioServico;
 import com.eickrono.api.identidade.dominio.modelo.CadastroConta;
@@ -22,9 +25,6 @@ import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
-import static org.springframework.http.HttpStatus.BAD_GATEWAY;
-import static org.springframework.http.HttpStatus.CONFLICT;
-
 @Component
 public class ProvisionadorPerfilDominioHttp implements ProvisionadorPerfilDominioServico {
 
@@ -43,47 +43,49 @@ public class ProvisionadorPerfilDominioHttp implements ProvisionadorPerfilDomini
                                           final IntegracaoInternaProperties integracaoInternaProperties,
                                           final ConfiguradorRestTemplateBackchannelMtls configuradorRestTemplateBackchannelMtls,
                                           final ClienteTokenBackchannelPerfilKeycloak clienteTokenBackchannelPerfilKeycloak) {
-        PerfilDominioBackchannelProperties configuracao = Objects.requireNonNull(properties, "properties é obrigatório");
-        this.urlBase = Objects.requireNonNull(configuracao.getUrlBase(), "integracao.perfil.url-base é obrigatório");
+        PerfilDominioBackchannelProperties configuracao = Objects.requireNonNull(properties, "properties e obrigatorio");
+        this.urlBase = Objects.requireNonNull(configuracao.getUrlBase(), "integracao.perfil.url-base e obrigatorio");
         this.restTemplate = Objects.requireNonNull(
                         configuradorRestTemplateBackchannelMtls,
-                        "configuradorRestTemplateBackchannelMtls é obrigatório")
+                        "configuradorRestTemplateBackchannelMtls e obrigatorio")
                 .configurar(restTemplateBuilder, this.urlBase, configuracao.getTimeout())
                 .errorHandler(NO_OP_ERROR_HANDLER)
                 .build();
-        this.segredoInterno = Objects.requireNonNull(integracaoInternaProperties, "integracaoInternaProperties é obrigatório")
+        this.segredoInterno = Objects.requireNonNull(integracaoInternaProperties, "integracaoInternaProperties e obrigatorio")
                 .getSegredo();
         this.clienteTokenBackchannelPerfilKeycloak = Objects.requireNonNull(
                 clienteTokenBackchannelPerfilKeycloak,
-                "clienteTokenBackchannelPerfilKeycloak é obrigatório");
+                "clienteTokenBackchannelPerfilKeycloak e obrigatorio");
     }
 
     @Override
     public boolean usuarioDisponivel(final String usuario) {
-        String usuarioNormalizado = Objects.requireNonNull(usuario, "usuario é obrigatório")
+        String usuarioNormalizado = Objects.requireNonNull(usuario, "usuario e obrigatorio")
                 .trim()
                 .toLowerCase(Locale.ROOT);
         if (usuarioNormalizado.isBlank()) {
             return false;
         }
         ResponseEntity<DisponibilidadeUsuarioInternaResponse> response = restTemplate.exchange(
-                URI.create(urlBase + CAMINHO_DISPONIBILIDADE_USUARIO + "?usuario=" + UriEscapers.escapeQueryParam(usuarioNormalizado)),
+                URI.create(urlBase + CAMINHO_DISPONIBILIDADE_USUARIO
+                        + "?usuario=" + UriEscapers.escapeQueryParam(usuarioNormalizado)),
                 HttpMethod.GET,
                 new HttpEntity<>(cabecalhosBasicos()),
                 DisponibilidadeUsuarioInternaResponse.class
         );
-        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+        DisponibilidadeUsuarioInternaResponse body = response.getBody();
+        if (!response.getStatusCode().is2xxSuccessful() || body == null) {
             throw new ResponseStatusException(
                     BAD_GATEWAY,
-                    "Não foi possível validar a disponibilidade do usuário no domínio do flashcard."
+                    "Nao foi possivel validar a disponibilidade do usuario no dominio do flashcard."
             );
         }
-        return response.getBody().disponivel();
+        return body.disponivel();
     }
 
     @Override
     public ProvisionamentoPerfilRealizado provisionarCadastroConfirmado(final CadastroConta cadastroConta) {
-        Objects.requireNonNull(cadastroConta, "cadastroConta é obrigatório");
+        Objects.requireNonNull(cadastroConta, "cadastroConta e obrigatorio");
         ResponseEntity<ProvisionamentoCadastroInternoResponse> response = restTemplate.exchange(
                 URI.create(urlBase + CAMINHO_PROVISIONAMENTO),
                 HttpMethod.POST,
@@ -108,13 +110,13 @@ public class ProvisionadorPerfilDominioHttp implements ProvisionadorPerfilDomini
         if (response.getStatusCode().value() == CONFLICT.value()) {
             throw new ResponseStatusException(CONFLICT, "O perfil local do flashcard entrou em conflito durante o provisionamento.");
         }
-        if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+        ProvisionamentoCadastroInternoResponse body = response.getBody();
+        if (!response.getStatusCode().is2xxSuccessful() || body == null) {
             throw new ResponseStatusException(
                     BAD_GATEWAY,
-                    "Não foi possível provisionar o perfil no domínio do flashcard."
+                    "Nao foi possivel provisionar o perfil no dominio do flashcard."
             );
         }
-        ProvisionamentoCadastroInternoResponse body = response.getBody();
         return new ProvisionamentoPerfilRealizado(
                 body.pessoaId(),
                 body.usuarioId(),

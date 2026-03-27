@@ -18,12 +18,12 @@ public class IntegracaoInternaProperties {
         return segredo;
     }
 
-    public void setSegredo(String segredo) {
+    public void setSegredo(final String segredo) {
         this.segredo = segredo;
     }
 
     public List<String> getClientesPermitidos() {
-        return clientesPermitidos;
+        return List.copyOf(clientesPermitidos);
     }
 
     public void setClientesPermitidos(final List<String> clientesPermitidos) {

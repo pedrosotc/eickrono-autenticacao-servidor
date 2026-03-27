@@ -17,16 +17,16 @@ public class CanalNotificacaoTentativaCadastroEmailSmtp implements CanalNotifica
 
     public CanalNotificacaoTentativaCadastroEmailSmtp(final JavaMailSender javaMailSender,
                                                       final CadastroEmailProperties cadastroEmailProperties) {
-        this.javaMailSender = Objects.requireNonNull(javaMailSender, "javaMailSender é obrigatório");
+        this.javaMailSender = Objects.requireNonNull(javaMailSender, "javaMailSender e obrigatorio");
         this.cadastroEmailProperties = Objects.requireNonNull(
-                cadastroEmailProperties, "cadastroEmailProperties é obrigatório");
+                cadastroEmailProperties, "cadastroEmailProperties e obrigatorio");
     }
 
     @Override
     public void notificar(final String emailPrincipal) {
-        String email = Objects.requireNonNull(emailPrincipal, "emailPrincipal é obrigatório").trim();
+        String email = Objects.requireNonNull(emailPrincipal, "emailPrincipal e obrigatorio").trim();
         if (email.isBlank()) {
-            throw new IllegalArgumentException("emailPrincipal é obrigatório");
+            throw new IllegalArgumentException("emailPrincipal e obrigatorio");
         }
 
         SimpleMailMessage mensagem = new SimpleMailMessage();
@@ -49,12 +49,10 @@ public class CanalNotificacaoTentativaCadastroEmailSmtp implements CanalNotifica
 
     private String criarCorpoMensagem() {
         return """
-                Olá,
-
-                Recebemos uma tentativa de criar um novo cadastro utilizando este endereço de e-mail no %s.
-
-                Se foi você, tente entrar com sua conta atual ou utilize o fluxo de recuperação de senha.
-                Se não foi você, ignore esta mensagem.
+                Ola,%n%n\
+                Recebemos uma tentativa de criar um novo cadastro utilizando este endereco de e-mail no %s.%n%n\
+                Se foi voce, tente entrar com sua conta atual ou utilize o fluxo de recuperacao de senha.%n\
+                Se nao foi voce, ignore esta mensagem.%n\
                 """
                 .formatted(cadastroEmailProperties.getNomeAplicacao());
     }

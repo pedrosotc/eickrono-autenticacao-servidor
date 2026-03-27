@@ -61,7 +61,7 @@ import jakarta.transaction.Transactional;
 @Component
 @Transactional
 @ConditionalOnProperty(prefix = "identidade.atestacao.app.apple", name = "habilitado", havingValue = "true")
-public class ValidadorOficialAppleAppAttest implements ValidadorOficialAtestacaoApp {
+public final class ValidadorOficialAppleAppAttest implements ValidadorOficialAtestacaoApp {
 
     private final AppleAppAttestProperties properties;
     private final ChaveAppleAppAttestRepositorio chaveRepositorio;
@@ -74,7 +74,9 @@ public class ValidadorOficialAppleAppAttest implements ValidadorOficialAtestacao
     public ValidadorOficialAppleAppAttest(final AtestacaoAppProperties properties,
                                           final ChaveAppleAppAttestRepositorio chaveRepositorio,
                                           final ResourceLoader resourceLoader) {
-        this.properties = Objects.requireNonNull(properties, "properties é obrigatório").getApple();
+        this.properties = Objects.requireNonNull(
+                Objects.requireNonNull(properties, "properties é obrigatório").getApple(),
+                "apple properties é obrigatório");
         this.chaveRepositorio = Objects.requireNonNull(chaveRepositorio, "chaveRepositorio é obrigatório");
         this.objectConverter = DeviceCheckManager.createObjectConverter();
         this.attestationObjectConverter = new AttestationObjectConverter(this.objectConverter);
@@ -128,12 +130,21 @@ public class ValidadorOficialAppleAppAttest implements ValidadorOficialAtestacao
                 "O objeto de atestacao do Apple App Attest esta invalido."
         );
         DCServerProperty serverProperty = criarServerProperty(comprovante);
-        DCAttestationData attestationData = deviceCheckManager.validate(
-                new DCAttestationRequest(chaveId, objetoAtestacao, clientDataHash),
-                new DCAttestationParameters(serverProperty)
-        );
-
-        long contador = attestationData.getAttestationObject().getAuthenticatorData().getSignCount();
+        DCAttestationData attestationData = Objects.requireNonNull(
+                deviceCheckManager.validate(
+                        new DCAttestationRequest(chaveId, objetoAtestacao, clientDataHash),
+                        new DCAttestationParameters(serverProperty)
+                ),
+                "Validação oficial Apple retornou atestação nula.");
+        var attestationObject = attestationData.getAttestationObject();
+        if (attestationObject == null) {
+            throw new IllegalStateException("Validação oficial Apple retornou attestation object nulo.");
+        }
+        var authenticatorData = attestationObject.getAuthenticatorData();
+        if (authenticatorData == null) {
+            throw new IllegalStateException("Validação oficial Apple retornou authenticator data nulo.");
+        }
+        long contador = authenticatorData.getSignCount();
         OffsetDateTime agora = OffsetDateTime.now(ZoneOffset.UTC);
         Optional<ChaveAppleAppAttest> chaveExistente = chaveRepositorio.findByChaveId(comprovante.chaveId());
         ChaveAppleAppAttest chave = chaveExistente.orElseGet(() -> new ChaveAppleAppAttest(
@@ -171,13 +182,19 @@ public class ValidadorOficialAppleAppAttest implements ValidadorOficialAtestacao
                 "conteudo_assercao_ios_invalido",
                 "O objeto de assercao do Apple App Attest esta invalido."
         );
-        DCAssertionData assertionData = deviceCheckManager.validate(
-                new DCAssertionRequest(chaveId, objetoAssercao, clientDataHash),
-                new DCAssertionParameters(criarServerProperty(comprovante), reconstruirDispositivo(chave))
-        );
+        DCAssertionData assertionData = Objects.requireNonNull(
+                deviceCheckManager.validate(
+                        new DCAssertionRequest(chaveId, objetoAssercao, clientDataHash),
+                        new DCAssertionParameters(criarServerProperty(comprovante), reconstruirDispositivo(chave))
+                ),
+                "Validação oficial Apple retornou asserção nula.");
+        var authenticatorData = assertionData.getAuthenticatorData();
+        if (authenticatorData == null) {
+            throw new IllegalStateException("Validação oficial Apple retornou authenticator data nulo.");
+        }
 
         chave.atualizarContadorAssinatura(
-                assertionData.getAuthenticatorData().getSignCount(),
+                authenticatorData.getSignCount(),
                 OffsetDateTime.now(ZoneOffset.UTC)
         );
         chaveRepositorio.save(chave);
@@ -198,18 +215,32 @@ public class ValidadorOficialAppleAppAttest implements ValidadorOficialAtestacao
                 "O registro persistido do Apple App Attest esta invalido."
         );
         byte[] authenticatorDataBytes = attestationObjectConverter.extractAuthenticatorData(objetoAtestacao);
+        if (authenticatorDataBytes == null) {
+            throw new IllegalStateException("Authenticator data extraído do Apple App Attest não pode ser nulo.");
+        }
         AuthenticatorData<AuthenticationExtensionAuthenticatorOutput> authenticatorData =
-                authenticatorDataConverter.convert(authenticatorDataBytes);
+                Objects.requireNonNull(
+                        authenticatorDataConverter.convert(authenticatorDataBytes),
+                        "Authenticator data convertido do Apple App Attest não pode ser nulo.");
         byte[] attestedCredentialDataBytes =
-                authenticatorDataConverter.extractAttestedCredentialData(authenticatorDataBytes);
+                Objects.requireNonNull(
+                        authenticatorDataConverter.extractAttestedCredentialData(authenticatorDataBytes),
+                        "Attested credential data do Apple App Attest não pode ser nulo.");
         AttestedCredentialData attestedCredentialData =
-                attestedCredentialDataConverter.convert(attestedCredentialDataBytes);
+                Objects.requireNonNull(
+                        attestedCredentialDataConverter.convert(attestedCredentialDataBytes),
+                        "Attested credential data convertido do Apple App Attest não pode ser nulo.");
         byte[] attestationStatementBytes = attestationObjectConverter.extractAttestationStatement(objetoAtestacao);
+        if (attestationStatementBytes == null) {
+            throw new IllegalStateException("Attestation statement do Apple App Attest não pode ser nulo.");
+        }
         AppleAppAttestAttestationStatement attestationStatement =
-                objectConverter.getCborMapper().readValue(
-                        attestationStatementBytes,
-                        AppleAppAttestAttestationStatement.class
-                );
+                Objects.requireNonNull(
+                        objectConverter.getCborMapper().readValue(
+                                attestationStatementBytes,
+                                AppleAppAttestAttestationStatement.class
+                        ),
+                        "Attestation statement convertido do Apple App Attest não pode ser nulo.");
         AuthenticationExtensionsAuthenticatorOutputs<?> extensoes = authenticatorData.getExtensions() == null
                 ? new AuthenticationExtensionsAuthenticatorOutputs<>()
                 : authenticatorData.getExtensions();

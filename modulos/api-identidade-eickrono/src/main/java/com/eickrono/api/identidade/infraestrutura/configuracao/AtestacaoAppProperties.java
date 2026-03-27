@@ -2,13 +2,18 @@ package com.eickrono.api.identidade.infraestrutura.configuracao;
 
 import com.eickrono.api.identidade.infraestrutura.atestacao.AppleAppAttestProperties;
 import com.eickrono.api.identidade.infraestrutura.atestacao.GooglePlayIntegrityProperties;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Propriedades do fluxo de desafio e atestação nativa do app.
+ * Propriedades do fluxo de desafio e atestacao nativa do app.
  */
 @ConfigurationProperties(prefix = "identidade.atestacao.app")
+@SuppressFBWarnings(
+        value = {"EI_EXPOSE_REP", "EI_EXPOSE_REP2"},
+        justification = "Spring Boot faz o bind de propriedades aninhadas mutaveis nesses beans de configuracao."
+)
 public class AtestacaoAppProperties {
 
     private Duration duracaoDesafio = Duration.ofMinutes(5);

@@ -16,7 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 @Component
-public class ClienteTokenBackchannelPerfilKeycloak {
+public final class ClienteTokenBackchannelPerfilKeycloak {
 
     private static final Duration ANTECEDENCIA_RENOVACAO = Duration.ofSeconds(30);
 

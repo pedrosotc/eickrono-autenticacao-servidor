@@ -1,5 +1,6 @@
 package com.eickrono.api.identidade.infraestrutura.configuracao;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -26,6 +27,10 @@ public class PerfilDominioBackchannelProperties {
         this.timeout = timeout;
     }
 
+    @SuppressFBWarnings(
+            value = "EI_EXPOSE_REP",
+            justification = "Spring Boot usa a instancia aninhada para bind incremental das propriedades jwtInterno."
+    )
     public JwtInterno getJwtInterno() {
         return jwtInterno;
     }

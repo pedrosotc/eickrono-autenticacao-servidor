@@ -20,17 +20,17 @@ public class CanalEnvioCodigoRecuperacaoSenhaEmailSmtp implements CanalEnvioCodi
 
     public CanalEnvioCodigoRecuperacaoSenhaEmailSmtp(final JavaMailSender javaMailSender,
                                                      final CadastroEmailProperties cadastroEmailProperties) {
-        this.javaMailSender = Objects.requireNonNull(javaMailSender, "javaMailSender é obrigatório");
+        this.javaMailSender = Objects.requireNonNull(javaMailSender, "javaMailSender e obrigatorio");
         this.cadastroEmailProperties = Objects.requireNonNull(
-                cadastroEmailProperties, "cadastroEmailProperties é obrigatório");
+                cadastroEmailProperties, "cadastroEmailProperties e obrigatorio");
     }
 
     @Override
     public void enviar(final RecuperacaoSenha recuperacaoSenha, final String codigo) {
-        RecuperacaoSenha recuperacao = Objects.requireNonNull(recuperacaoSenha, "recuperacaoSenha é obrigatória");
-        String codigoConfirmacao = Objects.requireNonNull(codigo, "codigo é obrigatório").trim();
+        RecuperacaoSenha recuperacao = Objects.requireNonNull(recuperacaoSenha, "recuperacaoSenha e obrigatoria");
+        String codigoConfirmacao = Objects.requireNonNull(codigo, "codigo e obrigatorio").trim();
         if (codigoConfirmacao.isBlank()) {
-            throw new IllegalArgumentException("codigo é obrigatório");
+            throw new IllegalArgumentException("codigo e obrigatorio");
         }
 
         SimpleMailMessage mensagem = new SimpleMailMessage();
@@ -46,26 +46,23 @@ public class CanalEnvioCodigoRecuperacaoSenhaEmailSmtp implements CanalEnvioCodi
         try {
             javaMailSender.send(mensagem);
             LOGGER.info(
-                    "Código de recuperação de senha enviado por SMTP para {} (fluxoId={})",
+                    "Codigo de recuperacao de senha enviado por SMTP para {} (fluxoId={})",
                     recuperacao.getEmailPrincipal(),
                     recuperacao.getFluxoId()
             );
         } catch (MailException ex) {
-            throw new IllegalStateException("Falha ao enviar o código de recuperação de senha por SMTP.", ex);
+            throw new IllegalStateException("Falha ao enviar o codigo de recuperacao de senha por SMTP.", ex);
         }
     }
 
     private String criarCorpoMensagem(final RecuperacaoSenha recuperacaoSenha, final String codigo) {
         return """
-                Olá,
-
-                Você solicitou a recuperação de senha da sua conta no %s.
-
-                Código de recuperação: %s
-                Solicitação: %s
-                Validade até: %s
-
-                Se você não reconhece esta solicitação, ignore esta mensagem.
+                Ola,%n%n\
+                Voce solicitou a recuperacao de senha da sua conta no %s.%n%n\
+                Codigo de recuperacao: %s%n\
+                Solicitacao: %s%n\
+                Validade ate: %s%n%n\
+                Se voce nao reconhece esta solicitacao, ignore esta mensagem.%n\
                 """
                 .formatted(
                         cadastroEmailProperties.getNomeAplicacao(),

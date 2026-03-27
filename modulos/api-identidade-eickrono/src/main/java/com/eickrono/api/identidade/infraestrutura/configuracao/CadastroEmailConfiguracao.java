@@ -23,7 +23,7 @@ public class CadastroEmailConfiguracao {
     public CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail(
             final CadastroEmailProperties cadastroEmailProperties,
             final ObjectProvider<JavaMailSender> javaMailSenderProvider) {
-        Objects.requireNonNull(cadastroEmailProperties, "cadastroEmailProperties é obrigatório");
+        Objects.requireNonNull(cadastroEmailProperties, "cadastroEmailProperties e obrigatorio");
         String fornecedor = Objects.requireNonNullElse(cadastroEmailProperties.getFornecedor(), "log")
                 .trim()
                 .toLowerCase(Locale.ROOT);
@@ -31,15 +31,11 @@ public class CadastroEmailConfiguracao {
         return switch (fornecedor) {
             case "log" -> new CanalEnvioCodigoCadastroEmailLog();
             case "smtp" -> new CanalEnvioCodigoCadastroEmailSmtp(
-                    Objects.requireNonNull(
-                            javaMailSenderProvider.getIfAvailable(),
-                            "Fornecedor SMTP configurado, mas nenhum JavaMailSender foi inicializado. "
-                                    + "Revise spring.mail.host, spring.mail.port e credenciais."
-                    ),
+                    obterJavaMailSenderObrigatorio(javaMailSenderProvider),
                     cadastroEmailProperties
             );
             default -> throw new IllegalStateException(
-                    "Fornecedor de e-mail do cadastro inválido: " + cadastroEmailProperties.getFornecedor());
+                    "Fornecedor de e-mail do cadastro invalido: " + cadastroEmailProperties.getFornecedor());
         };
     }
 
@@ -47,7 +43,7 @@ public class CadastroEmailConfiguracao {
     public CanalEnvioCodigoRecuperacaoSenhaEmail canalEnvioCodigoRecuperacaoSenhaEmail(
             final CadastroEmailProperties cadastroEmailProperties,
             final ObjectProvider<JavaMailSender> javaMailSenderProvider) {
-        Objects.requireNonNull(cadastroEmailProperties, "cadastroEmailProperties é obrigatório");
+        Objects.requireNonNull(cadastroEmailProperties, "cadastroEmailProperties e obrigatorio");
         String fornecedor = Objects.requireNonNullElse(cadastroEmailProperties.getFornecedor(), "log")
                 .trim()
                 .toLowerCase(Locale.ROOT);
@@ -55,15 +51,11 @@ public class CadastroEmailConfiguracao {
         return switch (fornecedor) {
             case "log" -> new CanalEnvioCodigoRecuperacaoSenhaEmailLog();
             case "smtp" -> new CanalEnvioCodigoRecuperacaoSenhaEmailSmtp(
-                    Objects.requireNonNull(
-                            javaMailSenderProvider.getIfAvailable(),
-                            "Fornecedor SMTP configurado, mas nenhum JavaMailSender foi inicializado. "
-                                    + "Revise spring.mail.host, spring.mail.port e credenciais."
-                    ),
+                    obterJavaMailSenderObrigatorio(javaMailSenderProvider),
                     cadastroEmailProperties
             );
             default -> throw new IllegalStateException(
-                    "Fornecedor de e-mail do cadastro inválido: " + cadastroEmailProperties.getFornecedor());
+                    "Fornecedor de e-mail do cadastro invalido: " + cadastroEmailProperties.getFornecedor());
         };
     }
 
@@ -71,7 +63,7 @@ public class CadastroEmailConfiguracao {
     public CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail(
             final CadastroEmailProperties cadastroEmailProperties,
             final ObjectProvider<JavaMailSender> javaMailSenderProvider) {
-        Objects.requireNonNull(cadastroEmailProperties, "cadastroEmailProperties é obrigatório");
+        Objects.requireNonNull(cadastroEmailProperties, "cadastroEmailProperties e obrigatorio");
         String fornecedor = Objects.requireNonNullElse(cadastroEmailProperties.getFornecedor(), "log")
                 .trim()
                 .toLowerCase(Locale.ROOT);
@@ -79,15 +71,22 @@ public class CadastroEmailConfiguracao {
         return switch (fornecedor) {
             case "log" -> new CanalNotificacaoTentativaCadastroEmailLog();
             case "smtp" -> new CanalNotificacaoTentativaCadastroEmailSmtp(
-                    Objects.requireNonNull(
-                            javaMailSenderProvider.getIfAvailable(),
-                            "Fornecedor SMTP configurado, mas nenhum JavaMailSender foi inicializado. "
-                                    + "Revise spring.mail.host, spring.mail.port e credenciais."
-                    ),
+                    obterJavaMailSenderObrigatorio(javaMailSenderProvider),
                     cadastroEmailProperties
             );
             default -> throw new IllegalStateException(
-                    "Fornecedor de e-mail do cadastro inválido: " + cadastroEmailProperties.getFornecedor());
+                    "Fornecedor de e-mail do cadastro invalido: " + cadastroEmailProperties.getFornecedor());
         };
+    }
+
+    private static JavaMailSender obterJavaMailSenderObrigatorio(
+            final ObjectProvider<JavaMailSender> javaMailSenderProvider) {
+        JavaMailSender javaMailSender = javaMailSenderProvider.getIfAvailable();
+        if (javaMailSender == null) {
+            throw new IllegalStateException(
+                    "Fornecedor SMTP configurado, mas nenhum JavaMailSender foi inicializado. "
+                            + "Revise spring.mail.host, spring.mail.port e credenciais.");
+        }
+        return javaMailSender;
     }
 }

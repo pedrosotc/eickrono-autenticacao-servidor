@@ -12,7 +12,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Component
-public class ValidadorChamadaInterna {
+public final class ValidadorChamadaInterna {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ValidadorChamadaInterna.class);
 

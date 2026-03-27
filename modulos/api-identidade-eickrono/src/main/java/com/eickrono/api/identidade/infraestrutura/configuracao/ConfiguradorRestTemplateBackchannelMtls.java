@@ -1,8 +1,10 @@
 package com.eickrono.api.identidade.infraestrutura.configuracao;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.time.Duration;
 import java.util.Locale;
@@ -27,14 +29,14 @@ public class ConfiguradorRestTemplateBackchannelMtls {
 
     public ConfiguradorRestTemplateBackchannelMtls(final TlsMutuoProperties tlsMutuoProperties,
                                                    final ResourceLoader resourceLoader) {
-        this.tlsMutuoProperties = Objects.requireNonNull(tlsMutuoProperties, "tlsMutuoProperties é obrigatório");
-        this.resourceLoader = Objects.requireNonNull(resourceLoader, "resourceLoader é obrigatório");
+        this.tlsMutuoProperties = Objects.requireNonNull(tlsMutuoProperties, "tlsMutuoProperties e obrigatorio");
+        this.resourceLoader = Objects.requireNonNull(resourceLoader, "resourceLoader e obrigatorio");
     }
 
     public RestTemplateBuilder configurar(final RestTemplateBuilder restTemplateBuilder,
                                           final String urlBase,
                                           final Duration timeout) {
-        Objects.requireNonNull(restTemplateBuilder, "restTemplateBuilder é obrigatório");
+        Objects.requireNonNull(restTemplateBuilder, "restTemplateBuilder e obrigatorio");
         Duration timeoutEfetivo = Objects.requireNonNullElse(timeout, Duration.ofSeconds(5));
         if (!deveUsarMtls(urlBase)) {
             return restTemplateBuilder
@@ -54,7 +56,7 @@ public class ConfiguradorRestTemplateBackchannelMtls {
     }
 
     private boolean deveUsarMtls(final String urlBase) {
-        URI uri = URI.create(Objects.requireNonNull(urlBase, "urlBase é obrigatório"));
+        URI uri = URI.create(Objects.requireNonNull(urlBase, "urlBase e obrigatorio"));
         String esquema = uri.getScheme();
         if (!"https".equalsIgnoreCase(esquema)) {
             return false;
@@ -67,10 +69,10 @@ public class ConfiguradorRestTemplateBackchannelMtls {
     }
 
     private void validarConfiguracaoMtls() {
-        validarTexto(tlsMutuoProperties.getKeystoreArquivo(), "seguranca.mtls.keystore-arquivo é obrigatório.");
-        validarTexto(tlsMutuoProperties.getKeystoreSenha(), "seguranca.mtls.keystore-senha é obrigatório.");
-        validarTexto(tlsMutuoProperties.getTruststoreArquivo(), "seguranca.mtls.truststore-arquivo é obrigatório.");
-        validarTexto(tlsMutuoProperties.getTruststoreSenha(), "seguranca.mtls.truststore-senha é obrigatório.");
+        validarTexto(tlsMutuoProperties.getKeystoreArquivo(), "seguranca.mtls.keystore-arquivo e obrigatorio.");
+        validarTexto(tlsMutuoProperties.getKeystoreSenha(), "seguranca.mtls.keystore-senha e obrigatorio.");
+        validarTexto(tlsMutuoProperties.getTruststoreArquivo(), "seguranca.mtls.truststore-arquivo e obrigatorio.");
+        validarTexto(tlsMutuoProperties.getTruststoreSenha(), "seguranca.mtls.truststore-senha e obrigatorio.");
     }
 
     private SSLContext obterSslContext() {
@@ -102,20 +104,21 @@ public class ConfiguradorRestTemplateBackchannelMtls {
                 novoSslContext.init(keyManagerFactory.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
                 sslContextCache = novoSslContext;
                 return novoSslContext;
-            } catch (Exception ex) {
+            } catch (GeneralSecurityException | IOException ex) {
                 throw new IllegalStateException("Falha ao inicializar o SSLContext do backchannel interno com mTLS.", ex);
             }
         }
     }
 
-    private KeyStore carregarKeyStore(final String localizacao, final String senha) throws Exception {
-        Resource resource = resourceLoader.getResource(validarTexto(localizacao, "Localização do keystore é obrigatória."));
+    private KeyStore carregarKeyStore(final String localizacao, final String senha)
+            throws GeneralSecurityException, IOException {
+        Resource resource = resourceLoader.getResource(validarTexto(localizacao, "Localizacao do keystore e obrigatoria."));
         if (!resource.exists()) {
-            throw new IllegalStateException("Arquivo de keystore/truststore não encontrado: " + localizacao);
+            throw new IllegalStateException("Arquivo de keystore/truststore nao encontrado: " + localizacao);
         }
         KeyStore keyStore = KeyStore.getInstance(determinarTipoKeyStore(localizacao));
         try (InputStream inputStream = resource.getInputStream()) {
-            keyStore.load(inputStream, validarTexto(senha, "Senha do keystore/truststore é obrigatória.").toCharArray());
+            keyStore.load(inputStream, validarTexto(senha, "Senha do keystore/truststore e obrigatoria.").toCharArray());
         }
         return keyStore;
     }
