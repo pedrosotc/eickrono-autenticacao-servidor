@@ -1,0 +1,161 @@
+{
+  "version": "1.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "detailLevel": "All",
+  "tablePositions": [
+    {
+      "name": "REALM",
+      "schemaName": "public",
+      "x": 12,
+      "y": 12
+    },
+    {
+      "name": "CLIENT",
+      "schemaName": "public",
+      "x": 611.990234375,
+      "y": 12
+    },
+    {
+      "name": "CLIENT_ATTRIBUTES",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 12
+    },
+    {
+      "name": "WEB_ORIGINS",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 186
+    },
+    {
+      "name": "REDIRECT_URIS",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 328
+    },
+    {
+      "name": "CLIENT_SCOPE",
+      "schemaName": "public",
+      "x": 611.990234375,
+      "y": 538
+    },
+    {
+      "name": "CLIENT_SCOPE_ATTRIBUTES",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 644
+    },
+    {
+      "name": "CLIENT_SCOPE_ROLE_MAPPING",
+      "schemaName": "public",
+      "x": 2046.126953125,
+      "y": 12
+    },
+    {
+      "name": "CLIENT_SCOPE_CLIENT",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 470
+    },
+    {
+      "name": "DEFAULT_CLIENT_SCOPE",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 819
+    },
+    {
+      "name": "KEYCLOAK_ROLE",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 993
+    },
+    {
+      "name": "USER_ROLE_MAPPING",
+      "schemaName": "public",
+      "x": 2046.126953125,
+      "y": 154
+    },
+    {
+      "name": "USER_ENTITY",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 1295
+    },
+    {
+      "name": "USER_ATTRIBUTE",
+      "schemaName": "public",
+      "x": 2046.126953125,
+      "y": 296
+    },
+    {
+      "name": "CREDENTIAL",
+      "schemaName": "public",
+      "x": 2046.126953125,
+      "y": 598
+    },
+    {
+      "name": "USER_REQUIRED_ACTION",
+      "schemaName": "public",
+      "x": 2046.126953125,
+      "y": 964
+    },
+    {
+      "name": "FEDERATED_IDENTITY",
+      "schemaName": "public",
+      "x": 2046.126953125,
+      "y": 1106
+    },
+    {
+      "name": "AUTHENTICATION_FLOW",
+      "schemaName": "public",
+      "x": 611.990234375,
+      "y": 777
+    },
+    {
+      "name": "AUTHENTICATION_EXECUTION",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 1789
+    },
+    {
+      "name": "REQUIRED_ACTION_PROVIDER",
+      "schemaName": "public",
+      "x": 611.990234375,
+      "y": 1080
+    },
+    {
+      "name": "REQUIRED_ACTION_CONFIG",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 2155
+    },
+    {
+      "name": "COMPONENT",
+      "schemaName": "public",
+      "x": 611.990234375,
+      "y": 1434
+    },
+    {
+      "name": "COMPONENT_CONFIG",
+      "schemaName": "public",
+      "x": 1376.787109375,
+      "y": 2329
+    },
+    {
+      "name": "OFFLINE_USER_SESSION",
+      "schemaName": "public",
+      "x": 2046.126953125,
+      "y": 1376
+    },
+    {
+      "name": "OFFLINE_CLIENT_SESSION",
+      "schemaName": "public",
+      "x": 2583.651342325929,
+      "y": 1437.9815646480397
+    }
+  ],
+  "tableGroupCollapseStates": [],
+  "stickyNoteLayouts": [],
+  "referencePaths": []
+}

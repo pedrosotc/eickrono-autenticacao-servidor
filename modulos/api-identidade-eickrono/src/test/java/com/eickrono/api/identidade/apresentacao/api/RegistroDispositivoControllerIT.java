@@ -137,6 +137,7 @@ class RegistroDispositivoControllerIT {
         assertThat(payloadValidacao.codigo()).isEqualTo("DEVICE_TOKEN_VALID");
 
         MvcResult validacaoInterna = mockMvc().perform(get("/identidade/dispositivos/token/validacao/interna")
+                        .with(Objects.requireNonNull(clienteJwtInterno()))
                         .header("X-Eickrono-Internal-Secret", "local-internal-secret")
                         .header("X-Usuario-Sub", "usuario-xyz")
                         .header("X-Device-Token", confirmacao.tokenDispositivo()))
@@ -252,6 +253,13 @@ class RegistroDispositivoControllerIT {
                 .authorities(
                         new SimpleGrantedAuthority("ROLE_cliente"),
                         new SimpleGrantedAuthority("SCOPE_identidade:ler")));
+    }
+
+    private RequestPostProcessor clienteJwtInterno() {
+        return Objects.requireNonNull(jwt().jwt(builder -> builder
+                        .subject("service-account-servidor-autorizacao-interno")
+                        .claim("azp", "servidor-autorizacao-interno")
+                        .claim("preferred_username", "service-account-servidor-autorizacao-interno")));
     }
 
     private MediaType jsonMediaType() {

@@ -1,14 +1,15 @@
 package com.eickrono.api.identidade.aplicacao.servico;
 
 import com.eickrono.api.identidade.infraestrutura.configuracao.DispositivoProperties;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
 import com.eickrono.api.identidade.dominio.modelo.CanalVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.CodigoVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.DispositivoIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
-import com.eickrono.api.identidade.dominio.modelo.Pessoa;
 import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusCodigoVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
+import com.eickrono.api.identidade.dominio.modelo.Pessoa;
 import com.eickrono.api.identidade.dominio.repositorio.CodigoVerificacaoRepositorio;
 import com.eickrono.api.identidade.dominio.repositorio.RegistroDispositivoRepositorio;
 import com.eickrono.api.identidade.apresentacao.dto.ConfirmacaoRegistroRequest;
@@ -35,6 +36,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -42,7 +44,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * Orquestra o ciclo de vida do registro e confirmação de dispositivos móveis.
+ * Orquestra o ciclo de vida do registro e confirmacao de dispositivos moveis.
  */
 @Service
 public class RegistroDispositivoService {
@@ -54,7 +56,7 @@ public class RegistroDispositivoService {
     private final RegistroDispositivoRepositorio registroRepositorio;
     private final CodigoVerificacaoRepositorio codigoRepositorio;
     private final TokenDispositivoService tokenDispositivoService;
-    private final ProvisionamentoIdentidadeService provisionamentoIdentidadeService;
+    private final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil;
     private final DispositivoIdentidadeService dispositivoIdentidadeService;
     private final DispositivoProperties propriedades;
     private final AuditoriaService auditoriaService;
@@ -62,10 +64,11 @@ public class RegistroDispositivoService {
     private final Clock clock;
     private final HexFormat hexFormat = HexFormat.of();
 
+    @Autowired
     public RegistroDispositivoService(RegistroDispositivoRepositorio registroRepositorio,
                                       CodigoVerificacaoRepositorio codigoRepositorio,
                                       TokenDispositivoService tokenDispositivoService,
-                                      ProvisionamentoIdentidadeService provisionamentoIdentidadeService,
+                                      ClienteContextoPessoaPerfil clienteContextoPessoaPerfil,
                                       DispositivoIdentidadeService dispositivoIdentidadeService,
                                       DispositivoProperties propriedades,
                                       AuditoriaService auditoriaService,
@@ -74,12 +77,35 @@ public class RegistroDispositivoService {
         this.registroRepositorio = registroRepositorio;
         this.codigoRepositorio = codigoRepositorio;
         this.tokenDispositivoService = tokenDispositivoService;
-        this.provisionamentoIdentidadeService = provisionamentoIdentidadeService;
+        this.clienteContextoPessoaPerfil = clienteContextoPessoaPerfil;
         this.dispositivoIdentidadeService = dispositivoIdentidadeService;
         this.propriedades = propriedades;
         this.auditoriaService = auditoriaService;
         this.canaisEnvio = construirMapaCanais(canaisEnvio);
         this.clock = clock;
+    }
+
+    public RegistroDispositivoService(final RegistroDispositivoRepositorio registroRepositorio,
+                                      final CodigoVerificacaoRepositorio codigoRepositorio,
+                                      final TokenDispositivoService tokenDispositivoService,
+                                      final ProvisionamentoIdentidadeService provisionamentoIdentidadeService,
+                                      final DispositivoIdentidadeService dispositivoIdentidadeService,
+                                      final DispositivoProperties propriedades,
+                                      final AuditoriaService auditoriaService,
+                                      final List<CanalEnvioCodigo> canaisEnvio,
+                                      final Clock clock) {
+        this(
+                registroRepositorio,
+                codigoRepositorio,
+                tokenDispositivoService,
+                new ClienteContextoPessoaPerfilLegado(Objects.requireNonNull(provisionamentoIdentidadeService,
+                        "provisionamentoIdentidadeService é obrigatório")),
+                dispositivoIdentidadeService,
+                propriedades,
+                auditoriaService,
+                canaisEnvio,
+                clock
+        );
     }
 
     @Transactional
@@ -88,10 +114,15 @@ public class RegistroDispositivoService {
         OffsetDateTime expiraEm = agora.plusHours(propriedades.getCodigo().getExpiracaoHoras());
         UUID id = UUID.randomUUID();
         String emailNormalizado = normalizarObrigatorio(request.getEmail(), "email").toLowerCase(Locale.ROOT);
+        String usuarioSub = jwtOpt.map(Jwt::getSubject).orElse(null);
+        Long pessoaIdPerfil = resolverContextoPessoa(usuarioSub, emailNormalizado)
+                .map(ContextoPessoaPerfil::pessoaId)
+                .orElse(null);
         String telefoneNormalizado = normalizarTelefone(request.getTelefone());
         RegistroDispositivo registro = new RegistroDispositivo(
                 id,
-                jwtOpt.map(Jwt::getSubject).orElse(null),
+                usuarioSub,
+                pessoaIdPerfil,
                 emailNormalizado,
                 telefoneNormalizado,
                 normalizarObrigatorio(request.getFingerprint(), "fingerprint"),
@@ -162,11 +193,14 @@ public class RegistroDispositivoService {
         registro.codigoPorCanal(CanalVerificacao.SMS)
                 .ifPresent(codigoSms -> validarCodigo(codigoSms, request.getCodigoSms(), agora));
 
-        Pessoa pessoa = localizarOuProvisionarPessoa(registro, jwtOpt);
-        String usuarioSub = pessoa.getSub();
+        String usuarioSub = resolverUsuarioSub(registro, jwtOpt);
+        Long pessoaIdPerfil = registro.getPessoaIdPerfil()
+                .or(() -> resolverContextoPessoa(usuarioSub, registro.getEmail()).map(ContextoPessoaPerfil::pessoaId))
+                .orElse(null);
         registro.definirUsuarioSub(usuarioSub);
+        registro.definirPessoaIdPerfil(pessoaIdPerfil);
         registro.definirStatus(StatusRegistroDispositivo.CONFIRMADO, agora);
-        DispositivoIdentidade dispositivo = dispositivoIdentidadeService.garantirDispositivo(pessoa, registro);
+        DispositivoIdentidade dispositivo = dispositivoIdentidadeService.garantirDispositivo(usuarioSub, pessoaIdPerfil, registro);
 
         ConfirmacaoRegistroResponse response = emitirToken(registro, dispositivo, usuarioSub, agora);
 
@@ -361,15 +395,22 @@ public class RegistroDispositivoService {
         return propriedades.getOnboarding().isSmsHabilitado();
     }
 
-    private Pessoa localizarOuProvisionarPessoa(RegistroDispositivo registro, Optional<Jwt> jwtOpt) {
+    private String resolverUsuarioSub(final RegistroDispositivo registro, final Optional<Jwt> jwtOpt) {
         if (jwtOpt.isPresent()) {
-            return provisionamentoIdentidadeService.provisionarOuAtualizar(jwtOpt.orElseThrow());
+            return jwtOpt.orElseThrow().getSubject();
         }
         return registro.getUsuarioSub()
-                .flatMap(provisionamentoIdentidadeService::localizarPessoaPorSub)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Pessoa não provisionada para o dispositivo confirmado"));
+                        "Usuario não identificado para o dispositivo confirmado"));
+    }
+
+    private Optional<ContextoPessoaPerfil> resolverContextoPessoa(final String usuarioSub, final String email) {
+        Optional<ContextoPessoaPerfil> porSub = clienteContextoPessoaPerfil.buscarPorSub(usuarioSub);
+        if (porSub.isPresent()) {
+            return porSub;
+        }
+        return clienteContextoPessoaPerfil.buscarPorEmail(email);
     }
 
     private String normalizarObrigatorio(String valor, String campo) {
@@ -392,5 +433,40 @@ public class RegistroDispositivoService {
     }
 
     private record CodigoGerado(CodigoVerificacao entidade, String codigoClaro) {
+    }
+
+    private static final class ClienteContextoPessoaPerfilLegado implements ClienteContextoPessoaPerfil {
+
+        private final ProvisionamentoIdentidadeService provisionamentoIdentidadeService;
+
+        private ClienteContextoPessoaPerfilLegado(final ProvisionamentoIdentidadeService provisionamentoIdentidadeService) {
+            this.provisionamentoIdentidadeService = provisionamentoIdentidadeService;
+        }
+
+        @Override
+        public Optional<ContextoPessoaPerfil> buscarPorPessoaId(final Long pessoaId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<ContextoPessoaPerfil> buscarPorSub(final String sub) {
+            return provisionamentoIdentidadeService.localizarPessoaPorSub(sub)
+                    .map(RegistroDispositivoService.ClienteContextoPessoaPerfilLegado::paraContexto);
+        }
+
+        @Override
+        public Optional<ContextoPessoaPerfil> buscarPorEmail(final String email) {
+            return Optional.empty();
+        }
+
+        private static ContextoPessoaPerfil paraContexto(final Pessoa pessoa) {
+            return new ContextoPessoaPerfil(
+                    pessoa.getId(),
+                    pessoa.getSub(),
+                    pessoa.getEmail(),
+                    pessoa.getNome(),
+                    null,
+                    null);
+        }
     }
 }

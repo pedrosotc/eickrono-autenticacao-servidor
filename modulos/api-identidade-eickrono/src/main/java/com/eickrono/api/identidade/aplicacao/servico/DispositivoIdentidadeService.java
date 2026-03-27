@@ -11,6 +11,7 @@ import jakarta.transaction.Transactional;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Objects;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -20,27 +21,34 @@ import org.springframework.stereotype.Service;
 public class DispositivoIdentidadeService {
 
     private final DispositivoIdentidadeRepositorio dispositivoRepositorio;
-    private final PessoaRepositorio pessoaRepositorio;
     private final Clock clock;
 
+    @Autowired
     public DispositivoIdentidadeService(DispositivoIdentidadeRepositorio dispositivoRepositorio,
-                                        PessoaRepositorio pessoaRepositorio,
                                         Clock clock) {
         this.dispositivoRepositorio = dispositivoRepositorio;
-        this.pessoaRepositorio = pessoaRepositorio;
         this.clock = clock;
     }
 
+    public DispositivoIdentidadeService(final DispositivoIdentidadeRepositorio dispositivoRepositorio,
+                                        final PessoaRepositorio pessoaRepositorio,
+                                        final Clock clock) {
+        this(dispositivoRepositorio, clock);
+    }
+
     @Transactional
-    public DispositivoIdentidade garantirDispositivo(Pessoa pessoa, RegistroDispositivo registro) {
-        Pessoa pessoaObrigatoria = Objects.requireNonNull(pessoa, "pessoa é obrigatória");
+    public DispositivoIdentidade garantirDispositivo(String usuarioSub,
+                                                     Long pessoaIdPerfil,
+                                                     RegistroDispositivo registro) {
+        String usuarioSubObrigatorio = Objects.requireNonNull(usuarioSub, "usuarioSub é obrigatório");
         RegistroDispositivo registroObrigatorio = Objects.requireNonNull(registro, "registro é obrigatório");
         OffsetDateTime agora = OffsetDateTime.now(clock);
 
         DispositivoIdentidade dispositivo = dispositivoRepositorio
-                .findByPessoaAndFingerprint(pessoaObrigatoria, registroObrigatorio.getFingerprint())
+                .findByUsuarioSubAndFingerprint(usuarioSubObrigatorio, registroObrigatorio.getFingerprint())
                 .orElseGet(() -> new DispositivoIdentidade(
-                        pessoaObrigatoria,
+                        usuarioSubObrigatorio,
+                        pessoaIdPerfil,
                         registroObrigatorio.getFingerprint(),
                         registroObrigatorio.getPlataforma(),
                         registroObrigatorio.getVersaoAplicativo().orElse(null),
@@ -54,17 +62,26 @@ public class DispositivoIdentidadeService {
                 registroObrigatorio.getVersaoAplicativo().orElse(null),
                 registroObrigatorio.getChavePublica().orElse(null),
                 agora);
+        dispositivo.atualizarPessoaIdPerfil(pessoaIdPerfil, agora);
 
         return dispositivoRepositorio.save(dispositivo);
+    }
+
+    @Transactional
+    public DispositivoIdentidade garantirDispositivo(final Pessoa pessoa, final RegistroDispositivo registro) {
+        Pessoa pessoaObrigatoria = Objects.requireNonNull(pessoa, "pessoa é obrigatória");
+        return garantirDispositivo(pessoaObrigatoria.getSub(), pessoaObrigatoria.getId(), registro);
     }
 
     @Transactional
     public DispositivoIdentidade garantirDispositivoParaToken(TokenDispositivo token) {
         TokenDispositivo tokenObrigatorio = Objects.requireNonNull(token, "token é obrigatório");
         return tokenObrigatorio.getDispositivo().orElseGet(() -> {
-            Pessoa pessoa = pessoaRepositorio.findBySub(tokenObrigatorio.getUsuarioSub())
-                    .orElseThrow(() -> new IllegalStateException("Pessoa não encontrada para o token do dispositivo"));
-            return garantirDispositivo(pessoa, tokenObrigatorio.getRegistro());
+            return garantirDispositivo(
+                    tokenObrigatorio.getRegistro().getUsuarioSub().orElseThrow(
+                            () -> new IllegalStateException("Token sem usuarioSub no registro associado.")),
+                    tokenObrigatorio.getRegistro().getPessoaIdPerfil().orElse(null),
+                    tokenObrigatorio.getRegistro());
         });
     }
 }

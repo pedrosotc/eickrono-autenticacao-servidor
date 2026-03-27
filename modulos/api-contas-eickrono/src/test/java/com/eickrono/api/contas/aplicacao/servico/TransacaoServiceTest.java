@@ -14,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -113,7 +112,7 @@ class TransacaoServiceTest {
         assertThatThrownBy(() -> transacaoService.listarPorConta(15L, "cliente-1"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Conta não encontrada");
-        verifyNoInteractions(acessoRepositorio());
+        assertThat(ultimoAcesso).isNull();
     }
 
     private Conta novaConta(String clienteId) {

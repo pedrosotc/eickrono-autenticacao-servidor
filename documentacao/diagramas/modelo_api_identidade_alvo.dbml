@@ -1,0 +1,293 @@
+// ====================================================================================================
+// PROJETO: Eickrono Autenticacao - API Identidade (Modelo Alvo Normalizado)
+// FORMATO: DBML (Database Markup Language)
+// BANCO DE DADOS: PostgreSQL
+// ----------------------------------------------------------------------------------------------------
+// Este arquivo descreve o modelo alvo normalizado da API Identidade.
+// Diferenca principal em relacao ao estado atual:
+// - elimina a duplicacao entre perfis_identidade e pessoas_identidade
+// - elimina repeticao de email/telefone em tabelas de processo
+// - faz processos apontarem para contexto real (pessoa, email, telefone, cadastro, registro)
+// - deixa atestacoes_app_desafios vinculada ao melhor contexto disponivel
+//
+// Este nao e o schema implementado hoje; e o desenho recomendado para migracao.
+// ====================================================================================================
+
+Project eickrono_api_identidade_alvo {
+    database_type: "PostgreSQL"
+    Note: "Modelo alvo normalizado da API Identidade. A pessoa vira a unica raiz canonica; email e telefone vivem em tabelas proprias; cadastro, registro de dispositivo e atestacao apontam para contexto relacional em vez de repetir dados textuais. O modelo assume uso de backchannel interno, especialmente pelo flashcard-servidor, para abrir operacoes ja informando o melhor contexto conhecido."
+}
+
+// ====================================================================================================
+// CATALOGO DE SISTEMAS INTERNOS
+// ====================================================================================================
+
+Table sistemas_origem {
+    id          integer      [pk, increment, note: "Identificador interno do sistema chamador"]
+    codigo      varchar(64)  [not null, unique, note: "Codigo estavel do sistema interno. Exemplos esperados: flashcard-servidor, api-contas-eickrono, servidor-autorizacao"]
+    descricao   varchar(255) [note: "Descricao funcional do sistema"]
+    criado_em   timestamptz  [not null, note: "Momento de cadastro do sistema de origem"]
+    Note: "Catalogo normalizado de chamadores internos do ecossistema. Substitui strings soltas como sistema_solicitante espalhadas em varias tabelas."
+}
+
+// ====================================================================================================
+// IDENTIDADE CANONICA
+// ====================================================================================================
+
+Table pessoas {
+    id           uuid         [pk, note: "Identificador canonico da pessoa na API Identidade"]
+    sub_remoto   varchar(255) [unique, note: "Subject do usuario no Keycloak. Pode nascer nulo antes do provisionamento definitivo, mas deve ser unico quando preenchido"]
+    nome         varchar(255) [not null, note: "Nome canonico da pessoa"]
+    status       varchar(32)  [not null, note: "Estado global da identidade local. Sugestao de valores: PENDENTE_CADASTRO, PENDENTE_EMAIL, ATIVA, BLOQUEADA, DESATIVADA"]
+    criado_em    timestamptz  [not null, note: "Momento da criacao da raiz canonica"]
+    atualizado_em timestamptz [not null, note: "Momento da ultima atualizacao da pessoa"]
+    Note: "Unica raiz canonica de identidade neste modelo alvo. Tudo que hoje aparece duplicado entre perfis_identidade e pessoas_identidade passa a convergir aqui."
+}
+
+Table pessoas_emails {
+    id            uuid         [pk, note: "Identificador do email da pessoa"]
+    pessoa_id     uuid         [not null, note: "Pessoa dona do email"]
+    email         varchar(255) [not null, unique, note: "Endereco de email. O texto do email vive aqui; as tabelas de processo passam a referenciar email_id"]
+    principal     boolean      [not null, default: false, note: "Indica se este e o email principal da pessoa"]
+    verificado_em timestamptz  [note: "Momento em que este email foi confirmado"]
+    criado_em     timestamptz  [not null, note: "Momento de criacao do email"]
+    atualizado_em timestamptz  [not null, note: "Momento da ultima atualizacao do email"]
+    indexes {
+        (pessoa_id, principal)
+    }
+    Note: "Fonte de verdade do email da pessoa. Cadastro, registro de dispositivo e atestacao usam email_id em vez de copiar o endereco."
+}
+
+Table pessoas_telefones {
+    id            uuid        [pk, note: "Identificador do telefone da pessoa"]
+    pessoa_id     uuid        [not null, note: "Pessoa dona do telefone"]
+    telefone      varchar(32) [not null, unique, note: "Telefone normalizado. O texto do telefone vive aqui; as tabelas de processo passam a referenciar telefone_id"]
+    principal     boolean     [not null, default: false, note: "Indica se este e o telefone principal da pessoa"]
+    verificado_em timestamptz [note: "Momento em que este telefone foi confirmado"]
+    criado_em     timestamptz [not null, note: "Momento de criacao do telefone"]
+    atualizado_em timestamptz [not null, note: "Momento da ultima atualizacao do telefone"]
+    indexes {
+        (pessoa_id, principal)
+    }
+    Note: "Fonte de verdade do telefone da pessoa. O uso em verificacao por SMS aponta para esta tabela, nao para texto duplicado no processo."
+}
+
+Table pessoas_perfis {
+    pessoa_id uuid         [pk, not null, note: "Pessoa a quem o perfil pertence"]
+    perfil    varchar(255) [pk, not null, note: "Perfil funcional textual da pessoa"]
+    Note: "Colecao de perfis funcionais da pessoa no modelo canonico."
+}
+
+Table pessoas_papeis {
+    pessoa_id uuid         [pk, not null, note: "Pessoa a quem o papel pertence"]
+    papel     varchar(255) [pk, not null, note: "Papel textual da pessoa"]
+    Note: "Colecao de papeis e autorizacoes textuais da pessoa."
+}
+
+Table pessoas_acessos_sociais {
+    id                    uuid         [pk, note: "Identificador do vinculo social"]
+    pessoa_id             uuid         [not null, note: "Pessoa dona do vinculo social"]
+    provedor              varchar(100) [not null, note: "Provedor social, como GOOGLE ou APPLE"]
+    identificador_externo varchar(255) [not null, note: "Identificador da pessoa no provedor externo"]
+    vinculado_em          timestamptz  [not null, note: "Momento da vinculacao"]
+    desvinculado_em       timestamptz  [note: "Momento da desvinculacao, quando houver"]
+    indexes {
+        (provedor, identificador_externo) [unique]
+    }
+    Note: "Vinculos sociais da pessoa. Substitui a necessidade de um bloco legado separado e evita repetir email/social em uma tabela generica pouco normalizada."
+}
+
+// ====================================================================================================
+// CADASTRO NATIVO DE CONTA
+// ====================================================================================================
+
+Table cadastros_conta {
+    id                           uuid         [pk, note: "Identificador publico do processo de cadastro"]
+    pessoa_id                    uuid         [not null, note: "Pessoa em processo de cadastro. O cadastro deixa de duplicar nome e passa a apontar para a raiz canonica"]
+    email_id                     uuid         [not null, note: "Email sendo confirmado neste cadastro"]
+    sistema_origem_id            integer      [not null, note: "Sistema interno que abriu o cadastro; tipicamente flashcard-servidor via backchannel"]
+    status                       varchar(32)  [not null, note: "Estado do processo. Sugestao de valores: ABERTO, EMAIL_CONFIRMADO, EXPIRADO, CANCELADO"]
+    codigo_email_hash            varchar(64)  [not null, note: "Hash HMAC do codigo de confirmacao por email"]
+    codigo_email_gerado_em       timestamptz  [not null, note: "Momento da emissao do codigo"]
+    codigo_email_expira_em       timestamptz  [not null, note: "Prazo maximo de uso do codigo"]
+    tentativas_confirmacao_email integer      [not null, default: 0, note: "Contador de tentativas de confirmacao"]
+    reenvios_email               integer      [not null, default: 0, note: "Contador de reenvios do codigo"]
+    ip_solicitante               varchar(64)  [note: "IP observado ao abrir o cadastro"]
+    user_agent_solicitante       varchar(512) [note: "User-Agent observado ao abrir o cadastro"]
+    criado_em                    timestamptz  [not null, note: "Momento de criacao do processo"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima mutacao do processo"]
+    concluido_em                 timestamptz  [note: "Momento terminal do processo, quando houver"]
+    Note: "Processo de cadastro nativo sem duplicacao de dados de pessoa. Nome e contato ficam em pessoas e pessoas_emails; o cadastro guarda apenas o estado do processo, a prova de confirmacao e a origem backchannel."
+}
+
+// ====================================================================================================
+// ONBOARDING E CONFIANCA DE DISPOSITIVO
+// ====================================================================================================
+
+Table registros_dispositivo {
+    id                 uuid         [pk, note: "Identificador publico do processo de onboarding do dispositivo"]
+    cadastro_id        uuid         [note: "Cadastro de conta relacionado, quando o onboarding ocorre durante confirmacao/inicio de conta"]
+    email_id           uuid         [not null, note: "Email usado no fluxo de verificacao deste registro"]
+    telefone_id        uuid         [note: "Telefone usado no fluxo de verificacao, quando houver SMS"]
+    sistema_origem_id  integer      [not null, note: "Sistema interno que abriu o processo de dispositivo"]
+    fingerprint        varchar(255) [not null, note: "Fingerprint funcional do aparelho"]
+    plataforma         varchar(100) [not null, note: "Plataforma do aparelho, como ANDROID ou IOS"]
+    versao_app         varchar(32)  [note: "Versao do app no momento da solicitacao"]
+    chave_publica      text         [note: "Chave publica informada pelo aparelho"]
+    status             varchar(32)  [not null, note: "Estado do processo. Sugestao de valores: PENDENTE, CONFIRMADO, EXPIRADO, BLOQUEADO, CANCELADO"]
+    criado_em          timestamptz  [not null, note: "Momento da abertura do registro"]
+    expira_em          timestamptz  [not null, note: "Prazo maximo de confirmacao"]
+    confirmado_em      timestamptz  [note: "Momento da confirmacao do onboarding"]
+    encerrado_em       timestamptz  [note: "Momento terminal sem sucesso, quando houver"]
+    reenvios           integer      [not null, default: 0, note: "Quantidade de reenvios do processo como um todo"]
+    Note: "Processo efemero de onboarding do aparelho. Nao duplica pessoa nem contato; ele aponta para cadastro, email e telefone ja conhecidos pelo ecossistema. Quando confirmado, materializa um dispositivo confiavel."
+}
+
+Table codigos_verificacao_dispositivo {
+    id                 uuid        [pk, note: "Identificador do codigo de verificacao"]
+    registro_id        uuid        [not null, note: "Registro de dispositivo ao qual o codigo pertence"]
+    canal              varchar(16) [not null, note: "Canal do codigo. Valores esperados: EMAIL e SMS"]
+    email_id           uuid        [note: "Email de destino quando o canal for EMAIL"]
+    telefone_id        uuid        [note: "Telefone de destino quando o canal for SMS"]
+    codigo_hash        varchar(128) [not null, note: "Hash do codigo de verificacao"]
+    tentativas         integer      [not null, default: 0, note: "Quantidade atual de tentativas neste canal"]
+    tentativas_maximas integer      [not null, note: "Limite de tentativas antes de bloqueio"]
+    reenvios           integer      [not null, default: 0, note: "Quantidade atual de reenvios neste canal"]
+    reenvios_maximos   integer      [not null, note: "Limite de reenvios do canal"]
+    status             varchar(32)  [not null, note: "Estado do codigo: PENDENTE, CONFIRMADO, EXPIRADO ou BLOQUEADO"]
+    enviado_em         timestamptz  [note: "Momento do ultimo envio"]
+    confirmado_em      timestamptz  [note: "Momento da confirmacao bem sucedida"]
+    expira_em          timestamptz  [not null, note: "Prazo maximo de validade"]
+    indexes {
+        (registro_id, canal) [unique]
+    }
+    Note: "Codigos por canal do onboarding do dispositivo sem repetir destino textual. Cada codigo aponta para o email ou telefone ja cadastrado na base."
+}
+
+Table dispositivos {
+    id                      uuid         [pk, note: "Identificador do aparelho confiavel"]
+    pessoa_id               uuid         [not null, note: "Pessoa dona do aparelho"]
+    fingerprint             varchar(255) [not null, note: "Fingerprint funcional do aparelho"]
+    plataforma              varchar(100) [not null, note: "Plataforma atual conhecida do aparelho"]
+    versao_app_atual        varchar(100) [note: "Ultima versao do app observada neste aparelho"]
+    chave_publica_atual     text         [note: "Ultima chave publica conhecida do aparelho"]
+    status                  varchar(50)  [not null, note: "Estado de confianca do aparelho. Sugestao de valores: ATIVO, REVOGADO, EM_DISPUTA, SEM_CONFIANCA"]
+    criado_em               timestamptz  [not null, note: "Momento da criacao do dispositivo confiavel"]
+    atualizado_em           timestamptz  [not null, note: "Momento da ultima atualizacao do aparelho"]
+    ultimo_token_emitido_em timestamptz  [note: "Momento do ultimo token emitido para este aparelho"]
+    indexes {
+        (pessoa_id, fingerprint) [unique]
+    }
+    Note: "Representacao persistente do aparelho associado a pessoa. Esta e a tabela correta para concentrar identidade do dispositivo, sem misturar com o processo efemero de registro."
+}
+
+Table tokens_dispositivo {
+    id               uuid        [pk, note: "Identificador do token persistido"]
+    dispositivo_id   uuid        [not null, note: "Dispositivo confiavel ao qual o token pertence"]
+    registro_id      uuid        [not null, note: "Registro de dispositivo que originou a emissao"]
+    token_hash       varchar(128) [not null, unique, note: "Hash HMAC do token opaco devolvido ao app"]
+    status           varchar(32)  [not null, note: "Estado do token. Sugestao de valores: ATIVO, REVOGADO, EXPIRADO_LOGICO"]
+    emitido_em       timestamptz  [not null, note: "Momento da emissao"]
+    expira_em        timestamptz  [not null, note: "Prazo maximo de validade"]
+    revogado_em      timestamptz  [note: "Momento da revogacao"]
+    motivo_revogacao varchar(64)  [note: "Motivo padronizado da revogacao"]
+    Note: "Token opaco de confianca do aparelho. Nao repete usuario_sub, fingerprint nem plataforma, porque tudo isso pode ser derivado por join com dispositivo e pessoa."
+}
+
+Table eventos_offline_dispositivo {
+    id            uuid        [pk, note: "Identificador do evento offline"]
+    dispositivo_id uuid       [not null, note: "Dispositivo ao qual o evento pertence"]
+    token_id      uuid        [note: "Token em contexto quando o evento foi gerado"]
+    tipo_evento   varchar(80) [not null, note: "Tipo do evento offline"]
+    detalhes      text        [note: "Carga complementar do evento"]
+    ocorrido_em   timestamptz [not null, note: "Momento do fato no dispositivo"]
+    registrado_em timestamptz [not null, note: "Momento em que o backend persistiu o evento"]
+    Note: "Trilha de reconciliacao offline por dispositivo e token, sem copiar informacoes ja existentes em outras tabelas."
+}
+
+// ====================================================================================================
+// ATESTACAO DE APP E BACKCHANNEL
+// ====================================================================================================
+
+Table atestacoes_app_desafios {
+    id                      uuid         [pk, note: "Identificador publico do desafio"]
+    sistema_origem_id       integer      [not null, note: "Sistema interno que solicitou o desafio via backchannel"]
+    pessoa_id               uuid         [note: "Pessoa em contexto, quando a operacao ja conhece o dono humano"]
+    email_id                uuid         [note: "Email em contexto, quando a operacao nasceu a partir de um contato conhecido"]
+    cadastro_id             uuid         [note: "Cadastro em contexto, quando o desafio protege cadastro ou confirmacao de cadastro"]
+    registro_dispositivo_id uuid         [note: "Registro de dispositivo em contexto, quando o desafio protege onboarding ou substituicao de aparelho"]
+    operacao                varchar(50)  [not null, note: "Operacao protegida. Exemplos: CADASTRO, CONFIRMACAO_CADASTRO, LOGIN, REFRESH_SESSAO, ALTERACAO_EMAIL, SUBSTITUICAO_DISPOSITIVO"]
+    plataforma              varchar(20)  [not null, note: "Plataforma esperada do comprovante"]
+    provedor_esperado       varchar(50)  [not null, note: "Provedor esperado para a plataforma"]
+    desafio_base64          varchar(128) [not null, unique, note: "Nonce aleatorio serializado em Base64 URL-safe"]
+    ip_solicitante          varchar(64)  [note: "IP observado ao emitir o desafio"]
+    user_agent_solicitante  varchar(512) [note: "User-Agent observado ao emitir o desafio"]
+    criado_em               timestamptz  [not null, note: "Momento da emissao do desafio"]
+    expira_em               timestamptz  [not null, note: "Prazo maximo de uso"]
+    consumido_em            timestamptz  [note: "Momento do consumo bem sucedido"]
+    Note: "Desafio efemero de atestacao vinculado ao melhor contexto relacional disponivel. O isolamento total do estado atual deixa de existir: se o backchannel ja conhece a pessoa, o cadastro, o registro de dispositivo ou ao menos o email, o desafio aponta para esse contexto em vez de ficar solto."
+}
+
+// ====================================================================================================
+// AUDITORIA E CORRELACAO
+// ====================================================================================================
+
+Table auditoria_eventos_identidade {
+    id                      uuid         [pk, note: "Identificador do evento de auditoria"]
+    sistema_origem_id       integer      [note: "Sistema que gerou ou solicitou a operacao auditada"]
+    pessoa_id               uuid         [note: "Pessoa em contexto, quando conhecida"]
+    email_id                uuid         [note: "Email em contexto, quando aplicavel"]
+    cadastro_id             uuid         [note: "Cadastro em contexto, quando aplicavel"]
+    registro_dispositivo_id uuid         [note: "Registro de dispositivo em contexto, quando aplicavel"]
+    dispositivo_id          uuid         [note: "Dispositivo em contexto, quando aplicavel"]
+    token_id                uuid         [note: "Token de dispositivo em contexto, quando aplicavel"]
+    desafio_id              uuid         [note: "Desafio de atestacao em contexto, quando aplicavel"]
+    tipo_evento             varchar(100) [not null, note: "Tipo funcional do evento auditado"]
+    detalhes                text         [note: "Carga complementar do evento"]
+    registrado_em           timestamptz  [not null, note: "Momento do registro de auditoria"]
+    Note: "Auditoria estruturada por referencias, nao por texto repetido. O evento aponta para os agregados reais envolvidos e deixa o campo detalhes apenas para complemento."
+}
+
+// ====================================================================================================
+// RELACOES
+// ====================================================================================================
+
+Ref: pessoas_emails.pessoa_id > pessoas.id
+Ref: pessoas_telefones.pessoa_id > pessoas.id
+Ref: pessoas_perfis.pessoa_id > pessoas.id
+Ref: pessoas_papeis.pessoa_id > pessoas.id
+Ref: pessoas_acessos_sociais.pessoa_id > pessoas.id
+
+Ref: cadastros_conta.pessoa_id > pessoas.id
+Ref: cadastros_conta.email_id > pessoas_emails.id
+Ref: cadastros_conta.sistema_origem_id > sistemas_origem.id
+
+Ref: registros_dispositivo.cadastro_id > cadastros_conta.id
+Ref: registros_dispositivo.email_id > pessoas_emails.id
+Ref: registros_dispositivo.telefone_id > pessoas_telefones.id
+Ref: registros_dispositivo.sistema_origem_id > sistemas_origem.id
+
+Ref: codigos_verificacao_dispositivo.registro_id > registros_dispositivo.id
+Ref: codigos_verificacao_dispositivo.email_id > pessoas_emails.id
+Ref: codigos_verificacao_dispositivo.telefone_id > pessoas_telefones.id
+
+Ref: dispositivos.pessoa_id > pessoas.id
+Ref: tokens_dispositivo.dispositivo_id > dispositivos.id
+Ref: tokens_dispositivo.registro_id > registros_dispositivo.id
+Ref: eventos_offline_dispositivo.dispositivo_id > dispositivos.id
+Ref: eventos_offline_dispositivo.token_id > tokens_dispositivo.id
+
+Ref: atestacoes_app_desafios.sistema_origem_id > sistemas_origem.id
+Ref: atestacoes_app_desafios.pessoa_id > pessoas.id
+Ref: atestacoes_app_desafios.email_id > pessoas_emails.id
+Ref: atestacoes_app_desafios.cadastro_id > cadastros_conta.id
+Ref: atestacoes_app_desafios.registro_dispositivo_id > registros_dispositivo.id
+
+Ref: auditoria_eventos_identidade.sistema_origem_id > sistemas_origem.id
+Ref: auditoria_eventos_identidade.pessoa_id > pessoas.id
+Ref: auditoria_eventos_identidade.email_id > pessoas_emails.id
+Ref: auditoria_eventos_identidade.cadastro_id > cadastros_conta.id
+Ref: auditoria_eventos_identidade.registro_dispositivo_id > registros_dispositivo.id
+Ref: auditoria_eventos_identidade.dispositivo_id > dispositivos.id
+Ref: auditoria_eventos_identidade.token_id > tokens_dispositivo.id
+Ref: auditoria_eventos_identidade.desafio_id > atestacoes_app_desafios.id

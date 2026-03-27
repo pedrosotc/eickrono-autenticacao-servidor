@@ -33,6 +33,9 @@ public class RegistroDispositivo {
     @Column(name = "usuario_sub")
     private String usuarioSub;
 
+    @Column(name = "pessoa_id_perfil")
+    private Long pessoaIdPerfil;
+
     @Column(nullable = false)
     private String email;
 
@@ -79,6 +82,7 @@ public class RegistroDispositivo {
 
     public RegistroDispositivo(UUID id,
                                String usuarioSub,
+                               Long pessoaIdPerfil,
                                String email,
                                String telefone,
                                String fingerprint,
@@ -90,6 +94,7 @@ public class RegistroDispositivo {
                                OffsetDateTime expiraEm) {
         this.id = Objects.requireNonNull(id, "id é obrigatório");
         this.usuarioSub = usuarioSub;
+        this.pessoaIdPerfil = pessoaIdPerfil;
         this.email = Objects.requireNonNull(email, "email é obrigatório");
         this.telefone = telefone;
         this.fingerprint = Objects.requireNonNull(fingerprint, "fingerprint é obrigatório");
@@ -102,6 +107,33 @@ public class RegistroDispositivo {
         this.reenvios = 0;
     }
 
+    public RegistroDispositivo(final UUID id,
+                               final String usuarioSub,
+                               final String email,
+                               final String telefone,
+                               final String fingerprint,
+                               final String plataforma,
+                               final String versaoAplicativo,
+                               final String chavePublica,
+                               final StatusRegistroDispositivo status,
+                               final OffsetDateTime criadoEm,
+                               final OffsetDateTime expiraEm) {
+        this(
+                id,
+                usuarioSub,
+                null,
+                email,
+                telefone,
+                fingerprint,
+                plataforma,
+                versaoAplicativo,
+                chavePublica,
+                status,
+                criadoEm,
+                expiraEm
+        );
+    }
+
     public UUID getId() {
         return id;
     }
@@ -112,6 +144,14 @@ public class RegistroDispositivo {
 
     public void definirUsuarioSub(String novoUsuarioSub) {
         this.usuarioSub = novoUsuarioSub;
+    }
+
+    public Optional<Long> getPessoaIdPerfil() {
+        return Optional.ofNullable(pessoaIdPerfil);
+    }
+
+    public void definirPessoaIdPerfil(final Long novoPessoaIdPerfil) {
+        this.pessoaIdPerfil = novoPessoaIdPerfil;
     }
 
     public String getEmail() {

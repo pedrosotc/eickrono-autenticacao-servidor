@@ -33,18 +33,6 @@ public class TokenDispositivo {
     @JoinColumn(name = "dispositivo_id")
     private DispositivoIdentidade dispositivo;
 
-    @Column(name = "usuario_sub", nullable = false)
-    private String usuarioSub;
-
-    @Column(nullable = false)
-    private String fingerprint;
-
-    @Column(nullable = false)
-    private String plataforma;
-
-    @Column(name = "versao_app")
-    private String versaoAplicativo;
-
     @Column(name = "token_hash", nullable = false, length = 128, unique = true)
     private String tokenHash;
 
@@ -72,10 +60,6 @@ public class TokenDispositivo {
     public TokenDispositivo(UUID id,
                             RegistroDispositivo registro,
                             DispositivoIdentidade dispositivo,
-                            String usuarioSub,
-                            String fingerprint,
-                            String plataforma,
-                            String versaoAplicativo,
                             String tokenHash,
                             StatusTokenDispositivo status,
                             OffsetDateTime emitidoEm,
@@ -83,14 +67,24 @@ public class TokenDispositivo {
         this.id = Objects.requireNonNull(id, "id é obrigatório");
         this.registro = Objects.requireNonNull(registro, "registro é obrigatório");
         this.dispositivo = dispositivo;
-        this.usuarioSub = Objects.requireNonNull(usuarioSub, "usuarioSub é obrigatório");
-        this.fingerprint = Objects.requireNonNull(fingerprint, "fingerprint é obrigatório");
-        this.plataforma = Objects.requireNonNull(plataforma, "plataforma é obrigatória");
-        this.versaoAplicativo = versaoAplicativo;
         this.tokenHash = Objects.requireNonNull(tokenHash, "tokenHash é obrigatório");
         this.status = Objects.requireNonNull(status, "status é obrigatório");
         this.emitidoEm = Objects.requireNonNull(emitidoEm, "emitidoEm é obrigatório");
         this.expiraEm = Objects.requireNonNull(expiraEm, "expiraEm é obrigatório");
+    }
+
+    public TokenDispositivo(final UUID id,
+                            final RegistroDispositivo registro,
+                            final DispositivoIdentidade dispositivo,
+                            final String usuarioSub,
+                            final String fingerprint,
+                            final String plataforma,
+                            final String versaoAplicativo,
+                            final String tokenHash,
+                            final StatusTokenDispositivo status,
+                            final OffsetDateTime emitidoEm,
+                            final OffsetDateTime expiraEm) {
+        this(id, registro, dispositivo, tokenHash, status, emitidoEm, expiraEm);
     }
 
     public UUID getId() {
@@ -106,19 +100,21 @@ public class TokenDispositivo {
     }
 
     public String getUsuarioSub() {
-        return usuarioSub;
+        return registro.getUsuarioSub().orElse(null);
     }
 
     public String getFingerprint() {
-        return fingerprint;
+        return dispositivo != null ? dispositivo.getFingerprint() : registro.getFingerprint();
     }
 
     public String getPlataforma() {
-        return plataforma;
+        return dispositivo != null ? dispositivo.getPlataforma() : registro.getPlataforma();
     }
 
     public Optional<String> getVersaoAplicativo() {
-        return Optional.ofNullable(versaoAplicativo);
+        return dispositivo != null
+                ? dispositivo.getVersaoAplicativo()
+                : registro.getVersaoAplicativo();
     }
 
     public String getTokenHash() {

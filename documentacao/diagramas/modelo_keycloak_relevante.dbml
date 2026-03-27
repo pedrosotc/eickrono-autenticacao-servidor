@@ -1,0 +1,354 @@
+// ====================================================================================================
+// PROJETO: Eickrono Autenticacao - Recorte relevante do Keycloak 26.5.5
+// FORMATO: DBML (Database Markup Language)
+// BANCO DE DADOS: PostgreSQL
+// ----------------------------------------------------------------------------------------------------
+// Este arquivo nao tenta descrever todo o schema do Keycloak. Ele modela o subconjunto que entrou no
+// fluxo ja programado no repositorio: realms exportados, clientes do ecossistema, scopes, usuarios,
+// credenciais, roles, vinculacao social, sessoes persistidas, flows custom, required actions e
+// componentes usados pelo perfil declarativo do usuario.
+//
+// Artefatos relevantes fora das tabelas confirmadas abaixo:
+// - o executor custom eickrono-device-token-refresh existe no codigo do servidor de autorizacao
+// - clientProfiles e clientPolicies aparecem no realm export, mas a persistencia SQL exata nao foi
+//   mapeada aqui porque nao foi confirmada nesta rodada em entidade JPA dedicada
+// ====================================================================================================
+
+Project eickrono_keycloak_relevante {
+    database_type: "PostgreSQL"
+    Note: "Recorte do que o Keycloak 26.5.5 realmente persiste para o ecossistema hoje: realm, clientes, usuario, credencial, vinculos sociais, scopes, roles, sessoes e flows. O ponto principal deste arquivo e mostrar a fronteira: o Keycloak e fonte de verdade para conta OIDC, credenciais e sessoes; a API Identidade e fonte de verdade para onboarding de dispositivo, token de dispositivo e desafios de atestacao do app."
+}
+
+// ====================================================================================================
+// REALM E CLIENTES
+// ====================================================================================================
+
+Table REALM {
+    ID                        varchar(36) [pk, note: "Identificador tecnico do realm"]
+    NAME                      varchar(255) [not null, unique, note: "Nome logico do realm; neste repositorio existem desenvolvimento, homologacao e producao"]
+    ENABLED                   boolean      [not null, note: "Indica se o realm esta ativo"]
+    REGISTRATION_ALLOWED      boolean      [not null, note: "Permite ou nao auto-registro no realm"]
+    REG_EMAIL_AS_USERNAME     boolean      [not null, note: "Indica se o email deve ser usado como username"]
+    VERIFY_EMAIL              boolean      [not null, note: "Controla verificacao de email no comportamento nativo do Keycloak"]
+    RESET_PASSWORD_ALLOWED    boolean      [not null, note: "Permite reset de senha pelo comportamento nativo do realm"]
+    LOGIN_WITH_EMAIL_ALLOWED  boolean      [not null, note: "Permite login pelo email"]
+    DUPLICATE_EMAILS_ALLOWED  boolean      [not null, note: "Controla unicidade de email no realm"]
+    PASSWORD_POLICY           varchar(255) [note: "Politica de senha do realm; no export atual esta configurada com hashAlgorithm(argon2)"]
+    BROWSER_FLOW              varchar(36)  [note: "Flow de browser associado ao realm; no export atual aponta para o flow custom eickrono browser"]
+    REGISTRATION_FLOW         varchar(36)  [note: "Flow de registro associado ao realm; no export atual aponta para o flow custom eickrono registration"]
+    DIRECT_GRANT_FLOW         varchar(36)  [note: "Flow de direct grant configurado no realm"]
+    RESET_CREDENTIALS_FLOW    varchar(36)  [note: "Flow de recuperacao de credenciais configurado no realm"]
+    CLIENT_AUTH_FLOW          varchar(36)  [note: "Flow de autenticacao de cliente configurado no realm"]
+    Note: "Tabela central do realm. Aqui ficam politicas gerais como registro, verificacao de email, login com email e flows default. Ela participa do comportamento global do servidor de autorizacao, mas nao modela o onboarding de dispositivo nem a atestacao nativa."
+}
+
+Table CLIENT {
+    ID                          varchar(36) [pk, note: "Identificador tecnico interno do cliente"]
+    REALM_ID                    varchar(36) [not null, note: "Realm ao qual o cliente pertence"]
+    CLIENT_ID                   varchar(255) [not null, note: "Identificador logico do cliente. Exemplos atuais: api-contas-eickrono, api-identidade-eickrono e app-flutter-local"]
+    NAME                        varchar(255) [note: "Nome amigavel do cliente"]
+    DESCRIPTION                 varchar(255) [note: "Descricao funcional do cliente"]
+    ENABLED                     boolean      [not null, note: "Indica se o cliente esta ativo"]
+    PUBLIC_CLIENT               boolean      [not null, note: "Indica se o cliente e publico. app-flutter-local e publico no export atual"]
+    BEARER_ONLY                 boolean      [not null, note: "Indica se o cliente e somente resource server. As APIs do ecossistema aparecem assim no export atual"]
+    PROTOCOL                    varchar(255) [note: "Protocolo do cliente; no recorte atual e openid-connect"]
+    STANDARD_FLOW_ENABLED       boolean      [not null, note: "Indica se o fluxo padrao OIDC esta habilitado"]
+    DIRECT_ACCESS_GRANTS_ENABLED boolean     [not null, note: "Indica se o grant de credenciais do proprietario do recurso esta habilitado"]
+    SERVICE_ACCOUNTS_ENABLED    boolean      [not null, note: "Indica se o cliente possui service account"]
+    FRONTCHANNEL_LOGOUT         boolean      [not null, note: "Controla logout frontchannel"]
+    SECRET                      varchar(255) [note: "Segredo do cliente confidencial, quando aplicavel"]
+    indexes {
+        (REALM_ID, CLIENT_ID) [unique]
+    }
+    Note: "Clientes OIDC do ecossistema. O app movel pega tokens aqui e as APIs aparecem como resource servers, mas o cadastro de dispositivo e a confianca do aparelho nao ficam nesta tabela; no maximo esta tabela seleciona politicas que obrigam o uso do token de dispositivo."
+}
+
+Table CLIENT_ATTRIBUTES {
+    CLIENT_ID varchar(36)  [pk, not null, note: "Cliente ao qual o atributo pertence"]
+    NAME      varchar(255) [pk, not null, note: "Nome do atributo do cliente. O caso importante aqui e eickrono.device-token-refresh, usado para selecionar a politica custom de refresh"]
+    VALUE     varchar(255) [note: "Valor do atributo do cliente. Quando true, o refresh token passa pelo executor eickrono-device-token-refresh"]
+    Note: "Atributos livres do cliente. Neste contexto, eles nao cadastram dispositivo nenhum; apenas ligam ou desligam a exigencia de validacao externa do X-Device-Token no refresh. O export inspecionado nesta rodada mostra eickrono.device-token-refresh=true em api-contas-eickrono, enquanto o README do modulo fala em app-flutter-local; ha divergencia de configuracao/documentacao a resolver."
+}
+
+Table WEB_ORIGINS {
+    CLIENT_ID varchar(36)  [pk, not null, note: "Cliente dono da origem web"]
+    VALUE     varchar(255) [pk, note: "Origem web permitida para o cliente"]
+    Note: "Lista de web origins permitidas por cliente."
+}
+
+Table REDIRECT_URIS {
+    CLIENT_ID varchar(36)  [pk, not null, note: "Cliente dono da redirect URI"]
+    VALUE     varchar(255) [pk, note: "Redirect URI permitida para o cliente"]
+    Note: "Redirect URIs permitidas. O app-flutter-local possui callbacks nativos como com.eickrono.flashcards:/oauth2redirect."
+}
+
+// ====================================================================================================
+// SCOPES E ROLES
+// ====================================================================================================
+
+Table CLIENT_SCOPE {
+    ID          varchar(36)  [pk, note: "Identificador tecnico do client scope"]
+    REALM_ID    varchar(36)  [not null, note: "Realm ao qual o scope pertence"]
+    NAME        varchar(255) [not null, note: "Nome logico do scope, como profile, email, roles ou scopes de negocio"]
+    DESCRIPTION varchar(255) [note: "Descricao do client scope"]
+    PROTOCOL    varchar(255) [note: "Protocolo do scope; no recorte atual e openid-connect"]
+    indexes {
+        (REALM_ID, NAME) [unique]
+    }
+    Note: "Scopes reutilizaveis aplicados aos clientes. O export atual usa scopes default e opcionais no app e nas APIs."
+}
+
+Table CLIENT_SCOPE_ATTRIBUTES {
+    SCOPE_ID varchar(36)  [pk, not null, note: "Scope ao qual o atributo pertence"]
+    NAME     varchar(255) [pk, not null, note: "Nome do atributo do scope"]
+    VALUE    varchar(2048) [note: "Valor do atributo do scope"]
+    Note: "Atributos livres dos client scopes."
+}
+
+Table CLIENT_SCOPE_ROLE_MAPPING {
+    SCOPE_ID varchar(36) [pk, not null, note: "Scope ao qual o role mapping pertence"]
+    ROLE_ID  varchar(36) [pk, not null, note: "Role associada ao scope"]
+    Note: "Relaciona roles a client scopes."
+}
+
+Table CLIENT_SCOPE_CLIENT {
+    SCOPE_ID      varchar(36) [pk, not null, note: "Scope associado ao cliente"]
+    CLIENT_ID     varchar(36) [pk, not null, note: "Cliente que recebe o scope"]
+    DEFAULT_SCOPE boolean     [not null, note: "TRUE quando o scope e default; FALSE quando o scope e opcional para o cliente"]
+    Note: "Relaciona clientes a scopes default e opcionais."
+}
+
+Table DEFAULT_CLIENT_SCOPE {
+    SCOPE_ID      varchar(36) [pk, not null, note: "Scope associado ao realm"]
+    REALM_ID      varchar(36) [pk, not null, note: "Realm dono do binding de scope"]
+    DEFAULT_SCOPE boolean     [not null, note: "TRUE para default realm scope; FALSE para optional realm scope"]
+    Note: "Scopes default e opcionais no nivel do realm."
+}
+
+Table KEYCLOAK_ROLE {
+    ID                      varchar(36)  [pk, note: "Identificador tecnico da role"]
+    NAME                    varchar(255) [not null, note: "Nome logico da role"]
+    DESCRIPTION             varchar(255) [note: "Descricao da role"]
+    REALM_ID                varchar(36)  [note: "Realm da role quando clientRole = false"]
+    CLIENT_ROLE             boolean      [not null, note: "TRUE para role de cliente; FALSE para role de realm"]
+    CLIENT                  varchar(36)  [note: "Cliente dono da role quando clientRole = true"]
+    CLIENT_REALM_CONSTRAINT varchar(36)  [note: "Campo auxiliar de unicidade interna do Keycloak para role de realm ou de cliente"]
+    indexes {
+        (NAME, CLIENT_REALM_CONSTRAINT) [unique]
+    }
+    Note: "Roles de realm e de cliente. O export atual traz a role de realm cliente e roles de cliente para as APIs."
+}
+
+Table USER_ROLE_MAPPING {
+    USER_ID varchar(36) [pk, not null, note: "Usuario que recebe a role"]
+    ROLE_ID varchar(36) [pk, not null, note: "Role atribuida ao usuario"]
+    Note: "Tabela de atribuicao de roles a usuarios."
+}
+
+// ====================================================================================================
+// USUARIOS, ATRIBUTOS, CREDENCIAIS E VINCULOS SOCIAIS
+// ====================================================================================================
+
+Table USER_ENTITY {
+    ID                         varchar(36)  [pk, note: "Identificador tecnico do usuario. E este valor que a API Identidade trata como subject_remoto e usuario_sub"]
+    USERNAME                   varchar(255) [note: "Username do usuario; no provisionamento interno atual e igual ao email"]
+    FIRST_NAME                 varchar(255) [note: "Primeiro nome. No provisionamento interno atual recebe o nome completo"]
+    CREATED_TIMESTAMP          bigint       [note: "Marcador interno de criacao usado pela derivacao de senha da Eickrono"]
+    LAST_NAME                  varchar(255) [note: "Sobrenome. O provisionamento interno atual nao o preenche"]
+    EMAIL                      varchar(255) [note: "Email do usuario no Keycloak"]
+    ENABLED                    boolean      [not null, note: "Indica se o usuario esta habilitado para autenticar"]
+    EMAIL_VERIFIED             boolean      [not null, note: "Indica se o email foi marcado como verificado no Keycloak"]
+    EMAIL_CONSTRAINT           varchar(255) [note: "Campo interno usado para garantir unicidade de email por realm"]
+    REALM_ID                   varchar(36)  [not null, note: "Realm do usuario"]
+    FEDERATION_LINK            varchar(255) [note: "Vinculo com provider de federacao, quando houver"]
+    SERVICE_ACCOUNT_CLIENT_LINK varchar(36) [note: "Cliente de service account associado, quando o usuario representa uma service account"]
+    NOT_BEFORE                 integer      [note: "Marcador de invalidez temporal para tokens anteriores"]
+    indexes {
+        (REALM_ID, USERNAME) [unique]
+        (REALM_ID, EMAIL_CONSTRAINT) [unique]
+    }
+    Note: "Fonte de verdade da conta OIDC no Keycloak. A API Identidade cria linhas aqui em estado pendente durante o cadastro interno, e depois confirma email/habilita a conta. O createdTimestamp nativo daqui alimenta a derivacao de senha. E desta tabela que nasce o sub usado por pessoas_identidade, cadastros_conta, registro_dispositivo e token_dispositivo."
+}
+
+Table USER_ATTRIBUTE {
+    ID                    varchar(36)  [pk, note: "Identificador tecnico do atributo do usuario"]
+    USER_ID               varchar(36)  [not null, note: "Usuario dono do atributo"]
+    NAME                  varchar(255) [note: "Nome do atributo. No contexto atual aparecem campos declarativos de perfil, como data_nascimento"]
+    VALUE                 varchar(255) [note: "Valor curto do atributo"]
+    LONG_VALUE_HASH       bytea        [note: "Hash do valor longo do atributo, quando excede o limite de VALUE"]
+    LONG_VALUE_HASH_LOWER_CASE bytea   [note: "Hash em lowercase do valor longo, usado pelo Keycloak em buscas"]
+    LONG_VALUE            text         [note: "Valor longo do atributo, quando excede 255 caracteres"]
+    Note: "Atributos livres do usuario no Keycloak. Servem para metadata declarativa de perfil e claims auxiliares, nao para derivacao de senha, onboarding de dispositivo ou atestacao."
+}
+
+Table CREDENTIAL {
+    ID              varchar(36) [pk, note: "Identificador tecnico da credencial"]
+    TYPE            varchar(255) [note: "Tipo da credencial; por exemplo password"]
+    USER_LABEL      varchar(255) [note: "Rotulo amigavel da credencial"]
+    CREATED_DATE    bigint       [note: "Instante de criacao da credencial em milissegundos"]
+    USER_ID         varchar(36)  [not null, note: "Usuario dono da credencial"]
+    SECRET_DATA     text         [note: "Payload secreto da credencial, gerenciado pelo proprio Keycloak"]
+    CREDENTIAL_DATA text         [note: "Payload publico/estrutural da credencial, gerenciado pelo proprio Keycloak"]
+    PRIORITY        integer      [not null, note: "Prioridade da credencial dentro do usuario"]
+    VERSION         integer      [not null, note: "Versao para controle otimista"]
+    Note: "Credenciais do usuario. A Eickrono envia a senha derivada ao Keycloak, mas o material persistido continua sendo administrado pelo proprio Keycloak. Device token nao e credencial Keycloak neste desenho."
+}
+
+Table USER_REQUIRED_ACTION {
+    USER_ID          varchar(36)  [pk, not null, note: "Usuario ao qual a acao obrigatoria foi atribuida"]
+    REQUIRED_ACTION  varchar(255) [pk, not null, note: "Alias da acao obrigatoria. No realm exportado aparecem UPDATE_PASSWORD e VERIFY_EMAIL"]
+    Note: "Acoes obrigatorias pendentes por usuario, como VERIFY_EMAIL e UPDATE_PASSWORD. Participam da jornada da conta OIDC, nao da confianca persistente do aparelho."
+}
+
+Table FEDERATED_IDENTITY {
+    USER_ID             varchar(36)  [pk, not null, note: "Usuario local do Keycloak vinculado a identidade federada"]
+    REALM_ID            varchar(36)  [note: "Realm da vinculacao social"]
+    IDENTITY_PROVIDER   varchar(255) [pk, not null, note: "Alias do provedor social/federado"]
+    FEDERATED_USER_ID   varchar(255) [note: "Identificador do usuario no provedor externo"]
+    FEDERATED_USERNAME  varchar(255) [note: "Username do usuario no provedor externo"]
+    TOKEN               text         [note: "Token eventualmente persistido para o provedor externo"]
+    Note: "Vinculos sociais/federados do usuario no Keycloak. No lado da API Identidade, esses vinculos acabam refletidos em pessoas_formas_acesso para consulta de negocio."
+}
+
+// ====================================================================================================
+// FLOWS, REQUIRED ACTIONS E COMPONENTES
+// ====================================================================================================
+
+Table AUTHENTICATION_FLOW {
+    ID          varchar(36)  [pk, note: "Identificador tecnico do flow"]
+    REALM_ID    varchar(36)  [not null, note: "Realm dono do flow"]
+    ALIAS       varchar(255) [note: "Alias do flow. No export atual aparecem eickrono browser, eickrono browser forms, eickrono registration e eickrono registration form"]
+    PROVIDER_ID varchar(255) [note: "Tipo/provedor do flow, como basic-flow ou form-flow"]
+    DESCRIPTION varchar(255) [note: "Descricao funcional do flow"]
+    TOP_LEVEL   boolean      [not null, note: "Indica se o flow e de topo no realm"]
+    BUILT_IN    boolean      [not null, note: "Indica se o flow e builtin do Keycloak"]
+    Note: "Flows de autenticacao e registro do realm. O repositorio exporta flows custom para senha derivada e comportamento de cadastro/registro no Keycloak. Eles governam a jornada OIDC, mas ainda dependem de integracao externa com a API Identidade para device token no refresh."
+}
+
+Table AUTHENTICATION_EXECUTION {
+    ID                 varchar(36)  [pk, note: "Identificador tecnico da execucao do flow"]
+    REALM_ID           varchar(36)  [not null, note: "Realm dono da execucao"]
+    FLOW_ID            varchar(36)  [note: "Flow pai ao qual esta execucao pertence"]
+    AUTHENTICATOR      varchar(255) [note: "Authenticator executado. No export atual aparecem eickrono-username-password-form, registration-user-creation, registration-profile-action e eickrono-registration-password"]
+    AUTH_CONFIG        varchar(36)  [note: "Referencia para configuracao especifica do authenticator, quando houver"]
+    AUTH_FLOW_ID       varchar(36)  [note: "Flow filho quando a execucao representa uma subarvore de flow"]
+    REQUIREMENT        varchar(64)  [note: "Modo de exigencia da execucao, como REQUIRED ou ALTERNATIVE"]
+    PRIORITY           integer      [not null, note: "Ordem da execucao dentro do flow"]
+    AUTHENTICATOR_FLOW boolean      [not null, note: "TRUE quando a execucao aponta para um flow filho em vez de um authenticator terminal"]
+    Note: "Executores dos flows de autenticacao/registro do realm. Aqui entram authenticators e subflows como os formularios customizados da Eickrono."
+}
+
+Table REQUIRED_ACTION_PROVIDER {
+    ID             varchar(36)  [pk, note: "Identificador tecnico da required action registrada no realm"]
+    ALIAS          varchar(255) [note: "Alias da required action. O export atual inclui UPDATE_PASSWORD, VERIFY_EMAIL e outras"]
+    NAME           varchar(255) [note: "Nome amigavel da required action"]
+    REALM_ID       varchar(36)  [not null, note: "Realm dono da required action"]
+    PROVIDER_ID    varchar(255) [note: "Provider efetivo. No export atual UPDATE_PASSWORD aponta para eickrono-update-password"]
+    ENABLED        boolean      [not null, note: "Indica se a required action esta habilitada"]
+    DEFAULT_ACTION boolean      [not null, note: "Indica se a acao e default para novos usuarios"]
+    PRIORITY       integer      [not null, note: "Prioridade da required action"]
+    Note: "Catalogo de required actions definidas no realm, incluindo providers custom como eickrono-update-password."
+}
+
+Table REQUIRED_ACTION_CONFIG {
+    REQUIRED_ACTION_ID varchar(36)  [pk, not null, note: "Required action dona desta configuracao"]
+    NAME               varchar(255) [pk, not null, note: "Nome da configuracao"]
+    VALUE              varchar(255) [note: "Valor da configuracao"]
+    Note: "Configuracoes livres de required actions."
+}
+
+Table COMPONENT {
+    ID            varchar(36)  [pk, note: "Identificador tecnico do componente"]
+    REALM_ID      varchar(36)  [note: "Realm dono do componente"]
+    NAME          varchar(255) [note: "Nome amigavel do componente"]
+    PROVIDER_TYPE varchar(255) [note: "Tipo do componente. No export atual ha org.keycloak.userprofile.UserProfileProvider"]
+    PROVIDER_ID   varchar(255) [note: "Provider do componente. No export atual aparece declarative-user-profile"]
+    PARENT_ID     varchar(36)  [note: "Componente pai, quando houver hierarquia"]
+    SUB_TYPE      varchar(255) [note: "Subtipo do componente, quando aplicavel"]
+    Note: "Componentes do realm. O perfil declarativo do usuario do export atual e persistido aqui, incluindo configuracao de campos como data_nascimento."
+}
+
+Table COMPONENT_CONFIG {
+    ID           varchar(36)  [pk, note: "Identificador tecnico da configuracao do componente"]
+    COMPONENT_ID varchar(36)  [not null, note: "Componente dono desta configuracao"]
+    NAME         varchar(255) [note: "Nome da chave de configuracao. No user profile declarativo aparece kc.user.profile.config"]
+    VALUE        text         [note: "Valor da configuracao; pode conter JSON serializado"]
+    Note: "Configuracoes livres de componentes. No recorte atual, o caso mais importante e o JSON do declarative user profile."
+}
+
+// ====================================================================================================
+// SESSOES PERSISTIDAS / OFFLINE
+// ====================================================================================================
+
+Table OFFLINE_USER_SESSION {
+    USER_SESSION_ID      varchar(36) [pk, not null, note: "Identificador da sessao do usuario"]
+    OFFLINE_FLAG         varchar(1)  [pk, not null, note: "Flag de tipo da sessao persistida; 0 para regular persistida e 1 para offline"]
+    REALM_ID             varchar(36) [not null, note: "Realm da sessao"]
+    USER_ID              varchar(36) [note: "Usuario dono da sessao"]
+    CREATED_ON           integer     [note: "Instante de criacao da sessao em segundos"]
+    LAST_SESSION_REFRESH integer     [note: "Instante do ultimo refresh da sessao em segundos"]
+    BROKER_SESSION_ID    varchar(255) [note: "Identificador de sessao do broker/federacao, quando houver"]
+    DATA                 text        [note: "Payload serializado da sessao"]
+    REMEMBER_ME          boolean     [note: "Indica se a sessao usa remember me"]
+    VERSION              integer     [not null, note: "Versao para controle otimista"]
+    Note: "Sessao persistida do usuario. Importante para separar conceitos: refresh token e sessao vivem no Keycloak, mas a confianca do aparelho usada para aceitar o refresh e validada externamente contra token_dispositivo na API Identidade."
+}
+
+Table OFFLINE_CLIENT_SESSION {
+    USER_SESSION_ID        varchar(36) [pk, not null, note: "Sessao de usuario a que esta sessao de cliente pertence"]
+    CLIENT_ID              varchar(36) [pk, not null, note: "Cliente interno da sessao; pode usar o sentinel external em cenarios especiais"]
+    CLIENT_STORAGE_PROVIDER varchar(36) [pk, not null, note: "Origem do cliente na sessao; valores internos usam local/internal conforme o provider"]
+    EXTERNAL_CLIENT_ID     varchar(255) [pk, not null, note: "Identificador externo do cliente quando aplicavel"]
+    OFFLINE_FLAG           varchar(1)  [pk, not null, note: "Mesmo flag da OFFLINE_USER_SESSION correspondente"]
+    TIMESTAMP              integer     [note: "Marca temporal da sessao de cliente"]
+    DATA                   text        [note: "Payload serializado da sessao de cliente"]
+    VERSION                integer     [not null, note: "Versao para controle otimista"]
+    Note: "Sessao persistida/offline por cliente dentro de uma sessao de usuario. Continua sendo sessao OIDC, nao cadastro de dispositivo."
+}
+
+// ====================================================================================================
+// RELACOES
+// ====================================================================================================
+
+Ref: CLIENT.REALM_ID > REALM.ID
+Ref: CLIENT_ATTRIBUTES.CLIENT_ID > CLIENT.ID
+Ref: WEB_ORIGINS.CLIENT_ID > CLIENT.ID
+Ref: REDIRECT_URIS.CLIENT_ID > CLIENT.ID
+
+Ref: CLIENT_SCOPE.REALM_ID > REALM.ID
+Ref: CLIENT_SCOPE_ATTRIBUTES.SCOPE_ID > CLIENT_SCOPE.ID
+Ref: CLIENT_SCOPE_ROLE_MAPPING.SCOPE_ID > CLIENT_SCOPE.ID
+Ref: CLIENT_SCOPE_ROLE_MAPPING.ROLE_ID > KEYCLOAK_ROLE.ID
+Ref: CLIENT_SCOPE_CLIENT.SCOPE_ID > CLIENT_SCOPE.ID
+Ref: CLIENT_SCOPE_CLIENT.CLIENT_ID > CLIENT.ID
+Ref: DEFAULT_CLIENT_SCOPE.SCOPE_ID > CLIENT_SCOPE.ID
+Ref: DEFAULT_CLIENT_SCOPE.REALM_ID > REALM.ID
+
+Ref: KEYCLOAK_ROLE.REALM_ID > REALM.ID
+Ref: KEYCLOAK_ROLE.CLIENT > CLIENT.ID
+Ref: USER_ROLE_MAPPING.USER_ID > USER_ENTITY.ID
+Ref: USER_ROLE_MAPPING.ROLE_ID > KEYCLOAK_ROLE.ID
+
+Ref: USER_ENTITY.REALM_ID > REALM.ID
+Ref: USER_ENTITY.SERVICE_ACCOUNT_CLIENT_LINK > CLIENT.ID
+Ref: USER_ATTRIBUTE.USER_ID > USER_ENTITY.ID
+Ref: CREDENTIAL.USER_ID > USER_ENTITY.ID
+Ref: USER_REQUIRED_ACTION.USER_ID > USER_ENTITY.ID
+Ref: FEDERATED_IDENTITY.USER_ID > USER_ENTITY.ID
+Ref: FEDERATED_IDENTITY.REALM_ID > REALM.ID
+
+Ref: AUTHENTICATION_FLOW.REALM_ID > REALM.ID
+Ref: AUTHENTICATION_EXECUTION.REALM_ID > REALM.ID
+Ref: AUTHENTICATION_EXECUTION.FLOW_ID > AUTHENTICATION_FLOW.ID
+Ref: AUTHENTICATION_EXECUTION.AUTH_FLOW_ID > AUTHENTICATION_FLOW.ID
+
+Ref: REQUIRED_ACTION_PROVIDER.REALM_ID > REALM.ID
+Ref: REQUIRED_ACTION_CONFIG.REQUIRED_ACTION_ID > REQUIRED_ACTION_PROVIDER.ID
+
+Ref: COMPONENT.REALM_ID > REALM.ID
+Ref: COMPONENT.PARENT_ID > COMPONENT.ID
+Ref: COMPONENT_CONFIG.COMPONENT_ID > COMPONENT.ID
+
+Ref: OFFLINE_USER_SESSION.REALM_ID > REALM.ID
+Ref: OFFLINE_USER_SESSION.USER_ID > USER_ENTITY.ID
+Ref: OFFLINE_CLIENT_SESSION.(USER_SESSION_ID, OFFLINE_FLAG) > OFFLINE_USER_SESSION.(USER_SESSION_ID, OFFLINE_FLAG)

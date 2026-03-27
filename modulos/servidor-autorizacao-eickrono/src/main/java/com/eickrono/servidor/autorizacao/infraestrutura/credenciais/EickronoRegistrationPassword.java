@@ -78,10 +78,10 @@ public class EickronoRegistrationPassword implements FormAction, FormActionFacto
         }
         boolean atualizacaoSenhaFalhou = true;
         try {
-            String marcadorCriacao = DerivadorSenhaEickrono.garantirMarcadorCriacao(user);
+            String createdTimestamp = DerivadorSenhaEickrono.garantirCreatedTimestampComoTexto(user);
             String senhaDerivada = DerivadorSenhaEickrono.derivar(
                     formData.getFirst(RegistrationPage.FIELD_PASSWORD),
-                    marcadorCriacao
+                    createdTimestamp
             );
             user.credentialManager().updateCredential(UserCredentialModel.password(senhaDerivada, false));
             atualizacaoSenhaFalhou = false;

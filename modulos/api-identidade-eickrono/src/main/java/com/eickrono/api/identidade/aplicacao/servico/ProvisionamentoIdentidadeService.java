@@ -54,6 +54,48 @@ public class ProvisionamentoIdentidadeService {
     @Transactional
     public Pessoa provisionarOuAtualizar(String sub, String email, String nome, Set<String> perfis,
                                          Set<String> papeis, OffsetDateTime atualizadoEm) {
+        return provisionarOuAtualizarInterno(sub, email, nome, perfis, papeis, atualizadoEm, true);
+    }
+
+    @Transactional
+    public Pessoa provisionarCadastroPendente(final String sub,
+                                              final String email,
+                                              final String nome,
+                                              final OffsetDateTime atualizadoEm) {
+        return provisionarOuAtualizarInterno(sub, email, nome, Set.of(), Set.of(), atualizadoEm, false);
+    }
+
+    @Transactional
+    public Pessoa confirmarEmailCadastro(final String sub,
+                                         final String email,
+                                         final OffsetDateTime confirmadoEm) {
+        String subNormalizado = obrigatorio(sub, "sub");
+        String emailNormalizado = obrigatorio(email, "email").toLowerCase(Locale.ROOT);
+        OffsetDateTime instante = Objects.requireNonNull(confirmadoEm, "confirmadoEm é obrigatório");
+
+        Pessoa pessoa = pessoaRepositorio.findBySub(subNormalizado)
+                .orElseThrow(() -> new IllegalStateException("Pessoa não encontrada para o sub informado."));
+        pessoa.atualizar(
+                emailNormalizado,
+                pessoa.getNome(),
+                pessoa.getPerfis(),
+                pessoa.getPapeis(),
+                instante
+        );
+
+        Pessoa salva = salvarPessoa(pessoa);
+        sincronizarFormaAcessoEmail(salva, emailNormalizado, instante, true);
+        sincronizarPerfilLegado(salva);
+        return salva;
+    }
+
+    private Pessoa provisionarOuAtualizarInterno(final String sub,
+                                                 final String email,
+                                                 final String nome,
+                                                 final Set<String> perfis,
+                                                 final Set<String> papeis,
+                                                 final OffsetDateTime atualizadoEm,
+                                                 final boolean emailVerificado) {
         String subNormalizado = obrigatorio(sub, "sub");
         String emailNormalizado = obrigatorio(email, "email").toLowerCase(Locale.ROOT);
         String nomeNormalizado = obrigatorio(nome, "nome");
@@ -67,7 +109,7 @@ public class ProvisionamentoIdentidadeService {
                 .orElseGet(() -> new Pessoa(subNormalizado, emailNormalizado, nomeNormalizado, perfis, papeis, instante));
 
         Pessoa salva = salvarPessoa(pessoa);
-        sincronizarFormaAcessoEmail(salva, emailNormalizado, instante);
+        sincronizarFormaAcessoEmail(salva, emailNormalizado, instante, emailVerificado);
         sincronizarPerfilLegado(salva);
         return salva;
     }
@@ -108,7 +150,10 @@ public class ProvisionamentoIdentidadeService {
         return pessoaRepositorio.findBySub(sub.trim());
     }
 
-    private void sincronizarFormaAcessoEmail(Pessoa pessoa, String email, OffsetDateTime atualizadoEm) {
+    private void sincronizarFormaAcessoEmail(final Pessoa pessoa,
+                                             final String email,
+                                             final OffsetDateTime atualizadoEm,
+                                             final boolean emailVerificado) {
         Optional<FormaAcesso> conflito = formaAcessoRepositorio.findByTipoAndProvedorAndIdentificador(
                 TipoFormaAcesso.EMAIL_SENHA, PROVEDOR_EMAIL, email);
         if (conflito.isPresent() && !Objects.equals(conflito.orElseThrow().getPessoa().getId(), pessoa.getId())) {
@@ -126,7 +171,7 @@ public class ProvisionamentoIdentidadeService {
                         atualizadoEm,
                         atualizadoEm));
 
-        forma.atualizarIdentificador(email, true, atualizadoEm);
+        forma.atualizarIdentificador(email, true, emailVerificado ? atualizadoEm : null);
         formaAcessoRepositorio.save(forma);
     }
 

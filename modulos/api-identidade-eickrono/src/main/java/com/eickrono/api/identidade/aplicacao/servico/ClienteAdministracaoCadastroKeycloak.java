@@ -1,0 +1,18 @@
+package com.eickrono.api.identidade.aplicacao.servico;
+
+import com.eickrono.api.identidade.aplicacao.modelo.CadastroKeycloakProvisionado;
+import com.eickrono.api.identidade.aplicacao.modelo.UsuarioCadastroKeycloakExistente;
+import java.util.Optional;
+
+public interface ClienteAdministracaoCadastroKeycloak {
+
+    CadastroKeycloakProvisionado criarUsuarioPendente(String nomeCompleto, String emailPrincipal, String senhaPura);
+
+    void confirmarEmailEAtivarUsuario(String subjectRemoto);
+
+    void removerUsuarioPendente(String subjectRemoto);
+
+    Optional<UsuarioCadastroKeycloakExistente> buscarUsuarioPorEmail(String emailPrincipal);
+
+    void redefinirSenha(String subjectRemoto, String senhaPura);
+}

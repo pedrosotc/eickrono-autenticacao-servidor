@@ -45,7 +45,15 @@ logging:
 identidade:
   atestacao:
     app:
-      permitir-validacao-local-sem-provedor-oficial: true
+      permitir-validacao-local-sem-provedor-oficial: ${IDENTIDADE_ATESTACAO_APP_PERMITIR_VALIDACAO_LOCAL_SEM_PROVEDOR_OFICIAL:true}
+      google:
+        habilitado: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO:false}
+      apple:
+        habilitado: ${IDENTIDADE_ATESTACAO_APP_APPLE_HABILITADO:false}
+  cadastro:
+    interna:
+      keycloak:
+        client-id: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_CLIENT_ID:admin-cli}
   sessao:
     interna:
       keycloak:

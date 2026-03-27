@@ -6,17 +6,39 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface TokenDispositivoRepositorio extends JpaRepository<TokenDispositivo, UUID> {
 
-    List<TokenDispositivo> findByUsuarioSubAndStatus(String usuarioSub, StatusTokenDispositivo status);
+    @Query("""
+            select token
+            from TokenDispositivo token
+            where token.registro.usuarioSub = :usuarioSub
+              and token.status = :status
+            """)
+    List<TokenDispositivo> findByUsuarioSubAndStatus(@Param("usuarioSub") String usuarioSub,
+                                                     @Param("status") StatusTokenDispositivo status);
 
-    Optional<TokenDispositivo> findByUsuarioSubAndTokenHash(String usuarioSub,
-                                                            String tokenHash);
+    @Query("""
+            select token
+            from TokenDispositivo token
+            where token.registro.usuarioSub = :usuarioSub
+              and token.tokenHash = :tokenHash
+            """)
+    Optional<TokenDispositivo> findByUsuarioSubAndTokenHash(@Param("usuarioSub") String usuarioSub,
+                                                            @Param("tokenHash") String tokenHash);
 
-    Optional<TokenDispositivo> findByUsuarioSubAndTokenHashAndStatus(String usuarioSub,
-                                                                     String tokenHash,
-                                                                     StatusTokenDispositivo status);
+    @Query("""
+            select token
+            from TokenDispositivo token
+            where token.registro.usuarioSub = :usuarioSub
+              and token.tokenHash = :tokenHash
+              and token.status = :status
+            """)
+    Optional<TokenDispositivo> findByUsuarioSubAndTokenHashAndStatus(@Param("usuarioSub") String usuarioSub,
+                                                                     @Param("tokenHash") String tokenHash,
+                                                                     @Param("status") StatusTokenDispositivo status);
 
     Optional<TokenDispositivo> findByTokenHash(String tokenHash);
 }

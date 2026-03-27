@@ -47,12 +47,21 @@ logging:
 identidade:
   atestacao:
     app:
-      permitir-validacao-local-sem-provedor-oficial: true
+      permitir-validacao-local-sem-provedor-oficial: ${IDENTIDADE_ATESTACAO_APP_PERMITIR_VALIDACAO_LOCAL_SEM_PROVEDOR_OFICIAL:true}
+      google:
+        habilitado: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO:false}
+      apple:
+        habilitado: ${IDENTIDADE_ATESTACAO_APP_APPLE_HABILITADO:false}
+  cadastro:
+    interna:
+      keycloak:
+        url-base: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_URL_BASE:http://localhost:18080}
+        realm: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_REALM:homologacao}
   sessao:
     interna:
       keycloak:
-        url-base: http://localhost:18080
-        realm: homologacao
+        url-base: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_URL_BASE:http://localhost:18080}
+        realm: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_REALM:homologacao}
         client-id: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID:app-flutter-hml}
   dispositivo:
     token:

@@ -46,6 +46,10 @@ public class AtestacaoAppServico {
 
     public DesafioAtestacaoGerado gerarDesafio(final OperacaoAtestacaoApp operacao,
                                                final PlataformaAtestacaoApp plataforma,
+                                               final String usuarioSub,
+                                               final Long pessoaIdPerfil,
+                                               final UUID cadastroId,
+                                               final UUID registroDispositivoId,
                                                final String ipSolicitante,
                                                final String userAgentSolicitante) {
         Objects.requireNonNull(operacao, "operacao é obrigatória");
@@ -61,6 +65,10 @@ public class AtestacaoAppServico {
                 desafioBase64,
                 operacao,
                 plataforma,
+                usuarioSub,
+                pessoaIdPerfil,
+                cadastroId,
+                registroDispositivoId,
                 ipSolicitante,
                 userAgentSolicitante,
                 agora,

@@ -23,7 +23,7 @@ import com.eickrono.api.identidade.apresentacao.dto.RegistrarEventosOfflineReque
 import jakarta.transaction.Transactional;
 
 /**
- * Publica a política offline do backend e registra a reconciliação de eventos offline.
+ * Publica a politica offline do backend e registra a reconciliacao de eventos offline.
  */
 @Service
 public class OfflineDispositivoService {

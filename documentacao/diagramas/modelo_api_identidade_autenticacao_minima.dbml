@@ -1,0 +1,225 @@
+// ====================================================================================================
+// PROJETO: Eickrono Autenticacao - API Identidade (Modelo Minimo da Autenticacao)
+// FORMATO: DBML (Database Markup Language)
+// BANCO DE DADOS: PostgreSQL
+// ----------------------------------------------------------------------------------------------------
+// Este arquivo descreve o menor conjunto de tabelas que realmente precisa existir no servico de
+// autenticacao quando:
+// - o cadastro canonico de pessoa/contato vive no b.dbml do lado de perfil/dominio
+// - a conta OIDC, credenciais e sessoes vivem no Keycloak
+//
+// Consequencia direta:
+// - a autenticacao NAO replica pessoas, emails, telefones, perfis ou papeis
+// - ela armazena apenas IDs externos e os estados operacionais que sao propriamente dela
+//
+// Referencias externas usadas neste desenho:
+// - b.dbml: identidade.pessoas.id
+// - b.dbml: contato.emails.id
+// - b.dbml: contato.pessoa_telefone.id
+// - Keycloak: USER_ENTITY.ID
+// ====================================================================================================
+
+Project eickrono_api_identidade_autenticacao_minima {
+    database_type: "PostgreSQL"
+    Note: "Modelo minimo do servico de autenticacao. O lado de autenticacao guarda apenas processos de cadastro, onboarding de dispositivo, device token, atestacao de app e auditoria; pessoa e contato permanecem como fonte de verdade no b.dbml, enquanto conta OIDC e sessao permanecem no Keycloak."
+}
+
+// ====================================================================================================
+// CATALOGO DE CHAMADORES INTERNOS
+// ====================================================================================================
+
+Table sistemas_origem {
+    id        integer      [pk, increment, note: "Identificador interno do sistema chamador"]
+    codigo    varchar(64)  [not null, unique, note: "Codigo estavel do sistema interno. Exemplos: flashcard-servidor, api-contas-eickrono, servidor-autorizacao"]
+    descricao varchar(255) [note: "Descricao funcional do sistema"]
+    criado_em timestamptz  [not null, note: "Momento de cadastro do sistema"]
+    Note: "Catalogo de chamadores internos. Evita espalhar strings de sistema_solicitante pelas tabelas operacionais."
+}
+
+// ====================================================================================================
+// PROCESSO DE CADASTRO
+// ====================================================================================================
+
+Table cadastros_conta {
+    id                           uuid         [pk, note: "Identificador publico do processo de cadastro"]
+    pessoa_id_perfil             bigint       [not null, note: "Referencia externa para identidade.pessoas.id no b.dbml"]
+    email_id_perfil              bigint       [not null, note: "Referencia externa para contato.emails.id no b.dbml; email que esta sendo confirmado"]
+    keycloak_user_id             varchar(36)  [not null, unique, note: "Referencia externa para USER_ENTITY.ID no Keycloak; usuario criado em estado pendente"]
+    sistema_origem_id            integer      [not null, note: "Sistema interno que abriu o cadastro; tipicamente flashcard-servidor via backchannel"]
+    status                       varchar(32)  [not null, note: "Estado do processo. Sugestao: ABERTO, EMAIL_CONFIRMADO, EXPIRADO, CANCELADO"]
+    codigo_email_hash            varchar(64)  [not null, note: "Hash HMAC do codigo de confirmacao por email"]
+    codigo_email_gerado_em       timestamptz  [not null, note: "Momento da emissao do codigo"]
+    codigo_email_expira_em       timestamptz  [not null, note: "Prazo maximo de uso do codigo"]
+    tentativas_confirmacao_email integer      [not null, default: 0, note: "Contador de tentativas de confirmacao"]
+    reenvios_email               integer      [not null, default: 0, note: "Contador de reenvios do codigo"]
+    ip_solicitante               varchar(64)  [note: "IP observado na abertura do processo"]
+    user_agent_solicitante       varchar(512) [note: "User-Agent observado na abertura do processo"]
+    criado_em                    timestamptz  [not null, note: "Momento de criacao do processo"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima mutacao do processo"]
+    concluido_em                 timestamptz  [note: "Momento terminal do processo, quando houver"]
+    Note: "Processo de cadastro nativo no lado da autenticacao. Nenhum nome, email ou telefone e duplicado aqui; a tabela guarda apenas IDs externos do perfil, a referencia ao usuario pendente do Keycloak e o estado operacional do fluxo."
+}
+
+// ====================================================================================================
+// ONBOARDING E CONFIANCA DE DISPOSITIVO
+// ====================================================================================================
+
+Table registros_dispositivo {
+    id                            uuid         [pk, note: "Identificador publico do processo de onboarding do dispositivo"]
+    cadastro_id                   uuid         [note: "Cadastro relacionado, quando o onboarding acontece durante o fluxo de criacao/confirmacao de conta"]
+    pessoa_id_perfil              bigint       [note: "Referencia externa para identidade.pessoas.id no b.dbml, quando a pessoa ja esta resolvida"]
+    email_id_perfil               bigint       [not null, note: "Referencia externa para contato.emails.id no b.dbml; canal minimo do fluxo"]
+    pessoa_telefone_id_perfil     bigint       [note: "Referencia externa para contato.pessoa_telefone.id no b.dbml; canal adicional quando houver SMS"]
+    keycloak_user_id              varchar(36)  [note: "Referencia externa para USER_ENTITY.ID no Keycloak, quando a operacao ja conhece a conta OIDC"]
+    sistema_origem_id             integer      [not null, note: "Sistema interno que abriu o processo"]
+    fingerprint                   varchar(255) [not null, note: "Fingerprint funcional do aparelho"]
+    plataforma                    varchar(100) [not null, note: "Plataforma do aparelho, como ANDROID ou IOS"]
+    versao_app                    varchar(32)  [note: "Versao do app no momento da solicitacao"]
+    chave_publica                 text         [note: "Chave publica informada pelo aparelho"]
+    status                        varchar(32)  [not null, note: "Estado do processo. Sugestao: PENDENTE, CONFIRMADO, EXPIRADO, BLOQUEADO, CANCELADO"]
+    criado_em                     timestamptz  [not null, note: "Momento da abertura do processo"]
+    expira_em                     timestamptz  [not null, note: "Prazo maximo de confirmacao"]
+    confirmado_em                 timestamptz  [note: "Momento da confirmacao bem sucedida"]
+    encerrado_em                  timestamptz  [note: "Momento terminal sem sucesso, quando houver"]
+    reenvios                      integer      [not null, default: 0, note: "Quantidade de reenvios do processo como um todo"]
+    Note: "Processo efemero de onboarding do aparelho. Ele guarda apenas IDs externos de pessoa/contato/conta, sem replicar os dados cadastrais em texto."
+}
+
+Table codigos_verificacao_dispositivo {
+    id                            uuid         [pk, note: "Identificador do codigo de verificacao"]
+    registro_id                   uuid         [not null, note: "Registro de dispositivo ao qual o codigo pertence"]
+    canal                         varchar(16)  [not null, note: "Canal do codigo. Valores esperados: EMAIL e SMS"]
+    email_id_perfil               bigint       [note: "Referencia externa para contato.emails.id quando o canal for EMAIL"]
+    pessoa_telefone_id_perfil     bigint       [note: "Referencia externa para contato.pessoa_telefone.id quando o canal for SMS"]
+    codigo_hash                   varchar(128) [not null, note: "Hash do codigo de verificacao"]
+    tentativas                    integer      [not null, default: 0, note: "Quantidade atual de tentativas neste canal"]
+    tentativas_maximas            integer      [not null, note: "Limite de tentativas antes de bloqueio"]
+    reenvios                      integer      [not null, default: 0, note: "Quantidade atual de reenvios neste canal"]
+    reenvios_maximos              integer      [not null, note: "Limite de reenvios deste canal"]
+    status                        varchar(32)  [not null, note: "Estado do codigo: PENDENTE, CONFIRMADO, EXPIRADO ou BLOQUEADO"]
+    enviado_em                    timestamptz  [note: "Momento do ultimo envio"]
+    confirmado_em                 timestamptz  [note: "Momento da confirmacao bem sucedida"]
+    expira_em                     timestamptz  [not null, note: "Prazo maximo de validade"]
+    indexes {
+        (registro_id, canal) [unique]
+    }
+    Note: "Codigos por canal do onboarding. A autenticacao nao copia email ou telefone; ela apenas referencia o canal canonicamente cadastrado no lado de perfil."
+}
+
+Table dispositivos {
+    id                      uuid         [pk, note: "Identificador do aparelho confiavel"]
+    pessoa_id_perfil        bigint       [not null, note: "Referencia externa para identidade.pessoas.id no b.dbml"]
+    keycloak_user_id        varchar(36)  [not null, note: "Referencia externa para USER_ENTITY.ID no Keycloak; ancora operacional para validacao no refresh"]
+    fingerprint             varchar(255) [not null, note: "Fingerprint funcional do aparelho"]
+    plataforma              varchar(100) [not null, note: "Plataforma atual conhecida do aparelho"]
+    versao_app_atual        varchar(100) [note: "Ultima versao do app observada para o aparelho"]
+    chave_publica_atual     text         [note: "Ultima chave publica conhecida do aparelho"]
+    status                  varchar(50)  [not null, note: "Estado de confianca do aparelho. Sugestao: ATIVO, REVOGADO, EM_DISPUTA, SEM_CONFIANCA"]
+    criado_em               timestamptz  [not null, note: "Momento de criacao do aparelho confiavel"]
+    atualizado_em           timestamptz  [not null, note: "Momento da ultima atualizacao do aparelho"]
+    ultimo_token_emitido_em timestamptz  [note: "Momento do ultimo token emitido para este aparelho"]
+    indexes {
+        (pessoa_id_perfil, fingerprint) [unique]
+    }
+    Note: "Identidade persistente do aparelho no servico de autenticacao. O relacionamento com a pessoa e feito por ID externo do perfil; nao existe replica local de pessoa."
+}
+
+Table tokens_dispositivo {
+    id               uuid         [pk, note: "Identificador do token persistido"]
+    dispositivo_id   uuid         [not null, note: "Dispositivo confiavel ao qual o token pertence"]
+    registro_id      uuid         [not null, note: "Registro de dispositivo que originou a emissao"]
+    token_hash       varchar(128) [not null, unique, note: "Hash HMAC do token opaco devolvido ao app"]
+    status           varchar(32)  [not null, note: "Estado do token. Sugestao: ATIVO, REVOGADO, EXPIRADO_LOGICO"]
+    emitido_em       timestamptz  [not null, note: "Momento da emissao"]
+    expira_em        timestamptz  [not null, note: "Prazo maximo de validade"]
+    revogado_em      timestamptz  [note: "Momento da revogacao, quando houver"]
+    motivo_revogacao varchar(64)  [note: "Motivo padronizado da revogacao"]
+    Note: "Token opaco de confianca do aparelho. Nao repete pessoa, email, telefone, sub, fingerprint ou plataforma; tudo isso pode ser derivado por join com dispositivo e, quando necessario, por consulta aos sistemas externos."
+}
+
+Table eventos_offline_dispositivo {
+    id             uuid        [pk, note: "Identificador do evento offline"]
+    dispositivo_id uuid        [not null, note: "Dispositivo ao qual o evento pertence"]
+    token_id       uuid        [note: "Token em contexto quando o evento foi gerado"]
+    tipo_evento    varchar(80) [not null, note: "Tipo do evento offline"]
+    detalhes       text        [note: "Carga complementar do evento"]
+    ocorrido_em    timestamptz [not null, note: "Momento do fato no dispositivo"]
+    registrado_em  timestamptz [not null, note: "Momento em que o backend persistiu o evento"]
+    Note: "Trilha de reconciliacao offline por dispositivo e token, sem replicar atributos da pessoa ou do contato."
+}
+
+// ====================================================================================================
+// ATESTACAO DE APP
+// ====================================================================================================
+
+Table atestacoes_app_desafios {
+    id                            uuid         [pk, note: "Identificador publico do desafio"]
+    sistema_origem_id             integer      [not null, note: "Sistema interno que solicitou o desafio via backchannel"]
+    keycloak_user_id              varchar(36)  [note: "Referencia externa para USER_ENTITY.ID, quando a operacao ja conhece a conta OIDC"]
+    pessoa_id_perfil              bigint       [note: "Referencia externa para identidade.pessoas.id, quando a pessoa ja esta resolvida"]
+    email_id_perfil               bigint       [note: "Referencia externa para contato.emails.id, quando o contato ja e conhecido"]
+    pessoa_telefone_id_perfil     bigint       [note: "Referencia externa para contato.pessoa_telefone.id, quando houver telefone em contexto"]
+    cadastro_id                   uuid         [note: "Cadastro em contexto, quando o desafio protege cadastro ou confirmacao de cadastro"]
+    registro_dispositivo_id       uuid         [note: "Registro de dispositivo em contexto, quando o desafio protege onboarding ou substituicao de aparelho"]
+    dispositivo_id                uuid         [note: "Dispositivo em contexto, quando a operacao ja ocorre sobre aparelho confiavel"]
+    operacao                      varchar(50)  [not null, note: "Operacao protegida. Exemplos: CADASTRO, CONFIRMACAO_CADASTRO, LOGIN, REFRESH_SESSAO, ALTERACAO_EMAIL, SUBSTITUICAO_DISPOSITIVO"]
+    plataforma                    varchar(20)  [not null, note: "Plataforma esperada do comprovante"]
+    provedor_esperado             varchar(50)  [not null, note: "Provedor esperado para a plataforma"]
+    desafio_base64                varchar(128) [not null, unique, note: "Nonce aleatorio serializado em Base64 URL-safe"]
+    ip_solicitante                varchar(64)  [note: "IP observado na emissao"]
+    user_agent_solicitante        varchar(512) [note: "User-Agent observado na emissao"]
+    criado_em                     timestamptz  [not null, note: "Momento da emissao do desafio"]
+    expira_em                     timestamptz  [not null, note: "Prazo maximo de uso"]
+    consumido_em                  timestamptz  [note: "Momento do consumo bem sucedido"]
+    Note: "Desafio efemero de atestacao vinculado ao melhor contexto disponivel sem replicar dado cadastral. Se o flashcard-servidor ja conhece pessoa, email, cadastro ou dispositivo via backchannel, a autenticacao persiste apenas essas referencias externas."
+}
+
+// ====================================================================================================
+// AUDITORIA
+// ====================================================================================================
+
+Table auditoria_eventos_identidade {
+    id                            uuid         [pk, note: "Identificador do evento de auditoria"]
+    sistema_origem_id             integer      [note: "Sistema em contexto no evento"]
+    keycloak_user_id              varchar(36)  [note: "Referencia externa para USER_ENTITY.ID, quando conhecida"]
+    pessoa_id_perfil              bigint       [note: "Referencia externa para identidade.pessoas.id, quando conhecida"]
+    email_id_perfil               bigint       [note: "Referencia externa para contato.emails.id, quando conhecida"]
+    pessoa_telefone_id_perfil     bigint       [note: "Referencia externa para contato.pessoa_telefone.id, quando conhecida"]
+    cadastro_id                   uuid         [note: "Cadastro em contexto, quando aplicavel"]
+    registro_dispositivo_id       uuid         [note: "Registro de dispositivo em contexto, quando aplicavel"]
+    dispositivo_id                uuid         [note: "Dispositivo em contexto, quando aplicavel"]
+    token_id                      uuid         [note: "Token de dispositivo em contexto, quando aplicavel"]
+    desafio_id                    uuid         [note: "Desafio de atestacao em contexto, quando aplicavel"]
+    tipo_evento                   varchar(100) [not null, note: "Tipo funcional do evento"]
+    detalhes                      text         [note: "Carga complementar do evento"]
+    registrado_em                 timestamptz  [not null, note: "Momento do registro"]
+    Note: "Auditoria estruturada por referencias locais e externas. O lado da autenticacao nao precisa manter espelho de pessoa so para auditar corretamente."
+}
+
+// ====================================================================================================
+// RELACOES LOCAIS
+// ====================================================================================================
+
+Ref: cadastros_conta.sistema_origem_id > sistemas_origem.id
+
+Ref: registros_dispositivo.cadastro_id > cadastros_conta.id
+Ref: registros_dispositivo.sistema_origem_id > sistemas_origem.id
+
+Ref: codigos_verificacao_dispositivo.registro_id > registros_dispositivo.id
+
+Ref: tokens_dispositivo.dispositivo_id > dispositivos.id
+Ref: tokens_dispositivo.registro_id > registros_dispositivo.id
+Ref: eventos_offline_dispositivo.dispositivo_id > dispositivos.id
+Ref: eventos_offline_dispositivo.token_id > tokens_dispositivo.id
+
+Ref: atestacoes_app_desafios.sistema_origem_id > sistemas_origem.id
+Ref: atestacoes_app_desafios.cadastro_id > cadastros_conta.id
+Ref: atestacoes_app_desafios.registro_dispositivo_id > registros_dispositivo.id
+Ref: atestacoes_app_desafios.dispositivo_id > dispositivos.id
+
+Ref: auditoria_eventos_identidade.sistema_origem_id > sistemas_origem.id
+Ref: auditoria_eventos_identidade.cadastro_id > cadastros_conta.id
+Ref: auditoria_eventos_identidade.registro_dispositivo_id > registros_dispositivo.id
+Ref: auditoria_eventos_identidade.dispositivo_id > dispositivos.id
+Ref: auditoria_eventos_identidade.token_id > tokens_dispositivo.id
+Ref: auditoria_eventos_identidade.desafio_id > atestacoes_app_desafios.id

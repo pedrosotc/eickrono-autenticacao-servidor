@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Desafio efêmero emitido pelo backend para vincular a prova nativa a uma operação sensível.
@@ -40,6 +41,18 @@ public class DesafioAtestacaoApp {
     @Column(name = "provedor_esperado", nullable = false, length = 50)
     private ProvedorAtestacaoApp provedorEsperado;
 
+    @Column(name = "usuario_sub", length = 255)
+    private String usuarioSub;
+
+    @Column(name = "pessoa_id_perfil")
+    private Long pessoaIdPerfil;
+
+    @Column(name = "cadastro_id")
+    private UUID cadastroId;
+
+    @Column(name = "registro_dispositivo_id")
+    private UUID registroDispositivoId;
+
     @Column(name = "ip_solicitante", length = 64)
     private String ipSolicitante;
 
@@ -63,6 +76,10 @@ public class DesafioAtestacaoApp {
                                final String desafioBase64,
                                final OperacaoAtestacaoApp operacao,
                                final PlataformaAtestacaoApp plataforma,
+                               final String usuarioSub,
+                               final Long pessoaIdPerfil,
+                               final UUID cadastroId,
+                               final UUID registroDispositivoId,
                                final String ipSolicitante,
                                final String userAgentSolicitante,
                                final OffsetDateTime criadoEm,
@@ -72,6 +89,10 @@ public class DesafioAtestacaoApp {
         this.operacao = Objects.requireNonNull(operacao, "operacao é obrigatória");
         this.plataforma = Objects.requireNonNull(plataforma, "plataforma é obrigatória");
         this.provedorEsperado = Objects.requireNonNull(plataforma.getProvedorPadrao(), "provedorEsperado é obrigatório");
+        this.usuarioSub = normalizar(usuarioSub, 255);
+        this.pessoaIdPerfil = pessoaIdPerfil;
+        this.cadastroId = cadastroId;
+        this.registroDispositivoId = registroDispositivoId;
         this.ipSolicitante = normalizar(ipSolicitante, 64);
         this.userAgentSolicitante = normalizar(userAgentSolicitante, 512);
         this.criadoEm = Objects.requireNonNull(criadoEm, "criadoEm é obrigatório");
@@ -100,6 +121,22 @@ public class DesafioAtestacaoApp {
 
     public ProvedorAtestacaoApp getProvedorEsperado() {
         return provedorEsperado;
+    }
+
+    public String getUsuarioSub() {
+        return usuarioSub;
+    }
+
+    public Long getPessoaIdPerfil() {
+        return pessoaIdPerfil;
+    }
+
+    public UUID getCadastroId() {
+        return cadastroId;
+    }
+
+    public UUID getRegistroDispositivoId() {
+        return registroDispositivoId;
     }
 
     public String getIpSolicitante() {

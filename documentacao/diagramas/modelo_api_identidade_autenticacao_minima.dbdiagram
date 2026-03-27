@@ -1,0 +1,394 @@
+{
+  "version": "1.0.0",
+  "darkMode": true,
+  "gridEnabling": true,
+  "detailLevel": "All",
+  "tablePositions": [
+    {
+      "name": "sistemas_origem",
+      "schemaName": "public",
+      "x": 37.66611299486783,
+      "y": 8
+    },
+    {
+      "name": "cadastros_conta",
+      "schemaName": "public",
+      "x": -456.2230339699068,
+      "y": -992
+    },
+    {
+      "name": "registros_dispositivo",
+      "schemaName": "public",
+      "x": -424,
+      "y": -416
+    },
+    {
+      "name": "codigos_verificacao_dispositivo",
+      "schemaName": "public",
+      "x": -425.847412109375,
+      "y": 192
+    },
+    {
+      "name": "dispositivos",
+      "schemaName": "public",
+      "x": 1120,
+      "y": 1272
+    },
+    {
+      "name": "tokens_dispositivo",
+      "schemaName": "public",
+      "x": 1241.5984208898458,
+      "y": -256
+    },
+    {
+      "name": "eventos_offline_dispositivo",
+      "schemaName": "public",
+      "x": 1239.412739617562,
+      "y": 80
+    },
+    {
+      "name": "atestacoes_app_desafios",
+      "schemaName": "public",
+      "x": 8,
+      "y": -648
+    },
+    {
+      "name": "auditoria_eventos_identidade",
+      "schemaName": "public",
+      "x": 848,
+      "y": -647.9836619355851
+    }
+  ],
+  "tableGroupCollapseStates": [],
+  "stickyNoteLayouts": [],
+  "referencePaths": [
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "firstEndpointSide": "left",
+      "secondEndpointSide": "left",
+      "checkPoints": [
+        {
+          "x": -500.14238084192215,
+          "y": -336
+        },
+        {
+          "x": -500.14238084192215,
+          "y": -944
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_id"
+      ],
+      "firstTableName": "codigos_verificacao_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "firstEndpointSide": "left",
+      "secondEndpointSide": "left",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "tokens_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": [
+        {
+          "x": 1645.5136795503956,
+          "y": -176
+        },
+        {
+          "x": 1645.5136795503956,
+          "y": 1320
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "registro_id"
+      ],
+      "firstTableName": "tokens_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "eventos_offline_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "firstEndpointSide": "left",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "token_id"
+      ],
+      "firstTableName": "eventos_offline_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "tokens_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": [
+        {
+          "x": 1592.0393852104,
+          "y": 192
+        },
+        {
+          "x": 1592.0393852104,
+          "y": -208
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": [
+        {
+          "x": -12,
+          "y": -944
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "secondEndpointSide": "left",
+      "checkPoints": [
+        {
+          "x": 391.09585815800256,
+          "y": -344
+        },
+        {
+          "x": 391.09585815800256,
+          "y": 1320
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "secondEndpointSide": "left",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "token_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "tokens_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "desafio_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "atestacoes_app_desafios",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "secondEndpointSide": "right",
+      "checkPoints": [
+        {
+          "x": 462.3949172779962,
+          "y": -32
+        },
+        {
+          "x": 462.3949172779962,
+          "y": -600
+        }
+      ]
+    }
+  ]
+}

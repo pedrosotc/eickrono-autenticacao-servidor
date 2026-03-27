@@ -1,0 +1,597 @@
+{
+  "version": "1.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "detailLevel": "All",
+  "tablePositions": [
+    {
+      "name": "sistemas_origem",
+      "schemaName": "public",
+      "x": 16,
+      "y": 16
+    },
+    {
+      "name": "pessoas",
+      "schemaName": "public",
+      "x": 16,
+      "y": 216
+    },
+    {
+      "name": "pessoas_emails",
+      "schemaName": "public",
+      "x": 560,
+      "y": 352
+    },
+    {
+      "name": "pessoas_telefones",
+      "schemaName": "public",
+      "x": 560,
+      "y": 56
+    },
+    {
+      "name": "pessoas_perfis",
+      "schemaName": "public",
+      "x": 560,
+      "y": 656
+    },
+    {
+      "name": "pessoas_papeis",
+      "schemaName": "public",
+      "x": 560,
+      "y": 800
+    },
+    {
+      "name": "pessoas_acessos_sociais",
+      "schemaName": "public",
+      "x": 560,
+      "y": 944
+    },
+    {
+      "name": "cadastros_conta",
+      "schemaName": "public",
+      "x": 1232,
+      "y": 264
+    },
+    {
+      "name": "registros_dispositivo",
+      "schemaName": "public",
+      "x": 1968,
+      "y": 120
+    },
+    {
+      "name": "codigos_verificacao_dispositivo",
+      "schemaName": "public",
+      "x": 2672,
+      "y": 72
+    },
+    {
+      "name": "dispositivos",
+      "schemaName": "public",
+      "x": 560,
+      "y": 1208
+    },
+    {
+      "name": "tokens_dispositivo",
+      "schemaName": "public",
+      "x": 2672,
+      "y": 600
+    },
+    {
+      "name": "eventos_offline_dispositivo",
+      "schemaName": "public",
+      "x": 3352,
+      "y": 16
+    },
+    {
+      "name": "atestacoes_app_desafios",
+      "schemaName": "public",
+      "x": 2637.16357421875,
+      "y": 946.8923160095776
+    },
+    {
+      "name": "auditoria_eventos_identidade",
+      "schemaName": "public",
+      "x": 3339.427890155982,
+      "y": -605.7640186133148
+    }
+  ],
+  "tableGroupCollapseStates": [],
+  "stickyNoteLayouts": [],
+  "referencePaths": [
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_emails",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_telefones",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_perfis",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_papeis",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_acessos_sociais",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "telefone_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_telefones",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_id"
+      ],
+      "firstTableName": "codigos_verificacao_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "codigos_verificacao_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "telefone_id"
+      ],
+      "firstTableName": "codigos_verificacao_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_telefones",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "dispositivos",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "tokens_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_id"
+      ],
+      "firstTableName": "tokens_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "eventos_offline_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "token_id"
+      ],
+      "firstTableName": "eventos_offline_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "tokens_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "token_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "tokens_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "desafio_id"
+      ],
+      "firstTableName": "auditoria_eventos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "atestacoes_app_desafios",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    }
+  ]
+}

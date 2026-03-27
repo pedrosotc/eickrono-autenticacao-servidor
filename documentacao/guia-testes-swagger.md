@@ -104,12 +104,14 @@ PY
 
 ## Ordem sugerida de chamadas
 
+> Diretriz atual do app móvel: o `X-Device-Token` canônico é emitido em `POST /api/publica/sessoes`. As rotas explícitas de `registro` abaixo permanecem para testes manuais, cenários excepcionais e compatibilidade transitória, não como fluxo principal do app.
+
 ### 1. Utilidades iniciais
 - **GET** `http://localhost:8081/.well-known/chaves-publicas`
   - Autenticação: não requer.
   - Verifica se a API de identidade está respondendo e expõe as chaves do Keycloak.
 
-### 2. Registro e confirmação de dispositivo (obrigatório para `ROLE_cliente`)
+### 2. Registro e confirmação manual de dispositivo (fluxo excepcional/legado)
 1. **POST** `http://localhost:8081/identidade/dispositivos/registro`
    - Autenticação: não requer.
    - Payload (JSON):

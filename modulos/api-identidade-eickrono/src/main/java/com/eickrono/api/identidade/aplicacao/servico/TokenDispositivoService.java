@@ -69,10 +69,6 @@ public class TokenDispositivoService {
                 UUID.randomUUID(),
                 registro,
                 dispositivo,
-                usuarioSub,
-                registro.getFingerprint(),
-                registro.getPlataforma(),
-                registro.getVersaoAplicativo().orElse(null),
                 hash,
                 StatusTokenDispositivo.ATIVO,
                 agora,
@@ -90,7 +86,9 @@ public class TokenDispositivoService {
     @Transactional
     public void revogarTokensAtivos(String usuarioSub, MotivoRevogacaoToken motivo) {
         OffsetDateTime agora = OffsetDateTime.now(clock);
-        List<TokenDispositivo> ativos = tokenRepositorio.findByUsuarioSubAndStatus(usuarioSub, StatusTokenDispositivo.ATIVO);
+        List<TokenDispositivo> ativos = tokenRepositorio.findByUsuarioSubAndStatus(
+                usuarioSub,
+                StatusTokenDispositivo.ATIVO);
         for (TokenDispositivo token : ativos) {
             token.revogar(motivo, agora);
             LOGGER.info("Token de dispositivo revogado. usuarioSub={} tokenId={} motivo={}",

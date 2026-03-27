@@ -1,6 +1,7 @@
 package com.eickrono.api.identidade.apresentacao.api;
 
 import com.eickrono.api.identidade.infraestrutura.configuracao.IntegracaoInternaProperties;
+import com.eickrono.api.identidade.infraestrutura.configuracao.ValidadorChamadaInterna;
 import com.eickrono.api.identidade.apresentacao.dto.ValidacaoTokenDispositivoResponse;
 import com.eickrono.api.identidade.aplicacao.servico.ResultadoValidacaoTokenDispositivo;
 import com.eickrono.api.identidade.aplicacao.servico.TokenDispositivoService;
@@ -26,15 +27,14 @@ public class TokenDispositivoController {
     private static final String HEADER_SEGREDO_INTERNO = "X-Eickrono-Internal-Secret";
 
     private final TokenDispositivoService tokenDispositivoService;
-    private final String segredoInternoEsperado;
+    private final ValidadorChamadaInterna validadorChamadaInterna;
 
     public TokenDispositivoController(TokenDispositivoService tokenDispositivoService,
-                                      IntegracaoInternaProperties integracaoInternaProperties) {
+                                      IntegracaoInternaProperties integracaoInternaProperties,
+                                      ValidadorChamadaInterna validadorChamadaInterna) {
         this.tokenDispositivoService = tokenDispositivoService;
-        this.segredoInternoEsperado = Objects.requireNonNull(
-                Objects.requireNonNull(integracaoInternaProperties, "integracaoInternaProperties e obrigatorio")
-                        .getSegredo(),
-                "integracao.interna.segredo e obrigatorio");
+        Objects.requireNonNull(integracaoInternaProperties, "integracaoInternaProperties e obrigatorio");
+        this.validadorChamadaInterna = Objects.requireNonNull(validadorChamadaInterna, "validadorChamadaInterna e obrigatorio");
     }
 
     @GetMapping("/token/validacao")
@@ -51,10 +51,11 @@ public class TokenDispositivoController {
 
     @GetMapping("/token/validacao/interna")
     public ResponseEntity<ValidacaoTokenDispositivoResponse> validarTokenInternamente(
+            @AuthenticationPrincipal final Jwt jwt,
             @RequestHeader(HEADER_SEGREDO_INTERNO) String segredoInterno,
             @RequestHeader(HEADER_DEVICE_TOKEN) String tokenDispositivo,
             @RequestHeader(value = HEADER_USUARIO_SUB, required = false) String usuarioSub) {
-        validarSegredo(segredoInterno);
+        validadorChamadaInterna.validar(segredoInterno, jwt, "TokenDispositivoController");
         ResultadoValidacaoTokenDispositivo resultado = StringUtils.hasText(usuarioSub)
                 ? tokenDispositivoService.validarToken(usuarioSub, tokenDispositivo)
                 : tokenDispositivoService.validarTokenSemUsuario(tokenDispositivo);
@@ -63,13 +64,5 @@ public class TokenDispositivoController {
                 resultado.codigo(),
                 resultado.mensagem(),
                 resultado.expiraEmOpt().orElse(null)));
-    }
-
-    private void validarSegredo(String segredoInformado) {
-        if (!Objects.equals(segredoInternoEsperado, segredoInformado)) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.UNAUTHORIZED,
-                    "Segredo interno invalido");
-        }
     }
 }

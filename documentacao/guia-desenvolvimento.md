@@ -19,11 +19,81 @@ Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário
 4. Execute `docker compose up` em `infraestrutura/dev` para subir Keycloak, PostgreSQL e as APIs.  
 5. Acesse `http://localhost:8081/actuator/health` e `http://localhost:8082/actuator/health` para verificar se as APIs estão saudáveis.
 
-Observações importantes do fluxo atual:
+### Regra operacional importante do `docker compose`
 
-- a API de identidade expõe `POST /identidade/sessoes/interna` para os servidores de produto abrirem sessão no Keycloak por `backchannel`;
+No ambiente local, os serviços Java rodam a partir de artefatos já empacotados:
+
+- `api-identidade-eickrono` usa a imagem construída com o `jar` em `modulos/api-identidade-eickrono/target/`;
+- `servidor-autorizacao-eickrono` é montado dentro do Keycloak a partir do `jar` em `modulos/servidor-autorizacao-eickrono/target/`.
+
+Por isso, alteração de código sem novo `package` e sem recriar o serviço deixa o container executando a versão antiga.
+
+Comandos canônicos:
+
+- API identidade:
+  - `mvn -q -pl modulos/api-identidade-eickrono -am package -DskipTests`
+  - `cd infraestrutura/dev && docker compose up -d --build api-identidade-eickrono`
+- customização do servidor de autorização:
+  - `mvn -q -pl modulos/servidor-autorizacao-eickrono -am package -DskipTests`
+  - `cd infraestrutura/dev && docker compose up -d servidor-autorizacao`
+
+Se um comportamento visto no app não bater com o código atual, valide primeiro se o container local foi realmente recriado.
+
+Observações importantes do fluxo canônico:
+
+- a API de identidade é a borda pública do app para cadastro, confirmação de e-mail, login e recuperação de senha;
+- o `flashcard-servidor` não deve mais receber senha, código de recuperação ou tentativa de login vindos do app;
+- depois da confirmação de e-mail, a autenticação provisiona o perfil no `flashcard-servidor` por backchannel;
+- esse provisionamento interno precisa ser idempotente por `cadastroId`;
+- o login público já emite o `X-Device-Token` quando o backend aprova o aparelho;
+- o app não usa mais tela dedicada de registro de dispositivo no fluxo principal;
+- se o backend exigir nova validação de contato, o app deve reutilizar a tela já existente de verificação;
 - em `docker compose`, a própria API de identidade precisa apontar o Keycloak interno para `http://servidor-autorizacao:8080`, não para `localhost`;
-- a derivação da senha efetiva no servidor de autorização usa `pepper + createdTimestamp`, e não mais `data_nascimento`.
+- a derivação da senha efetiva no servidor de autorização usa apenas `pepper + createdTimestamp` do usuário no Keycloak, e não mais `data_nascimento`.
+- em `dev` e `hml`, o cadastro nativo agora aponta para um SMTP local de teste (`MailHog`) dentro do `docker compose`.
+- quando `IDENTIDADE_CADASTRO_EMAIL_FORNECEDOR=smtp`, o envio passa a usar `JavaMailSender` com as propriedades `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` e derivados.
+- os `docker-compose` locais agora sobem `MailHog` para capturar esses e-mails:
+  - `dev`: UI em `http://localhost:8025`
+  - `hml`: UI em `http://localhost:18025`
+
+## Como ver códigos de e-mail no MailHog
+
+Quando cadastro ou recuperação de senha disparam envio de e-mail, o `eickrono-autenticacao-servidor` entrega a mensagem para um SMTP fake local (`MailHog`), não para uma caixa real.
+
+Fluxo prático em `dev`:
+
+1. suba o ambiente local do auth:
+   - `cd infraestrutura/dev`
+   - `docker compose up -d`
+2. confirme que o `MailHog` está ativo:
+   - `docker ps | rg eickrono-mailhog-dev`
+3. execute o fluxo do app até a tela de verificação do código;
+4. abra a UI do `MailHog` em `http://localhost:8025`;
+5. na lista de mensagens, procure o e-mail cujo destinatário é o endereço usado no fluxo;
+6. abra a mensagem;
+7. leia o corpo do e-mail e copie o valor da linha `Código de confirmação: XXXXXX`;
+8. volte para o app e digite esse código na tela de verificação.
+
+Fluxo prático em `hml` local:
+
+1. suba o ambiente local de homologação:
+   - `cd infraestrutura/hml`
+   - `docker compose up -d`
+2. abra a UI do `MailHog` em `http://localhost:18025`;
+3. localize o e-mail correspondente e copie o código da mesma forma.
+
+Observações importantes:
+
+- o código enviado por e-mail é numérico e hoje possui 6 dígitos;
+- o link `Reenviar código` do app é funcional para e-mail;
+- ao reenviar, o sistema gera um código novo e invalida o anterior;
+- portanto, sempre use o código do e-mail mais recente no `MailHog`;
+- se nenhum e-mail aparecer, verifique primeiro se a API de identidade e o `MailHog` estão rodando no `docker compose`.
+
+Referências do comportamento no código:
+
+- envio SMTP do código: `modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/aplicacao/servico/CanalEnvioCodigoCadastroEmailSmtp.java`
+- geração e reenvio do código: `modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/aplicacao/servico/CadastroContaInternaServico.java`
 
 ## PostgreSQL compartilhado em dev
 
@@ -72,9 +142,30 @@ Credenciais de acesso manual ao mesmo PostgreSQL compartilhado:
 
 Observações do `hml` local:
 
-- para viabilizar a homologação local, as APIs usam `mTLS` desabilitado por variável de ambiente;
+- a malha interna `api-identidade <-> flashcard` e `servidor-autorizacao -> api-identidade` já usa `mTLS`;
+- o `api-contas-eickrono` continua fora dessa malha no `docker-compose` atual;
 - localmente, as APIs de identidade e contas usam `ddl-auto=update` para complementar tabelas ainda não cobertas pelas migrations atuais;
 - o objetivo desse perfil local é testar o fluxo real de login sem dividir estado com o `dev`.
+- detalhes de portas, stores e geração de certificados estão em `guia-mtls.md`.
+
+## Swagger
+
+Endereços por API:
+
+- API identidade `dev`: `http://localhost:8081/swagger-ui/index.html`
+- API identidade `dev` OpenAPI: `http://localhost:8081/v3/api-docs`
+- API identidade `hml`: `http://localhost:18081/swagger-ui/index.html`
+- API identidade `hml` OpenAPI: `http://localhost:18081/v3/api-docs`
+- API contas `dev`: `http://localhost:8082/swagger-ui/index.html`
+- API contas `dev` OpenAPI: `http://localhost:8082/v3/api-docs`
+- API contas `hml`: `http://localhost:18082/swagger-ui/index.html`
+- API contas `hml` OpenAPI: `http://localhost:18082/v3/api-docs`
+
+Proteção por ambiente:
+
+- `dev`: acesso liberado para uso local;
+- `hml`: `Basic Auth` + whitelist de IP;
+- credenciais padrão de `hml`: usuário `swagger`, senha `swagger-hml`.
 
 ## Fluxo Git recomendado
 
@@ -114,6 +205,28 @@ Para a abertura de sessão interna por `backchannel`, mantenha o `client_id` do 
 - `dev`: `app-flutter-local`
 - `hml`: `app-flutter-hml`
 - `prod`: `app-flutter-prod`
+
+Para o provisionamento interno do cadastro nativo, mantenha tambem configurados na API de identidade:
+- `identidade.cadastro.interna.keycloak.client-id`
+- `identidade.cadastro.interna.keycloak.client-secret`
+- `identidade.cadastro.interna.keycloak.realm`
+- `identidade.cadastro.interna.keycloak.url-base`
+- `identidade.cadastro.interna.keycloak.username-admin`
+- `identidade.cadastro.interna.keycloak.password-admin`
+- `identidade.cadastro.interna.keycloak.password-pepper`
+
+Para o canal SMTP do cadastro nativo, as propriedades relevantes sao:
+- `IDENTIDADE_CADASTRO_EMAIL_FORNECEDOR`
+- `IDENTIDADE_CADASTRO_EMAIL_REMETENTE`
+- `IDENTIDADE_CADASTRO_EMAIL_RESPONDER_PARA`
+- `IDENTIDADE_CADASTRO_EMAIL_ASSUNTO`
+- `IDENTIDADE_CADASTRO_EMAIL_NOME_APLICACAO`
+- `SPRING_MAIL_HOST`
+- `SPRING_MAIL_PORT`
+- `SPRING_MAIL_USERNAME`
+- `SPRING_MAIL_PASSWORD`
+- `SPRING_MAIL_SMTP_AUTH`
+- `SPRING_MAIL_SMTP_STARTTLS_ENABLE`
 
 Já os testes de integração fazem outra coisa:
 
@@ -308,7 +421,7 @@ BUILD SUCCESS
 
 O fluxo final ficou assim:
 
-1. O app autentica via OIDC e conclui o onboarding do aparelho.
+1. O app recebe uma sessão remota emitida pela autenticação já com `device_token`.
 2. O `device_token` opaco passa a ser persistido junto da sessão local.
 3. Ao pedir refresh, o cliente envia o parâmetro adicional `device_token`.
 4. O Keycloak aplica o executor `eickrono-device-token-refresh`.

@@ -38,6 +38,7 @@ public class ValidadorTokenDispositivoHttp implements ValidadorTokenDispositivoR
     }
 
     @Override
+    @SuppressWarnings("null")
     public ResultadoValidacaoTokenDispositivoRemoto validar(String authorizationHeader, String tokenDispositivo) {
         HttpHeaders headers = new HttpHeaders();
         if (StringUtils.hasText(authorizationHeader)) {
@@ -46,10 +47,8 @@ public class ValidadorTokenDispositivoHttp implements ValidadorTokenDispositivoR
         headers.set(HEADER_DEVICE_TOKEN, tokenDispositivo);
 
         ResponseEntity<ValidacaoTokenDispositivoResponse> response = restTemplate.exchange(
-                Objects.requireNonNull(
-                        URI.create(urlBase + CAMINHO_VALIDACAO),
-                        "uri de validacao obrigatoria"),
-                Objects.requireNonNull(HttpMethod.GET, "metodo HTTP obrigatorio"),
+                URI.create(urlBase + CAMINHO_VALIDACAO),
+                HttpMethod.GET,
                 new HttpEntity<Void>(headers),
                 ValidacaoTokenDispositivoResponse.class);
 

@@ -1,5 +1,6 @@
 package com.eickrono.api.identidade.infraestrutura.configuracao;
 
+import com.eickrono.api.identidade.infraestrutura.atestacao.AppleAppAttestProperties;
 import com.eickrono.api.identidade.infraestrutura.atestacao.GooglePlayIntegrityProperties;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -14,6 +15,7 @@ public class AtestacaoAppProperties {
     private String numeroProjetoNuvemAndroid;
     private boolean permitirValidacaoLocalSemProvedorOficial = true;
     private GooglePlayIntegrityProperties google = new GooglePlayIntegrityProperties();
+    private AppleAppAttestProperties apple = new AppleAppAttestProperties();
 
     public Duration getDuracaoDesafio() {
         return duracaoDesafio;
@@ -45,5 +47,13 @@ public class AtestacaoAppProperties {
 
     public void setGoogle(final GooglePlayIntegrityProperties google) {
         this.google = google;
+    }
+
+    public AppleAppAttestProperties getApple() {
+        return apple;
+    }
+
+    public void setApple(final AppleAppAttestProperties apple) {
+        this.apple = apple;
     }
 }

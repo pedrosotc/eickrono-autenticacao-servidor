@@ -1,0 +1,288 @@
+{
+  "version": "1.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "detailLevel": "All",
+  "tablePositions": [
+    {
+      "name": "perfis_identidade",
+      "schemaName": "public",
+      "x": -444.5442285313131,
+      "y": 1288.2416732734112
+    },
+    {
+      "name": "perfis_identidade_perfis",
+      "schemaName": "public",
+      "x": 130.1623970432152,
+      "y": 1145.8682414817695
+    },
+    {
+      "name": "perfis_identidade_papeis",
+      "schemaName": "public",
+      "x": 130.1623970432152,
+      "y": 1287.8682414817697
+    },
+    {
+      "name": "vinculos_sociais",
+      "schemaName": "public",
+      "x": 130.1623970432152,
+      "y": 1429.8682414817697
+    },
+    {
+      "name": "auditoria_eventos_identidade",
+      "schemaName": "public",
+      "x": 21.635986328125,
+      "y": 891.5514230683633
+    },
+    {
+      "name": "pessoas_identidade",
+      "schemaName": "public",
+      "x": 12,
+      "y": 674
+    },
+    {
+      "name": "pessoas_identidade_perfis",
+      "schemaName": "public",
+      "x": 753.0678533047242,
+      "y": 674
+    },
+    {
+      "name": "pessoas_identidade_papeis",
+      "schemaName": "public",
+      "x": 21.635986328125,
+      "y": 515.4056145855461
+    },
+    {
+      "name": "pessoas_formas_acesso",
+      "schemaName": "public",
+      "x": -412.496947620185,
+      "y": 644.0458641226815
+    },
+    {
+      "name": "cadastros_conta",
+      "schemaName": "public",
+      "x": 781.16943359375,
+      "y": 12
+    },
+    {
+      "name": "registro_dispositivo",
+      "schemaName": "public",
+      "x": 1975.8833180410984,
+      "y": 2321.4536738322176
+    },
+    {
+      "name": "codigo_verificacao",
+      "schemaName": "public",
+      "x": 1584.785746578076,
+      "y": 2291.1887708289073
+    },
+    {
+      "name": "dispositivos_identidade",
+      "schemaName": "public",
+      "x": 689.682465566146,
+      "y": 1686.1126386545056
+    },
+    {
+      "name": "token_dispositivo",
+      "schemaName": "public",
+      "x": 1847.164243050392,
+      "y": 1476.505776383283
+    },
+    {
+      "name": "eventos_offline_dispositivo",
+      "schemaName": "public",
+      "x": 1892.915074274948,
+      "y": 2003.2951710550296
+    },
+    {
+      "name": "atestacoes_app_desafios",
+      "schemaName": "public",
+      "x": 374.82177734375,
+      "y": 12
+    }
+  ],
+  "tableGroupCollapseStates": [],
+  "stickyNoteLayouts": [],
+  "referencePaths": [
+    {
+      "firstFieldNames": [
+        "perfil_id"
+      ],
+      "firstTableName": "perfis_identidade_perfis",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "perfis_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "perfil_id"
+      ],
+      "firstTableName": "perfis_identidade_papeis",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "perfis_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "perfil_id"
+      ],
+      "firstTableName": "vinculos_sociais",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "perfis_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_identidade_perfis",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_identidade_papeis",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_formas_acesso",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_id"
+      ],
+      "firstTableName": "codigo_verificacao",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registro_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "dispositivos_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_id"
+      ],
+      "firstTableName": "token_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registro_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "token_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "eventos_offline_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "token_id"
+      ],
+      "firstTableName": "eventos_offline_dispositivo",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "token_dispositivo",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    }
+  ]
+}

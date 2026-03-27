@@ -3,7 +3,6 @@ package com.eickrono.api.contas.infraestrutura.configuracao;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
@@ -117,13 +116,14 @@ public class SegurancaConfiguracao {
     }
 
     @Bean
+    @SuppressWarnings("null")
     public CorsConfigurationSource corsConfigurationSource(CorsProperties corsProperties) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsProperties.getOrigensPermitidas());
         configuration.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Device-Token"));
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(Objects.requireNonNull(Duration.ofHours(1)));
+        configuration.setMaxAge(Duration.ofHours(1));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -131,12 +131,13 @@ public class SegurancaConfiguracao {
     }
 
     @Bean
+    @SuppressWarnings("null")
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCacheNames(List.of("jwks-cache"));
-        cacheManager.setCaffeine(Objects.requireNonNull(Caffeine.newBuilder()
+        cacheManager.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(5))
-                .maximumSize(1_000)));
+                .maximumSize(1_000));
         return cacheManager;
     }
 

@@ -2,6 +2,7 @@ package com.eickrono.api.identidade.apresentacao.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,7 +14,6 @@ import com.eickrono.api.identidade.support.InfraestruturaTesteIdentidade;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Objects;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -21,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @SpringBootTest(classes = AplicacaoApiIdentidade.class)
 @AutoConfigureMockMvc
@@ -39,14 +40,11 @@ class AtestacaoAppInternaControllerIT {
     @Autowired
     private DesafioAtestacaoAppRepositorio desafioRepositorio;
 
-    @AfterEach
-    void limparBanco() {
-        desafioRepositorio.deleteAll();
-    }
-
     @Test
     void deveGerarDesafioInternoComSegredoValido() throws Exception {
+        desafioRepositorio.deleteAll();
         mockMvc.perform(post("/identidade/atestacoes/interna/desafios")
+                        .with(jwtInternoFlashcard())
                         .header("X-Eickrono-Internal-Secret", SEGREDO_INTERNO)
                         .header("X-Eickrono-Client-Ip", "10.10.10.1")
                         .header("X-Eickrono-Client-User-Agent", "JUnit/MockMvc")
@@ -54,7 +52,11 @@ class AtestacaoAppInternaControllerIT {
                         .content("""
                                 {
                                   "operacao": "LOGIN",
-                                  "plataforma": "ANDROID"
+                                  "plataforma": "ANDROID",
+                                  "usuarioSub": "sub-teste",
+                                  "pessoaIdPerfil": 99,
+                                  "cadastroId": "6cc70d55-3f39-4e2f-8f11-df45f0e3b911",
+                                  "registroDispositivoId": "b4db9c0d-7068-44ff-b54e-bfd0a2db470e"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -65,15 +67,29 @@ class AtestacaoAppInternaControllerIT {
 
         assertThat(desafioRepositorio.findAll())
                 .singleElement()
-                .extracting(DesafioAtestacaoApp::getIpSolicitante, DesafioAtestacaoApp::getUserAgentSolicitante)
-                .containsExactly("10.10.10.1", "JUnit/MockMvc");
+                .extracting(
+                        DesafioAtestacaoApp::getIpSolicitante,
+                        DesafioAtestacaoApp::getUserAgentSolicitante,
+                        DesafioAtestacaoApp::getUsuarioSub,
+                        DesafioAtestacaoApp::getPessoaIdPerfil,
+                        DesafioAtestacaoApp::getCadastroId,
+                        DesafioAtestacaoApp::getRegistroDispositivoId)
+                .containsExactly(
+                        "10.10.10.1",
+                        "JUnit/MockMvc",
+                        "sub-teste",
+                        99L,
+                        java.util.UUID.fromString("6cc70d55-3f39-4e2f-8f11-df45f0e3b911"),
+                        java.util.UUID.fromString("b4db9c0d-7068-44ff-b54e-bfd0a2db470e"));
     }
 
     @Test
     void deveValidarComprovanteInternoEConsumirDesafio() throws Exception {
+        desafioRepositorio.deleteAll();
         JsonNode desafio = criarDesafio("IOS");
 
         mockMvc.perform(post("/identidade/atestacoes/interna/validacoes")
+                        .with(jwtInternoFlashcard())
                         .header("X-Eickrono-Internal-Secret", SEGREDO_INTERNO)
                         .contentType(APPLICATION_JSON)
                         .content("""
@@ -102,7 +118,9 @@ class AtestacaoAppInternaControllerIT {
 
     @Test
     void deveRecusarSegredoInternoInvalido() throws Exception {
+        desafioRepositorio.deleteAll();
         mockMvc.perform(post("/identidade/atestacoes/interna/desafios")
+                        .with(jwtInternoFlashcard())
                         .header("X-Eickrono-Internal-Secret", "segredo-invalido")
                         .contentType(APPLICATION_JSON)
                         .content("""
@@ -116,6 +134,7 @@ class AtestacaoAppInternaControllerIT {
 
     private JsonNode criarDesafio(final String plataforma) throws Exception {
         String corpo = mockMvc.perform(post("/identidade/atestacoes/interna/desafios")
+                        .with(jwtInternoFlashcard())
                         .header("X-Eickrono-Internal-Secret", SEGREDO_INTERNO)
                         .contentType(APPLICATION_JSON)
                         .content("""
@@ -129,5 +148,12 @@ class AtestacaoAppInternaControllerIT {
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(Objects.requireNonNull(corpo));
+    }
+
+    private RequestPostProcessor jwtInternoFlashcard() {
+        return jwt().jwt(jwt -> jwt
+                .subject("service-account-flashcard-servidor-interno")
+                .claim("azp", "flashcard-servidor-interno")
+                .claim("preferred_username", "service-account-flashcard-servidor-interno"));
     }
 }

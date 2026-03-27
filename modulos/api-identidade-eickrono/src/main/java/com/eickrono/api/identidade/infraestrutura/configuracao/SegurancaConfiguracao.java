@@ -3,9 +3,15 @@ package com.eickrono.api.identidade.infraestrutura.configuracao;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.eickrono.api.identidade.aplicacao.servico.TokenDispositivoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import org.apache.catalina.connector.Connector;
+import org.apache.tomcat.util.net.SSLHostConfig;
+import org.apache.tomcat.util.net.SSLHostConfigCertificate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.security.oauth2.resource.OAuth2ResourceServerProperties;
@@ -16,6 +22,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -39,7 +46,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  */
 @Configuration
 @EnableConfigurationProperties({FapiProperties.class, CorsProperties.class, TlsMutuoProperties.class, SwaggerSegurancaProperties.class,
-        IntegracaoInternaProperties.class, AtestacaoAppProperties.class, SessaoInternaKeycloakProperties.class})
+        IntegracaoInternaProperties.class, AtestacaoAppProperties.class, SessaoInternaKeycloakProperties.class,
+        CadastroInternoKeycloakProperties.class})
 public class SegurancaConfiguracao {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SegurancaConfiguracao.class);
@@ -53,16 +61,30 @@ public class SegurancaConfiguracao {
     private static final List<String> CORS_CABECALHOS = List.of("Authorization", "Content-Type", "X-Device-Token");
     private static final AntPathRequestMatcher ACTUATOR_HEALTH_MATCHER = AntPathRequestMatcher.antMatcher("/actuator/health");
     private static final AntPathRequestMatcher ACTUATOR_INFO_MATCHER = AntPathRequestMatcher.antMatcher("/actuator/info");
+    private static final AntPathRequestMatcher ERROR_MATCHER = AntPathRequestMatcher.antMatcher("/error");
     private static final AntPathRequestMatcher JWKS_PUBLICAS_MATCHER =
             AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/.well-known/chaves-publicas");
     private static final AntPathRequestMatcher REGISTRO_DISPOSITIVO_MATCHER =
             AntPathRequestMatcher.antMatcher("/identidade/dispositivos/registro/**");
-    private static final AntPathRequestMatcher ATESTACAO_INTERNA_MATCHER =
-            AntPathRequestMatcher.antMatcher("/identidade/atestacoes/interna/**");
-    private static final AntPathRequestMatcher SESSAO_INTERNA_MATCHER =
-            AntPathRequestMatcher.antMatcher(HttpMethod.POST, "/identidade/sessoes/interna");
-    private static final AntPathRequestMatcher VALIDACAO_TOKEN_INTERNA_MATCHER =
-            AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/identidade/dispositivos/token/validacao/interna");
+
+    @Bean
+    @Order(0)
+    public SecurityFilterChain internalApiSecurity(HttpSecurity http,
+                                                   ConversorJwtFapi conversor) throws Exception {
+        http.securityMatcher(
+                        "/identidade/atestacoes/interna/**",
+                        "/identidade/sessoes/interna",
+                        "/identidade/cadastros/interna",
+                        "/identidade/cadastros/interna/**",
+                        "/identidade/dispositivos/token/validacao/interna"
+                )
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
+        return http.build();
+    }
 
     @Bean
     public SecurityFilterChain apiSecurity(HttpSecurity http,
@@ -75,23 +97,23 @@ public class SegurancaConfiguracao {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(ACTUATOR_HEALTH_MATCHER, ACTUATOR_INFO_MATCHER).permitAll()
+                        .requestMatchers(ERROR_MATCHER).permitAll()
                         .requestMatchers(JWKS_PUBLICAS_MATCHER).permitAll()
                         .requestMatchers(REGISTRO_DISPOSITIVO_MATCHER).permitAll()
-                        .requestMatchers(ATESTACAO_INTERNA_MATCHER).permitAll()
-                        .requestMatchers(SESSAO_INTERNA_MATCHER).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/identidade/perfil")
-                        .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
-                        .requestMatchers(HttpMethod.GET, "/identidade/vinculos-sociais")
-                        .hasAnyAuthority("SCOPE_vinculos:ler", "ROLE_cliente")
-                        .requestMatchers(HttpMethod.POST, "/identidade/vinculos-sociais")
-                        .hasAuthority("SCOPE_vinculos:escrever")
+                        .requestMatchers("/api/publica/atestacoes/**").permitAll()
+                        .requestMatchers("/api/publica/cadastros/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/publica/sessoes").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/publica/sessoes/refresh").permitAll()
+                        .requestMatchers("/api/publica/recuperacoes-senha/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/identidade/perfil").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/identidade/vinculos-sociais").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/identidade/vinculos-sociais").permitAll()
                         .requestMatchers(HttpMethod.POST, "/identidade/dispositivos/revogar")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
                         .requestMatchers(HttpMethod.GET, "/identidade/dispositivos/offline/politica")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
                         .requestMatchers(HttpMethod.POST, "/identidade/dispositivos/offline/eventos")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
-                        .requestMatchers(VALIDACAO_TOKEN_INTERNA_MATCHER).permitAll()
                         .anyRequest()
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(conversor)));
@@ -115,12 +137,14 @@ public class SegurancaConfiguracao {
         if (!properties.isHabilitado()) {
             return new TomcatServletWebServerFactory();
         }
-        validarCampo(properties.getKeystoreArquivo(), "Keystore obrigatório para mTLS");
-        validarCampo(properties.getKeystoreSenha(), "Senha do keystore obrigatória para mTLS");
-        validarCampo(properties.getTruststoreArquivo(), "Truststore obrigatório para mTLS");
-        validarCampo(properties.getTruststoreSenha(), "Senha do truststore obrigatória para mTLS");
+        validarMtls(properties);
 
         TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory();
+        if (properties.getPortaInterna() > 0) {
+            factory.addAdditionalTomcatConnectors(criarConectorInternoMtls(properties));
+            return factory;
+        }
+
         Ssl ssl = new Ssl();
         ssl.setEnabled(true);
         ssl.setClientAuth(Ssl.ClientAuth.NEED);
@@ -167,7 +191,7 @@ public class SegurancaConfiguracao {
         configuration.setAllowedMethods(CORS_METODOS);
         configuration.setAllowedHeaders(CORS_CABECALHOS);
         configuration.setAllowCredentials(true);
-        configuration.setMaxAge(Objects.requireNonNull(CORS_MAX_AGE));
+        configuration.setMaxAge(CORS_MAX_AGE);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -178,9 +202,9 @@ public class SegurancaConfiguracao {
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCacheNames(List.of(CACHE_JWKS));
-        cacheManager.setCaffeine(Objects.requireNonNull(Caffeine.newBuilder()
+        cacheManager.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(CACHE_EXPIRACAO_PADRAO)
-                .maximumSize(CACHE_TAMANHO_MAXIMO)));
+                .maximumSize(CACHE_TAMANHO_MAXIMO));
         return cacheManager;
     }
 
@@ -188,6 +212,50 @@ public class SegurancaConfiguracao {
         if (valor == null || valor.isBlank()) {
             throw new IllegalStateException(mensagem);
         }
+    }
+
+    private void validarMtls(final TlsMutuoProperties properties) {
+        validarCampo(properties.getKeystoreArquivo(), "Keystore obrigatório para mTLS");
+        validarCampo(properties.getKeystoreSenha(), "Senha do keystore obrigatória para mTLS");
+        validarCampo(properties.getTruststoreArquivo(), "Truststore obrigatório para mTLS");
+        validarCampo(properties.getTruststoreSenha(), "Senha do truststore obrigatória para mTLS");
+    }
+
+    private Connector criarConectorInternoMtls(final TlsMutuoProperties properties) {
+        Connector connector = new Connector(TomcatServletWebServerFactory.DEFAULT_PROTOCOL);
+        connector.setScheme("https");
+        connector.setSecure(true);
+        connector.setPort(properties.getPortaInterna());
+        connector.setProperty("SSLEnabled", Boolean.TRUE.toString());
+
+        SSLHostConfig sslHostConfig = new SSLHostConfig();
+        sslHostConfig.setSslProtocol("TLS");
+        sslHostConfig.setTruststoreFile(normalizarArquivoSsl(properties.getTruststoreArquivo()));
+        sslHostConfig.setTruststorePassword(properties.getTruststoreSenha());
+        sslHostConfig.setTruststoreType(determinarTipoStore(properties.getTruststoreArquivo()));
+        sslHostConfig.setCertificateVerification("required");
+
+        SSLHostConfigCertificate certificate =
+                new SSLHostConfigCertificate(sslHostConfig, SSLHostConfigCertificate.Type.UNDEFINED);
+        certificate.setCertificateKeystoreFile(normalizarArquivoSsl(properties.getKeystoreArquivo()));
+        certificate.setCertificateKeystorePassword(properties.getKeystoreSenha());
+        certificate.setCertificateKeystoreType(determinarTipoStore(properties.getKeystoreArquivo()));
+        sslHostConfig.addCertificate(certificate);
+        connector.addSslHostConfig(sslHostConfig);
+        return connector;
+    }
+
+    private String normalizarArquivoSsl(final String localizacao) {
+        String valor = Objects.requireNonNull(localizacao, "Arquivo SSL é obrigatório").trim();
+        if (valor.startsWith("file:")) {
+            return Path.of(URI.create(valor)).toString();
+        }
+        return valor;
+    }
+
+    private String determinarTipoStore(final String localizacao) {
+        String normalizado = normalizarArquivoSsl(localizacao).toLowerCase(Locale.ROOT);
+        return normalizado.endsWith(".jks") ? "JKS" : "PKCS12";
     }
 
     private NimbusJwtDecoder criarDecoder(OAuth2ResourceServerProperties.Jwt jwtProperties) {

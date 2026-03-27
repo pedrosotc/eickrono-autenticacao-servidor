@@ -10,6 +10,7 @@ public class SessaoInternaKeycloakProperties {
     private String realm = "desenvolvimento";
     private String clientId = "app-flutter-local";
     private String clientSecret = "";
+    private String passwordPepper = "";
     private Duration timeout = Duration.ofSeconds(5);
 
     public String getUrlBase() {
@@ -42,6 +43,14 @@ public class SessaoInternaKeycloakProperties {
 
     public void setClientSecret(final String clientSecret) {
         this.clientSecret = clientSecret;
+    }
+
+    public String getPasswordPepper() {
+        return passwordPepper;
+    }
+
+    public void setPasswordPepper(final String passwordPepper) {
+        this.passwordPepper = passwordPepper;
     }
 
     public Duration getTimeout() {

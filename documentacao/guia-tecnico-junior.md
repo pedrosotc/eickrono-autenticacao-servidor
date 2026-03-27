@@ -31,43 +31,31 @@ Este documento introduz a arquitetura e o funcionamento da plataforma de autenti
 4. O App troca o código por tokens de acesso/ID/refresh; Keycloak registra o grant e assinaturas via KMS.
 5. O App consome endpoints da API de Identidade usando o token. A API valida escopos, audiência (`aud`) e nonce, consulta o banco e devolve o resultado.
 
-## Registro e vinculação de dispositivos móveis
+## Dispositivo e `X-Device-Token`
 
-Esse fluxo garante que cada instalação do App Flutter possua um `device_token` exclusivo, protegido por verificação por canais configuráveis, com e-mail sempre obrigatório, SMS opcional por política e expiração caso não seja concluído.
+O desenho canônico atual não usa uma tela dedicada de registro de dispositivo no app.
 
-1. **Solicitação de registro**  
-   - O App envia `POST /identidade/dispositivos/registro` com e-mail informado, fingerprint do aparelho (modelo, plataforma, chave pública), versão da aplicação e do SO. O telefone só é exigido quando a política de SMS estiver habilitada.  
-   - A API cria um `RegistroDispositivo` com status `PENDENTE` e define `expiraEm = criadoEm + 9h`. Sempre gera uma entrada de verificação (`CodigoVerificacao`) para **EMAIL** e pode gerar outra para **SMS**, conforme a política ativa.  
-   - Implementações de `CanalEnvioCodigo` acionam provedores externos (ou stubs locais em dev/hml). No caso de SMS, o canal delega para um `FornecedorEnvioSms`, permitindo trocar o provedor sem mexer na regra de domínio. O `registroId` retornado é utilizado pelo App para acompanhar o processo.
+1. **Login do app**  
+   - O App envia login, senha, atestação nativa e metadados do aparelho para `POST /api/publica/sessoes`.  
+   - A API valida a credencial, valida a atestação e calcula a confiança do aparelho.  
+   - Quando o contexto estiver aceitável, a própria autenticação cria ou atualiza o vínculo do dispositivo e já emite o `X-Device-Token` na resposta do login.
 
-2. **Usuário existente**  
-   - Durante a criação, o serviço tenta localizar o usuário pelo e-mail informado ou pelo `sub` recebido do Keycloak (quando o app solicita o registro já autenticado).  
-   - Havendo correspondência, os `DispositivoToken` ativos são marcados como `REVOGADO` e a sessão atual será a única autorizada quando a verificação terminar.
+2. **Persistência do token**  
+   - O App salva o `X-Device-Token` junto da sessão autenticada.  
+   - Todas as requisições subsequentes às APIs protegidas usam `Authorization: Bearer ...` e `X-Device-Token: ...`.
 
-3. **Usuário novo**  
-   - Se não houver usuário vinculado, o `RegistroDispositivo` permanece associado ao e-mail e, quando houver SMS habilitado, também ao telefone fornecido.  
-   - Após a confirmação, a API promove o registro para `CONFIRMADO`, emite o primeiro `DispositivoToken` e dispara evento interno para criação do usuário definitivo no Keycloak via SPI dedicada (detalhada no `guia-arquitetura.md`).
+3. **Refresh vinculado ao dispositivo**  
+   - No refresh, o cliente envia o `device_token` ao Keycloak.  
+   - A SPI do Keycloak consulta a API de identidade para validar o token.  
+   - Se o token estiver revogado, expirado, inválido ou ausente, o refresh falha.
 
-4. **Confirmação dos códigos**  
-   - O App solicita que a pessoa usuária informe os códigos recebidos e envia ao menos o código de e-mail via `POST /identidade/dispositivos/registro/{id}/confirmacao`. O código de SMS só é exigido se o registro tiver sido criado com esse canal.  
-   - A API valida: existência do registro, status `PENDENTE`, ausência de expiração (`agora <= expiraEm`), tentativas disponíveis (`tentativas < limite`) e correspondência dos hashes. Cada canal é marcado como `VALIDADO` individualmente.  
-   - Quando todos os canais daquele registro estão válidos, o registro muda para `CONFIRMADO`, gera um `DispositivoToken` opaco (UUID + assinatura HMAC), armazena o hash e devolve o token ao App em DTO próprio.
+4. **Validação adicional**  
+   - Se a autenticação decidir que o usuário precisa validar novamente um contato, o app deve reutilizar a mesma tela de verificação de e-mail/telefone já existente.  
+   - Não existe mais uma etapa obrigatória e separada de “registrar dispositivo” no app.
 
-5. **Expiração e cancelamento**  
-   - Um job `RegistroDispositivoScheduler` executa a cada 15 minutos `RegistroDispositivoService.expirarRegistros()`, marcando como `EXPIRADO` entradas com `expiraEm` ultrapassado.  
-   - Ao expirar, os códigos são invalidados, o App recebe `410 Gone` ao tentar confirmar e precisa reiniciar o fluxo.
-
-6. **Revogação automática**  
-   - Se um novo aparelho confirmar, todos os `DispositivoToken` anteriores do mesmo usuário com fingerprint distinta são marcados como `REVOGADO` com motivo `NOVO_DISPOSITIVO_CONFIRMANDO`.  
-   - Um endpoint adicional `POST /identidade/dispositivos/revogar` (autenticado com Bearer token + device token) permite que o cliente invalide a própria sessão se necessário.
-
-7. **Persistência e auditoria**  
-   - Tabelas criadas pelo Flyway (`V2__criar_tabelas_registro_dispositivo.sql`): `registro_dispositivo`, `codigo_verificacao` e `token_dispositivo`.  
-   - Eventos registrados em `AuditoriaEventoIdentidade`: `DISPOSITIVO_REGISTRO_SOLICITADO`, `DISPOSITIVO_VERIFICACAO_SUCESSO`, `DISPOSITIVO_REGISTRO_EXPIRADO`, `DISPOSITIVO_TOKEN_REVOGADO`.
-
-8. **Integração com o App Flutter**  
-   - O token retornado é salvo no `RepositorioAutenticacaoSecureStorage`, que passa a manipular `device_token` além das credenciais locais.  
-   - Todas as requisições subsequentes ao BFF ou APIs incluem o token no header `X-Device-Token`. Requisições com token revogado retornam `423 Locked`, forçando o App a reiniciar o registro.
+5. **Fluxos excepcionais**  
+   - As rotas explícitas de `POST /identidade/dispositivos/registro` e `POST /identidade/dispositivos/registro/{id}/confirmacao` continuam existindo para cenários excepcionais, manutenção e compatibilidade transitória.  
+   - Elas não representam mais o fluxo principal do app móvel.
 
 ## Fluxo para clientes confidenciais (BFF, integrações internas)
 

@@ -4,12 +4,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.OffsetDateTime;
@@ -22,8 +19,8 @@ import java.util.Optional;
 @Entity
 @Table(
         name = "dispositivos_identidade",
-        uniqueConstraints = @UniqueConstraint(name = "uk_dispositivos_identidade_pessoa_fingerprint",
-                columnNames = {"pessoa_id", "fingerprint"})
+        uniqueConstraints = @UniqueConstraint(name = "uk_dispositivos_identidade_usuario_fingerprint",
+                columnNames = {"usuario_sub", "fingerprint"})
 )
 public class DispositivoIdentidade {
 
@@ -31,9 +28,11 @@ public class DispositivoIdentidade {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pessoa_id", nullable = false)
-    private Pessoa pessoa;
+    @Column(name = "usuario_sub", nullable = false)
+    private String usuarioSub;
+
+    @Column(name = "pessoa_id_perfil")
+    private Long pessoaIdPerfil;
 
     @Column(nullable = false)
     private String fingerprint;
@@ -64,7 +63,8 @@ public class DispositivoIdentidade {
         // Construtor do JPA.
     }
 
-    public DispositivoIdentidade(Pessoa pessoa,
+    public DispositivoIdentidade(String usuarioSub,
+                                 Long pessoaIdPerfil,
                                  String fingerprint,
                                  String plataforma,
                                  String versaoAplicativo,
@@ -72,7 +72,8 @@ public class DispositivoIdentidade {
                                  StatusDispositivoIdentidade status,
                                  OffsetDateTime criadoEm,
                                  OffsetDateTime atualizadoEm) {
-        this.pessoa = Objects.requireNonNull(pessoa, "pessoa é obrigatória");
+        this.usuarioSub = Objects.requireNonNull(usuarioSub, "usuarioSub é obrigatório");
+        this.pessoaIdPerfil = pessoaIdPerfil;
         this.fingerprint = Objects.requireNonNull(fingerprint, "fingerprint é obrigatório");
         this.plataforma = Objects.requireNonNull(plataforma, "plataforma é obrigatória");
         this.versaoAplicativo = versaoAplicativo;
@@ -82,12 +83,37 @@ public class DispositivoIdentidade {
         this.atualizadoEm = Objects.requireNonNull(atualizadoEm, "atualizadoEm é obrigatório");
     }
 
+    public DispositivoIdentidade(final Pessoa pessoa,
+                                 final String fingerprint,
+                                 final String plataforma,
+                                 final String versaoAplicativo,
+                                 final String chavePublica,
+                                 final StatusDispositivoIdentidade status,
+                                 final OffsetDateTime criadoEm,
+                                 final OffsetDateTime atualizadoEm) {
+        this(
+                Objects.requireNonNull(pessoa, "pessoa é obrigatória").getSub(),
+                pessoa.getId(),
+                fingerprint,
+                plataforma,
+                versaoAplicativo,
+                chavePublica,
+                status,
+                criadoEm,
+                atualizadoEm
+        );
+    }
+
     public Long getId() {
         return id;
     }
 
-    public Pessoa getPessoa() {
-        return pessoa;
+    public String getUsuarioSub() {
+        return usuarioSub;
+    }
+
+    public Optional<Long> getPessoaIdPerfil() {
+        return Optional.ofNullable(pessoaIdPerfil);
     }
 
     public String getFingerprint() {
@@ -129,6 +155,14 @@ public class DispositivoIdentidade {
         this.plataforma = Objects.requireNonNull(novaPlataforma, "plataforma é obrigatória");
         this.versaoAplicativo = novaVersaoAplicativo;
         this.chavePublica = novaChavePublica;
+        this.atualizadoEm = Objects.requireNonNull(momento, "momento é obrigatório");
+    }
+
+    public void atualizarPessoaIdPerfil(final Long novaPessoaIdPerfil, final OffsetDateTime momento) {
+        if (novaPessoaIdPerfil == null || Objects.equals(this.pessoaIdPerfil, novaPessoaIdPerfil)) {
+            return;
+        }
+        this.pessoaIdPerfil = novaPessoaIdPerfil;
         this.atualizadoEm = Objects.requireNonNull(momento, "momento é obrigatório");
     }
 

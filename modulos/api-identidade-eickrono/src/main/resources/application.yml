@@ -14,6 +14,17 @@ spring:
       hibernate.jdbc.time_zone: UTC
   cache:
     type: caffeine
+  mail:
+    host: ${SPRING_MAIL_HOST:}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SPRING_MAIL_SMTP_AUTH:true}
+      mail.smtp.starttls.enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:true}
+      mail.smtp.connectiontimeout: ${SPRING_MAIL_SMTP_CONNECTION_TIMEOUT:5000}
+      mail.smtp.timeout: ${SPRING_MAIL_SMTP_TIMEOUT:5000}
+      mail.smtp.writetimeout: ${SPRING_MAIL_SMTP_WRITE_TIMEOUT:5000}
   jackson:
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
@@ -51,13 +62,37 @@ identidade:
       numero-projeto-nuvem-android: ${IDENTIDADE_ATESTACAO_APP_ANDROID_NUMERO_PROJETO_NUVEM:}
       permitir-validacao-local-sem-provedor-oficial: false
       google:
-        habilitado: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO:false}
+        habilitado: false
         package-name: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_PACKAGE_NAME:}
         service-account-json-arquivo: ${IDENTIDADE_ATESTACAO_APP_GOOGLE_SERVICE_ACCOUNT_JSON_ARQUIVO:}
         tolerancia-tempo-token: PT2M
         exigir-play-recognized: true
         exigir-device-integrity: true
         exigir-licenciado: true
+      apple:
+        habilitado: false
+        team-identifier: ${IDENTIDADE_ATESTACAO_APP_APPLE_TEAM_IDENTIFIER:}
+        bundle-identifier: ${IDENTIDADE_ATESTACAO_APP_APPLE_BUNDLE_IDENTIFIER:}
+        root-ca-arquivo: ${IDENTIDADE_ATESTACAO_APP_APPLE_ROOT_CA_ARQUIVO:classpath:certificados/Apple_App_Attestation_Root_CA.pem}
+  cadastro:
+    email:
+      fornecedor: ${IDENTIDADE_CADASTRO_EMAIL_FORNECEDOR:log}
+      remetente: ${IDENTIDADE_CADASTRO_EMAIL_REMETENTE:no-reply@eickrono.local}
+      responder-para: ${IDENTIDADE_CADASTRO_EMAIL_RESPONDER_PARA:}
+      assunto: ${IDENTIDADE_CADASTRO_EMAIL_ASSUNTO:Codigo de confirmacao do cadastro}
+      assunto-recuperacao-senha: ${IDENTIDADE_CADASTRO_EMAIL_ASSUNTO_RECUPERACAO_SENHA:Codigo de recuperacao de senha}
+      nome-aplicacao: ${IDENTIDADE_CADASTRO_EMAIL_NOME_APLICACAO:Eickrono}
+    interna:
+      keycloak:
+        url-base: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_URL_BASE:http://localhost:8080}
+        admin-realm: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_ADMIN_REALM:master}
+        realm: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_REALM:desenvolvimento}
+        client-id: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_CLIENT_ID:admin-cli}
+        client-secret: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_CLIENT_SECRET:}
+        admin-username: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_ADMIN_USERNAME:admin}
+        admin-password: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_ADMIN_PASSWORD:admin}
+        password-pepper: ${EICKRONO_PASSWORD_PEPPER:}
+        timeout: PT5S
   sessao:
     interna:
       keycloak:
@@ -65,6 +100,7 @@ identidade:
         realm: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_REALM:desenvolvimento}
         client-id: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID:app-flutter-local}
         client-secret: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_SECRET:}
+        password-pepper: ${EICKRONO_PASSWORD_PEPPER:}
         timeout: PT5S
   dispositivo:
     onboarding:
@@ -127,3 +163,15 @@ logging:
 integracao:
   interna:
     segredo: ${EICKRONO_INTERNAL_SECRET:local-internal-secret}
+    clientes-permitidos:
+      - ${INTEGRACAO_INTERNA_CLIENTE_FLASHCARD:flashcard-servidor-interno}
+      - ${INTEGRACAO_INTERNA_CLIENTE_AUTORIZACAO:servidor-autorizacao-interno}
+  perfil:
+    url-base: ${INTEGRACAO_PERFIL_URL_BASE:http://localhost:8082}
+    timeout: ${INTEGRACAO_PERFIL_TIMEOUT:PT5S}
+    jwt-interno:
+      url-base: ${INTEGRACAO_PERFIL_JWT_INTERNO_URL_BASE:http://localhost:8080}
+      realm: ${INTEGRACAO_PERFIL_JWT_INTERNO_REALM:desenvolvimento}
+      client-id: ${INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_ID:autenticacao-servidor-interno}
+      client-secret: ${INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_SECRET:CHANGE_ME}
+      timeout: ${INTEGRACAO_PERFIL_JWT_INTERNO_TIMEOUT:PT5S}

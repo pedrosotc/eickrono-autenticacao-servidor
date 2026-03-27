@@ -66,43 +66,24 @@ sequenceDiagram
 
 ---
 
-## Caso 2 – Registro e confirmação de dispositivo móvel
+## Caso 2 – Emissão silenciosa de `device_token` no login móvel
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as Pessoa usuária
     participant App as App Flutter
     participant APII as API Identidade
     participant DB as PostgreSQL (schema identidade)
-    participant SMS as Provedor SMS
-    participant Email as Provedor E-mail
-    participant Job as Scheduler (expiração)
-    participant KC as Keycloak (SPI de provisionamento)
+    participant KC as Keycloak
 
-    U->>App: 1. Informa e-mail, telefone e fingerprint do aparelho
-    App->>APII: 2. POST /identidade/dispositivos/registro
-    APII->>DB: 3. Cria RegistroDispositivo (status PENDENTE, expira +9h)
-    APII->>DB: 4. Gera dois CodigoVerificacao (SMS/EMAIL)
-    APII->>SMS: 5. Dispara código por SMS (stub em dev/hml)
-    APII->>Email: 6. Dispara código por e-mail
-    APII-->>App: 7. Retorna registroId + expiraEm
-
-    %% Confirmação de códigos
-    U->>App: 8. Informa códigos recebidos
-    App->>APII: 9. POST /identidade/dispositivos/registro/{id}/confirmacao
-    APII->>DB: 10. Valida hash + tentativas dos códigos
-    APII->>DB: 11. Marca canais como VALIDADO
-    APII->>DB: 12. Atualiza registro (CONFIRMADO) + gera DispositivoToken
-    APII->>KC: 13. Invoca SPI para vincular dispositivo ao usuário (quando autenticado)
-    APII-->>App: 14. Retorna token opaco do dispositivo
-
-    %% Pós-processamento
-    Job->>DB: 15. Varre registros vencidos (status EXPIRADO)
-    APII->>DB: 16. Revoga tokens antigos do mesmo usuário (quando necessário)
+    App->>APII: 1. POST /api/publica/sessoes (login + atestacao + metadados)
+    APII->>KC: 2. Valida credenciais
+    APII->>DB: 3. Avalia/aprova o contexto do dispositivo
+    APII->>DB: 4. Gera ou atualiza token de dispositivo
+    APII-->>App: 5. Retorna access token + refresh token + X-Device-Token
 ```
 
-**Resumo:** este fluxo prepara o dispositivo móvel para operações sensíveis. A API cria registros pendentes, envia códigos por SMS/E-mail e somente após a confirmação dupla libera um `DispositivoToken`. O scheduler remove registros não confirmados. Em ambientes autenticados, o SPI do Keycloak sincroniza o dispositivo no realm.
+**Resumo:** o fluxo canônico do app móvel não usa mais uma tela separada de registro de dispositivo. A autenticação decide a confiança do aparelho e emite o `X-Device-Token` já no login. Quando alguma validação adicional for necessária, o app deve reaproveitar a mesma tela de verificação de contato do cadastro/recuperação.
 
 ---
 

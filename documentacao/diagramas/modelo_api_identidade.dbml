@@ -1,0 +1,254 @@
+// ====================================================================================================
+// PROJETO: Eickrono Autenticacao - API Identidade
+// FORMATO: DBML (Database Markup Language)
+// BANCO DE DADOS: PostgreSQL
+// ----------------------------------------------------------------------------------------------------
+// Este arquivo representa a base relacional do projeto Java do servidor de autenticacao, conforme o
+// estado programado hoje nas migrations V1..V7 e nas entidades JPA da api-identidade-eickrono.
+//
+// Ligacoes externas relevantes para o contexto geral:
+// - pessoas_identidade.sub espelha o subject remoto do usuario no Keycloak
+// - cadastros_conta.subject_remoto referencia o USER_ENTITY.ID do Keycloak
+// - registro_dispositivo.usuario_sub e token_dispositivo.usuario_sub usam o mesmo identificador
+// ====================================================================================================
+
+Project eickrono_api_identidade {
+    database_type: "PostgreSQL"
+    Note: "Modelo do estado implementado hoje na API Identidade. Ler em quatro camadas: compatibilidade legado (perfis_*), identidade local canonica (pessoas_*), processos efemeros de onboarding/cadastro/atestado (cadastros_conta, registro_dispositivo, codigo_verificacao, atestacoes_app_desafios) e confianca persistente do aparelho (dispositivos_identidade, token_dispositivo, eventos_offline_dispositivo). O fluxo real e: cadastro interno cria usuario pendente no Keycloak e espelho local; confirmacao de email libera a conta; registro de dispositivo prova posse dos canais e emite token; atestacao do app protege operacoes sensiveis mesmo antes de existir sessao autenticada."
+}
+
+// ====================================================================================================
+// BLOCO LEGADO DE IDENTIDADE
+// ====================================================================================================
+
+Table perfis_identidade {
+    id            bigint       [pk, increment, note: "Identificador interno legado do perfil de identidade"]
+    sub           varchar(255) [not null, unique, note: "Subject remoto principal do usuario; origem no provedor central de identidade"]
+    email         varchar(255) [not null, unique, note: "Email principal espelhado no modelo legado"]
+    nome          varchar(255) [not null, note: "Nome canonicamente conhecido no modelo legado"]
+    atualizado_em timestamptz  [not null, note: "Momento da ultima sincronizacao/atualizacao do perfil legado"]
+    Note: "Projecao legada ainda mantida viva por ProvisionamentoIdentidadeService.sincronizarPerfilLegado. Nao e mais a raiz do dominio, mas continua sendo atualizada para nao quebrar consumidores antigos que ainda leem o modelo perfis_*."
+}
+
+Table perfis_identidade_perfis {
+    perfil_id bigint       [pk, not null, note: "Perfil legado ao qual o papel de perfil textual pertence"]
+    perfil    varchar(255) [pk, not null, note: "Nome textual do perfil atribuido ao usuario no modelo legado"]
+    Note: "Colecao legado de perfis funcionais associada a perfis_identidade. Existe apenas para compatibilidade com o modelo antigo."
+}
+
+Table perfis_identidade_papeis {
+    perfil_id bigint       [pk, not null, note: "Perfil legado ao qual o papel de autorizacao textual pertence"]
+    papel     varchar(255) [pk, not null, note: "Nome textual do papel do usuario no modelo legado"]
+    Note: "Colecao legado de papeis por identidade. Existe para manter a projecao anterior sincronizada com pessoas_identidade."
+}
+
+Table vinculos_sociais {
+    id           bigint       [pk, increment, note: "Identificador interno do vinculo social legado"]
+    perfil_id    bigint       [not null, note: "Perfil legado dono do vinculo social"]
+    provedor     varchar(100) [not null, note: "Alias do provedor social, como GOOGLE ou APPLE"]
+    identificador varchar(255) [not null, note: "Identificador do usuario no provedor social"]
+    vinculado_em timestamptz  [not null, note: "Momento em que o vinculo social foi registrado"]
+    indexes {
+        (perfil_id, provedor) [unique]
+    }
+    Note: "Vinculos sociais do modelo legado. No modelo alvo de negocio, o equivalente funcional passou a ser pessoas_formas_acesso com tipo SOCIAL; esta tabela permanece para compatibilidade historica."
+}
+
+Table auditoria_eventos_identidade {
+    id            bigint       [pk, increment, note: "Identificador interno do evento de auditoria"]
+    tipo_evento   varchar(100) [not null, note: "Tipo funcional do evento auditado"]
+    sujeito       varchar(255) [not null, note: "Sujeito logico do evento; pode ser sub, email ou outro identificador funcional"]
+    registrado_em timestamptz  [not null, note: "Momento exato do registro de auditoria"]
+    detalhes      text         [note: "Carga complementar do evento em formato livre"]
+    Note: "Trilha append-only escrita por AuditoriaService. Registra fatos como solicitacao de registro de dispositivo, confirmacao, expiracao, reenvio, revogacao e reconciliacao offline. Serve para auditoria operacional e observabilidade; nao substitui as tabelas de processo nem o estado do usuario."
+}
+
+// ====================================================================================================
+// MODELO CANONICO LOCAL DE PESSOA E FORMA DE ACESSO
+// ====================================================================================================
+
+Table pessoas_identidade {
+    id            bigint       [pk, increment, note: "Identificador interno canonico da pessoa na API Identidade"]
+    sub           varchar(255) [not null, unique, note: "Chave de integracao com o Keycloak. E o mesmo valor usado em cadastros_conta.subject_remoto, registro_dispositivo.usuario_sub e token_dispositivo.usuario_sub, espelhando USER_ENTITY.ID"]
+    email         varchar(255) [not null, unique, note: "Email principal atual da pessoa no espelho local. Hoje o projeto ainda o trata como atributo direto da pessoa, nao como modulo de contato separado"]
+    nome          varchar(255) [not null, note: "Nome canonico local da pessoa"]
+    atualizado_em timestamptz  [not null, note: "Momento da ultima atualizacao do espelho local da pessoa"]
+    Note: "Raiz canonica local da identidade na API Identidade. E criada ou atualizada por ProvisionamentoIdentidadeService em quatro momentos relevantes ja implementados: provisionamento por JWT/login, cadastro pendente, confirmacao de email do cadastro e resolucao da pessoa durante confirmacao de registro de dispositivo. Responde a pergunta 'quem e este usuario no dominio local', sempre ancorada no sub do Keycloak."
+}
+
+Table pessoas_identidade_perfis {
+    pessoa_id bigint       [pk, not null, note: "Pessoa canonica a quem o perfil textual pertence"]
+    perfil    varchar(255) [pk, not null, note: "Perfil textual atribuido a pessoa no espelho local"]
+    Note: "Colecao canonica de perfis funcionais da pessoa no modelo novo. Alimenta a identidade local, enquanto o bloco perfis_* permanece apenas como projecao legado."
+}
+
+Table pessoas_identidade_papeis {
+    pessoa_id bigint       [pk, not null, note: "Pessoa canonica a quem o papel textual pertence"]
+    papel     varchar(255) [pk, not null, note: "Papel textual atribuido a pessoa no espelho local"]
+    Note: "Colecao canonica de papeis da pessoa. Representa autorizacoes textuais conhecidas localmente pela API Identidade."
+}
+
+Table pessoas_formas_acesso {
+    id            bigint       [pk, increment, note: "Identificador interno da forma de acesso da pessoa"]
+    pessoa_id     bigint       [not null, note: "Pessoa dona desta forma de acesso"]
+    tipo          varchar(50)  [not null, note: "Tipo de acesso local. Valores programados hoje: EMAIL_SENHA e SOCIAL"]
+    provedor      varchar(100) [not null, note: "Origem do acesso. Exemplo: EMAIL, GOOGLE, APPLE"]
+    identificador varchar(255) [not null, note: "Identificador apresentado ao provedor; email no caso local ou id federado no caso social. E esse valor que a API consulta para prevenir duplicidade de conta"]
+    principal     boolean      [not null, default: false, note: "Indica se esta e a forma de acesso principal da pessoa. No fluxo local com EMAIL_SENHA, normalmente existe uma principal por pessoa"]
+    criado_em     timestamptz  [not null, note: "Momento da criacao do vinculo de acesso"]
+    verificado_em timestamptz  [note: "Momento em que a forma de acesso foi verificada. No cadastro nativo, esse campo passa a ser preenchido na confirmacao do email"]
+    indexes {
+        (tipo, provedor, identificador) [unique]
+    }
+    Note: "Mapa operacional de como a pessoa entra no ecossistema. Esta tabela e consultada no cadastro nativo para barrar e-mails ja usados, e atualizada pelo ProvisionamentoIdentidadeService para marcar EMAIL_SENHA como verificado ou para registrar vinculos sociais. Aqui o vinculo com a pessoa e obrigatorio porque a forma de acesso ja pertence a uma identidade resolvida."
+}
+
+// ====================================================================================================
+// CADASTRO NATIVO DE CONTA
+// ====================================================================================================
+
+Table cadastros_conta {
+    id                            bigint       [pk, increment, note: "Identificador interno tecnico da linha de cadastro"]
+    cadastro_id                   uuid         [not null, unique, note: "Identificador publico do processo de cadastro nativo"]
+    subject_remoto                varchar(255) [not null, unique, note: "Identificador do usuario criado no Keycloak em estado pendente. E a ancora tecnica que liga o processo de cadastro ao USER_ENTITY antes da conta ficar liberada"]
+    nome_completo                 varchar(255) [not null, note: "Nome completo informado no cadastro nativo"]
+    email_principal               varchar(255) [not null, unique, note: "Email principal usado para login e confirmacao de cadastro"]
+    status                        varchar(32)  [not null, note: "Estado do processo de cadastro, nao do usuario inteiro. Valores programados hoje: PENDENTE_EMAIL e EMAIL_CONFIRMADO"]
+    codigo_email_hash             varchar(64)  [not null, note: "Hash HMAC do codigo de confirmacao enviado por email. O codigo claro nao e persistido"]
+    codigo_email_gerado_em        timestamptz  [not null, note: "Momento em que o codigo de confirmacao por email foi emitido pelo processo de cadastro"]
+    codigo_email_expira_em        timestamptz  [not null, note: "Prazo maximo de uso do codigo de confirmacao por email"]
+    tentativas_confirmacao_email  integer      [not null, default: 0, note: "Contador de tentativas de confirmacao do codigo de email"]
+    reenvios_email                integer      [not null, default: 0, note: "Contador de reenvios do codigo de email"]
+    email_confirmado_em           timestamptz  [note: "Momento em que o email do cadastro foi efetivamente confirmado e o usuario pendente pode ser ativado no Keycloak"]
+    sistema_solicitante           varchar(64)  [not null, note: "Sistema chamador que iniciou o cadastro interno; no fluxo atual o default do controller e flashcard-servidor"]
+    ip_solicitante                varchar(64)  [note: "Endereco IP observado ao solicitar o cadastro, para trilha operacional do pedido inicial"]
+    user_agent_solicitante        varchar(512) [note: "User-Agent bruto observado ao solicitar o cadastro, quando o chamador o encaminha"]
+    criado_em                     timestamptz  [not null, note: "Momento da criacao do processo de cadastro"]
+    atualizado_em                 timestamptz  [not null, note: "Momento da ultima mutacao do processo de cadastro"]
+    Note: "Processo de pre-cadastro nativo de conta. E criado por CadastroContaInternaServico.cadastrar, exposto em POST /identidade/cadastros/interna, depois que o Keycloak ja recebeu um USER_ENTITY pendente; e consumido por confirmarEmail em POST /identidade/cadastros/interna/{cadastroId}/confirmacoes/email. Nao e a tabela mestre da pessoa: o espelho local da identidade fica em pessoas_identidade, enquanto esta tabela representa apenas a jornada de confirmacao do cadastro."
+}
+
+// ====================================================================================================
+// ONBOARDING E CONFIANCA DE DISPOSITIVO
+// ====================================================================================================
+
+Table registro_dispositivo {
+    id            uuid         [pk, note: "Identificador publico do processo de onboarding do dispositivo"]
+    usuario_sub   varchar(255) [note: "Subject do usuario ao qual o onboarding foi associado. Pode nascer nulo quando o fluxo comeca antes do login e ser definido apenas na confirmacao, depois de localizar ou provisionar a pessoa"]
+    email         varchar(255) [not null, note: "Canal minimo obrigatorio do fluxo atual de onboarding. E usado para envio e validacao do codigo de verificacao por email"]
+    telefone      varchar(32)  [note: "Canal adicional do onboarding. Era obrigatorio na V2 e tornou-se opcional na V4; so participa quando SMS esta habilitado"]
+    fingerprint   varchar(255) [not null, note: "Fingerprint funcional do aparelho enviado pelo app. E a base para consolidar o processo efemero no dispositivo persistente"]
+    plataforma    varchar(100) [not null, note: "Plataforma do aparelho, como ANDROID ou IOS"]
+    versao_app    varchar(32)  [note: "Versao do app no momento do onboarding"]
+    chave_publica text         [note: "Chave publica do aparelho para futuros fluxos de prova de posse"]
+    status        varchar(32)  [not null, note: "Estado do processo de onboarding do dispositivo. Valores programados: PENDENTE, CONFIRMADO, EXPIRADO, BLOQUEADO e CANCELADO. Quando passa para CONFIRMADO, o codigo cria/atualiza dispositivos_identidade e emite token_dispositivo"]
+    criado_em     timestamptz  [not null, note: "Momento em que o onboarding foi solicitado"]
+    expira_em     timestamptz  [not null, note: "Prazo maximo de confirmacao do onboarding"]
+    confirmado_em timestamptz  [note: "Momento em que o onboarding foi confirmado com sucesso"]
+    cancelado_em  timestamptz  [note: "Momento terminal sem sucesso. O codigo atual reutiliza este campo tambem para EXPIRADO e BLOQUEADO, nao apenas para cancelamento explicito"]
+    reenvios      integer      [not null, default: 0, note: "Quantidade de reenvios do fluxo como um todo"]
+    Note: "Entidade raiz do onboarding do dispositivo. E criada por RegistroDispositivoService.solicitarRegistro em POST /identidade/dispositivos/registro, confirmada em POST /identidade/dispositivos/registro/{id}/confirmacao e pode receber reenvio em POST /identidade/dispositivos/registro/{id}/reenviar. Nao e a identidade persistente do aparelho; e apenas a jornada efemera de prova de posse dos canais e do fingerprint."
+}
+
+Table codigo_verificacao {
+    id                 uuid         [pk, note: "Identificador do codigo de verificacao por canal"]
+    registro_id        uuid         [not null, note: "Registro de dispositivo ao qual este codigo pertence"]
+    canal              varchar(16)  [not null, note: "Canal de verificacao. Valores programados hoje: SMS e EMAIL. No fluxo atual, EMAIL e sempre criado; SMS depende de configuracao"]
+    destino            varchar(255) [not null, note: "Destino efetivo do codigo, como numero de telefone ou endereco de email"]
+    codigo_hash        varchar(128) [not null, note: "Hash do codigo de verificacao enviado ao usuario"]
+    tentativas         integer      [not null, note: "Quantidade atual de tentativas de confirmacao neste canal"]
+    tentativas_maximas integer      [not null, note: "Limite de tentativas antes de bloquear o canal"]
+    reenvios           integer      [not null, note: "Quantidade atual de reenvios neste canal"]
+    reenvios_maximos   integer      [not null, note: "Limite de reenvios permitidos neste canal"]
+    status             varchar(32)  [not null, note: "Estado do codigo dentro do seu canal. Valores programados hoje: PENDENTE, CONFIRMADO, EXPIRADO e BLOQUEADO"]
+    enviado_em         timestamptz  [note: "Momento do ultimo envio do codigo"]
+    confirmado_em      timestamptz  [note: "Momento da confirmacao bem sucedida deste canal"]
+    expira_em          timestamptz  [not null, note: "Prazo maximo de validade do codigo neste canal"]
+    indexes {
+        (registro_id, canal) [unique]
+    }
+    Note: "Subprocesso por canal do registro_dispositivo. E gerado em solicitarRegistro, pode ser substituido em reenviarCodigos e e consumido em confirmarRegistro. O vinculo correto e com o registro, nao com a pessoa, porque o usuario ainda pode nao estar resolvido quando os codigos nascem."
+}
+
+Table dispositivos_identidade {
+    id                      bigint       [pk, increment, note: "Identificador interno da identidade persistente do aparelho"]
+    pessoa_id               bigint       [not null, note: "Pessoa local dona do aparelho confiavel"]
+    fingerprint             varchar(255) [not null, note: "Fingerprint funcional do aparelho dentro do dominio de identidade"]
+    plataforma              varchar(100) [not null, note: "Plataforma atual conhecida do aparelho"]
+    versao_app              varchar(100) [note: "Versao mais recente do app observada para este aparelho"]
+    chave_publica           text         [note: "Ultima chave publica conhecida do aparelho"]
+    status                  varchar(50)  [not null, note: "Estado de confianca persistente do aparelho. Valores programados: ATIVO, REVOGADO, EM_DISPUTA e SEM_CONFIANCA"]
+    criado_em               timestamptz  [not null, note: "Momento da criacao da identidade persistente do aparelho"]
+    atualizado_em           timestamptz  [not null, note: "Momento da ultima atualizacao de metadados ou confianca do aparelho"]
+    ultimo_token_emitido_em timestamptz  [note: "Momento do ultimo token de dispositivo emitido para este aparelho; atualizado por TokenDispositivoService ao emitir um novo token"]
+    indexes {
+        (pessoa_id, fingerprint) [unique]
+    }
+    Note: "Fonte de verdade persistente do aparelho confiavel por pessoa. E criada ou atualizada por DispositivoIdentidadeService.garantirDispositivo apos a confirmacao do onboarding, e tambem pode ser materializada a partir de um token ao reconciliar uso offline. E aqui que o vinculo com o usuario faz sentido de forma duravel; antes disso o fluxo ainda esta em registro_dispositivo."
+}
+
+Table token_dispositivo {
+    id               uuid         [pk, note: "Identificador tecnico do token persistido"]
+    registro_id      uuid         [not null, note: "Registro de dispositivo que originou a emissao deste token. Mantem a trilha de como o token nasceu"]
+    dispositivo_id   bigint       [note: "Aparelho persistente ao qual o token ficou vinculado. Esse vinculo pode ser reforcado pela politica offline e pela reconciliacao posterior"]
+    usuario_sub      varchar(255) [not null, note: "Subject do usuario para o qual o token foi emitido. O token e avaliado tanto contra o aparelho quanto contra o dono logico"]
+    fingerprint      varchar(255) [not null, note: "Fingerprint funcional do aparelho no momento da emissao"]
+    plataforma       varchar(100) [not null, note: "Plataforma do aparelho no momento da emissao"]
+    versao_app       varchar(32)  [note: "Versao do app no momento da emissao"]
+    token_hash       varchar(128) [not null, unique, note: "Hash HMAC do token opaco devolvido ao app. O valor claro so existe na resposta de confirmacao e nao e persistido"]
+    status           varchar(32)  [not null, note: "Estado do token. Valores programados hoje: ATIVO e REVOGADO"]
+    emitido_em       timestamptz  [not null, note: "Momento da emissao do token"]
+    expira_em        timestamptz  [not null, note: "Prazo maximo de validade do token"]
+    revogado_em      timestamptz  [note: "Momento da revogacao do token, quando houver"]
+    motivo_revogacao varchar(64)  [note: "Motivo padronizado da revogacao. Valores programados: NOVO_DISPOSITIVO_CONFIRMANDO, SOLICITACAO_CLIENTE e EXPIRACAO"]
+    Note: "Token opaco de confianca do aparelho. E emitido por TokenDispositivoService ao final de confirmarRegistro, validado pelos filtros HTTP das APIs do ecossistema e consultado pelo executor custom de refresh no Keycloak atraves da API Identidade. O Keycloak nao persiste esse token como fonte de verdade; a tabela canonica e esta."
+}
+
+Table eventos_offline_dispositivo {
+    id            uuid        [pk, note: "Identificador do evento offline sincronizado pelo app"]
+    dispositivo_id bigint     [not null, note: "Aparelho persistente ao qual o evento offline pertence"]
+    token_id      uuid        [note: "Token de dispositivo em contexto quando o evento foi reportado; pode ser nulo se o evento nao tiver sido associado a uma sessao/token especifico"]
+    tipo_evento   varchar(80) [not null, note: "Tipo do evento offline. Valores programados: MODO_OFFLINE_ATIVADO, MODO_OFFLINE_ENCERRADO, SESSAO_EXPIRADA_OFFLINE, ACESSO_OFFLINE_LIBERADO, RECONCILIACAO_REALIZADA e SOBREPOSICAO_DE_USO_REPORTADA"]
+    detalhes      text        [note: "Carga textual complementar do evento offline"]
+    ocorrido_em   timestamptz [not null, note: "Momento em que o fato ocorreu no dispositivo"]
+    registrado_em timestamptz [not null, note: "Momento em que o backend registrou o evento"]
+    Note: "Trilha de reconciliacao offline escrita por OfflineDispositivoService via POST /identidade/dispositivos/offline/eventos. Nao participa da criacao da conta nem do onboarding inicial, mas usa o mesmo dispositivo confiavel e, quando presente, o token em contexto para decidir politicas de bloqueio e auditoria."
+}
+
+// ====================================================================================================
+// ATESTACAO DE APP
+// ====================================================================================================
+
+Table atestacoes_app_desafios {
+    id                     bigint       [pk, increment, note: "Identificador interno do desafio efemero"]
+    identificador_desafio  varchar(36)  [not null, unique, note: "UUID publico do desafio emitido ao chamador interno e devolvido ao app. E o identificador usado na validacao posterior"]
+    desafio_base64         varchar(128) [not null, unique, note: "Nonce aleatorio serializado em Base64 URL-safe. Precisa voltar intacto no comprovante para provar que a resposta corresponde ao desafio emitido"]
+    operacao               varchar(50)  [not null, note: "Escopo funcional protegido pelo desafio. O codigo ja enumera CADASTRO, CONFIRMACAO_CADASTRO, LOGIN, REFRESH_SESSAO, TROCA_SENHA, REDEFINICAO_SENHA, ALTERACAO_EMAIL, ALTERACAO_TELEFONE, VINCULACAO_REDE_SOCIAL, DESVINCULACAO_REDE_SOCIAL, ATIVACAO_BIOMETRIA, SUBSTITUICAO_DISPOSITIVO e REVOGACAO_SESSOES"]
+    plataforma             varchar(20)  [not null, note: "Plataforma esperada do comprovante de integridade. E comparada com a plataforma recebida na validacao"]
+    provedor_esperado      varchar(50)  [not null, note: "Provedor de atestacao esperado para a plataforma. O valor nasce da plataforma e e validado antes da integracao oficial"]
+    ip_solicitante         varchar(64)  [note: "IP observado na emissao do desafio"]
+    user_agent_solicitante varchar(512) [note: "User-Agent observado na emissao do desafio"]
+    criado_em              timestamptz  [not null, note: "Momento da emissao do desafio"]
+    expira_em              timestamptz  [not null, note: "Prazo maximo de uso do desafio"]
+    consumido_em           timestamptz  [note: "Momento em que o desafio foi consumido com sucesso. Depois disso ele nao pode ser reutilizado em outra operacao"]
+    Note: "Processo efemero de prova de origem e integridade do app, nao uma tabela de cadastro de usuario. E criado por AtestacaoAppInternaController/AtestacaoAppServico em POST /identidade/atestacoes/interna/desafios e consumido em POST /identidade/atestacoes/interna/validacoes antes da validacao oficial do provedor. Protege operacoes como cadastro, confirmacao de cadastro, login, refresh e alteracoes sensiveis. Nao possui FK para usuario porque o estado implementado hoje precisa funcionar tambem antes de existir sessao autenticada, antes de a pessoa local ser resolvida e ate antes de a conta ser confirmada; por isso o contexto persistido e operacao, plataforma, origem de rede, desafio e consumo, nao a identidade humana."
+}
+
+// ====================================================================================================
+// RELACOES
+// ====================================================================================================
+
+Ref: perfis_identidade_perfis.perfil_id > perfis_identidade.id
+Ref: perfis_identidade_papeis.perfil_id > perfis_identidade.id
+Ref: vinculos_sociais.perfil_id > perfis_identidade.id
+
+Ref: pessoas_identidade_perfis.pessoa_id > pessoas_identidade.id
+Ref: pessoas_identidade_papeis.pessoa_id > pessoas_identidade.id
+Ref: pessoas_formas_acesso.pessoa_id > pessoas_identidade.id
+
+Ref: codigo_verificacao.registro_id > registro_dispositivo.id
+Ref: dispositivos_identidade.pessoa_id > pessoas_identidade.id
+Ref: token_dispositivo.registro_id > registro_dispositivo.id
+Ref: token_dispositivo.dispositivo_id > dispositivos_identidade.id
+Ref: eventos_offline_dispositivo.dispositivo_id > dispositivos_identidade.id
+Ref: eventos_offline_dispositivo.token_id > token_dispositivo.id

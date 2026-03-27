@@ -32,7 +32,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 
 @SpringBootTest(classes = AplicacaoApiContas.class)
 @AutoConfigureMockMvc
@@ -59,11 +59,11 @@ class ApiContasDeviceTokenContractTest {
         return Objects.requireNonNull(mockMvc);
     }
 
-    private RequestPostProcessor clienteJwt(String tokenValue, String scope) {
-        return Objects.requireNonNull(jwt().jwt(builder -> builder.subject("usuario-123").tokenValue(tokenValue))
+    private JwtRequestPostProcessor clienteJwt(String tokenValue, String scope) {
+        return jwt().jwt(builder -> builder.subject("usuario-123").tokenValue(tokenValue))
                 .authorities(
                         new SimpleGrantedAuthority("ROLE_cliente"),
-                        new SimpleGrantedAuthority(scope)));
+                        new SimpleGrantedAuthority(scope));
     }
 
     private JwtDecoder jwtDecoder() {
@@ -85,7 +85,7 @@ class ApiContasDeviceTokenContractTest {
         when(jwtDecoder().decode("token-sem-device"))
                 .thenReturn(jwtDecodificado("token-sem-device", "SCOPE_contas:ler"));
         MvcResult resultado = mockMvc().perform(get("/contas")
-                        .with(Objects.requireNonNull(clienteJwt("token-sem-device", "SCOPE_contas:ler"))))
+                        .with(clienteJwt("token-sem-device", "SCOPE_contas:ler")))
                 .andExpect(status().isPreconditionRequired())
                 .andReturn();
 
@@ -105,7 +105,7 @@ class ApiContasDeviceTokenContractTest {
                                 null)));
 
         MvcResult resultado = mockMvc().perform(get("/contas")
-                        .with(Objects.requireNonNull(clienteJwt("token-teste", "SCOPE_contas:ler")))
+                        .with(clienteJwt("token-teste", "SCOPE_contas:ler"))
                         .header("Authorization", "Bearer token-teste")
                         .header("X-Device-Token", "token-invalido"))
                 .andExpect(status().isLocked())
@@ -129,7 +129,7 @@ class ApiContasDeviceTokenContractTest {
                 .thenReturn(List.of(new ContaResumoDto(1L, "0001", BigDecimal.TEN, OffsetDateTime.parse("2026-03-11T10:00:00Z"))));
 
         mockMvc().perform(get("/contas")
-                        .with(Objects.requireNonNull(clienteJwt("token-teste", "SCOPE_contas:ler")))
+                        .with(clienteJwt("token-teste", "SCOPE_contas:ler"))
                         .header("Authorization", "Bearer token-teste")
                         .header("X-Device-Token", "token-valido"))
                 .andExpect(status().isOk());
@@ -150,7 +150,7 @@ class ApiContasDeviceTokenContractTest {
                 .thenReturn(List.of(new TransacaoDto(1L, "DEBITO", BigDecimal.ONE, OffsetDateTime.parse("2026-03-11T10:00:00Z"), "teste")));
 
         mockMvc().perform(get("/transacoes")
-                        .with(Objects.requireNonNull(clienteJwt("token-teste", "SCOPE_transacoes:ler")))
+                        .with(clienteJwt("token-teste", "SCOPE_transacoes:ler"))
                         .queryParam("contaId", "1")
                         .header("Authorization", "Bearer token-teste")
                         .header("X-Device-Token", "token-valido"))

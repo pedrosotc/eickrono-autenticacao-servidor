@@ -1,57 +1,130 @@
 # Eickrono Autenticação
 
-Repositório monorepo da plataforma de autenticação e APIs da Eickrono. Consulte a pasta `documentacao` para detalhes completos de arquitetura, desenvolvimento e operação.
+Monorepo da plataforma de identidade, credenciais e sessão da Eickrono. Este repositório é a borda pública canônica para os fluxos sensíveis do app móvel: cadastro, confirmação de e-mail, login, recuperação de senha, refresh e emissão do `X-Device-Token`.
 
-Arquitetura adotada:
+## Arquitetura canônica
 
-- MVC na borda HTTP
-- separação interna em `apresentacao`, `aplicacao`, `dominio` e `infraestrutura`
-- detalhes em `documentacao/arquitetura_mvc_clean.md`
-- a API de identidade centraliza a emissao e a validacao de atestacao nativa de app/dispositivo para os apps do ecossistema, consumida por `backchannel` pelos servidores de produto
+- o app fala diretamente com a API de identidade/autenticação para cadastro, login e recuperação de senha;
+- o app não envia senha, código de recuperação nem tentativa de login ao `flashcard-servidor`;
+- o `flashcard-servidor` recebe apenas provisionamento interno de perfil e contexto já autorizados;
+- a confirmação de e-mail acontece na autenticação antes de qualquer provisionamento no domínio do produto;
+- o app não abre uma tela dedicada de registro de dispositivo;
+- se a autenticação exigir validação adicional de contato, o app reutiliza a tela de verificação já existente;
+- a recuperação de senha sempre responde ao app com mensagem genérica, sem revelar se o e-mail existe.
 
-- **Build:** `mvn verify`
-- **APIs:** `modulos/api-identidade-eickrono`, `modulos/api-contas-eickrono`
-- **Servidor de autorização:** `modulos/servidor-autorizacao-eickrono`
-- **Infraestrutura local:** `infraestrutura/dev` e `infraestrutura/hml`
+## Responsabilidades deste repositório
 
-Endpoints internos relevantes da API de identidade:
+- expor os endpoints públicos de identidade para o app;
+- armazenar e validar credenciais;
+- enviar e validar códigos de e-mail;
+- aplicar rate limit, timeout, antifraude, lockout e auditoria;
+- emitir e renovar sessão;
+- decidir confiança do dispositivo e emitir o `X-Device-Token` já no login;
+- chamar o `eickrono-flashcard-servidor` por backchannel para provisionar perfil de negócio depois da confirmação de e-mail.
 
-- `POST /identidade/atestacoes/interna/desafios`
-- `POST /identidade/atestacoes/interna/validacoes`
-- `POST /identidade/sessoes/interna`
+## Backchannel para o flashcard
 
-Derivacao de senha do ecossistema de autenticacao:
+O fluxo canônico de cadastro agora parte da autenticação para o flashcard:
 
-- a credencial efetiva nao usa mais `data_nascimento` como insumo auxiliar;
-- a SPI do Keycloak agora deriva a senha com `pepper + createdTimestamp` do usuario;
-- isso reduz a dependencia de um dado pessoal relativamente previsivel e usa um marcador interno que nao e exposto a terceiros.
+1. o app cria um cadastro pendente na autenticação;
+2. a autenticação envia o código de confirmação por e-mail;
+3. o app confirma o código com a autenticação;
+4. a autenticação provisiona o perfil do usuário no `flashcard-servidor` por backchannel;
+5. o flashcard responde com os identificadores de domínio já criados;
+6. a autenticação libera o login no app.
 
-No ambiente `dev`, o `docker compose` usa um PostgreSQL externo já existente no Docker local, em vez de subir um banco próprio no stack.
+Esse provisionamento interno deve ser:
 
-No ambiente `hml` local, o stack também usa esse mesmo servidor PostgreSQL em `localhost:5432`, mas com bancos separados de homologação:
+- autenticado por JWT de serviço;
+- restrito por allowlist de `client_id`;
+- protegido por `mTLS`;
+- idempotente por `cadastroId`, para que retries não dupliquem pessoa ou usuário no flashcard.
 
-- `keycloak_hml`
-- `eickrono_identidade_hml`
-- `eickrono_contas_hml`
+## Sessão e recuperação de senha
 
-Portas do `hml` local:
+Fluxos públicos canônicos da autenticação:
 
-- Keycloak: `http://localhost:18080`
-- API identidade: `http://localhost:18081`
-- API contas: `http://localhost:18082`
+- `POST /api/publica/cadastros`
+- `POST /api/publica/cadastros/{cadastroId}/confirmacoes/email`
+- `POST /api/publica/cadastros/{cadastroId}/confirmacoes/email/reenvio`
+- `POST /api/publica/sessoes`
+- `POST /api/publica/recuperacoes-senha`
+- `POST /api/publica/recuperacoes-senha/{fluxoId}/confirmacoes/email`
+- `POST /api/publica/recuperacoes-senha/{fluxoId}/confirmacoes/email/reenvio`
+- `POST /api/publica/recuperacoes-senha/{fluxoId}/senha`
 
-Credenciais de acesso manual ao PostgreSQL compartilhado de `dev`:
+Qualquer rota pública de autenticação existente em servidor de produto deve ser tratada como legada e não deve ser usada por novos clientes.
 
-- host: `localhost`
-- porta: `5432`
-- usuário: `adm`
-- senha: `AdmDev2026!`
-- JDBC URL do autorização: `jdbc:postgresql://localhost:5432/eickrono_dev`
+## Sessão, dispositivo e `X-Device-Token`
 
-JDBC URLs do `hml` local:
+No desenho canônico atual:
 
-- Keycloak: `jdbc:postgresql://localhost:5432/keycloak_hml`
-- API identidade: `jdbc:postgresql://localhost:5432/eickrono_identidade_hml`
-- API contas: `jdbc:postgresql://localhost:5432/eickrono_contas_hml`
+- o login público já valida credenciais, atestação nativa e metadados do aparelho;
+- o backend decide se o aparelho pode ser aceito silenciosamente;
+- quando o contexto estiver válido, a própria autenticação emite o `X-Device-Token` na resposta de `POST /api/publica/sessoes`;
+- o app apenas persiste esse token e o envia depois nas chamadas protegidas;
+- o app não calcula localmente um estado de "onboarding de dispositivo";
+- uma tela separada de registro de dispositivo não faz mais parte do fluxo principal.
+
+## Derivação de senha
+
+- a credencial efetiva não usa mais `data_nascimento` como insumo auxiliar;
+- a SPI do Keycloak deriva a senha com `pepper + createdTimestamp`, usando apenas o campo nativo do usuário no Keycloak;
+- o mesmo mecanismo precisa ser respeitado em reset de senha e required actions.
+
+## Atualização local obrigatória do `docker compose`
+
+Os containers Java locais não recompilam código automaticamente. A imagem da API de identidade copia o `jar` já empacotado em `target/`, então alteração em Java sem novo `package` deixa o ambiente rodando código antigo.
+
+Quando mudar a API de identidade:
+
+1. `mvn -q -pl modulos/api-identidade-eickrono -am package -DskipTests`
+2. `cd infraestrutura/dev && docker compose up -d --build api-identidade-eickrono`
+
+Quando mudar customizações do Keycloak em `modulos/servidor-autorizacao-eickrono`:
+
+1. `mvn -q -pl modulos/servidor-autorizacao-eickrono -am package -DskipTests`
+2. `cd infraestrutura/dev && docker compose up -d servidor-autorizacao`
+
+Se o problema observado no app divergir do código-fonte atual, a primeira hipótese operacional deve ser container desatualizado.
+
+## Ambientes locais
+
+Em `dev` e `hml`, o envio de e-mails usa `MailHog`:
+
+- `dev`: SMTP `localhost:1025`, UI `http://localhost:8025`
+- `hml`: SMTP `localhost:11025`, UI `http://localhost:18025`
+
+O `docker compose` local usa PostgreSQL compartilhado já existente no Docker:
+
+- `dev`: `jdbc:postgresql://localhost:5432/eickrono_dev`
+- `hml` Keycloak: `jdbc:postgresql://localhost:5432/keycloak_hml`
+- `hml` identidade: `jdbc:postgresql://localhost:5432/eickrono_identidade_hml`
+- `hml` contas: `jdbc:postgresql://localhost:5432/eickrono_contas_hml`
+
+## Swagger
+
+- API identidade `dev`: `http://localhost:8081/swagger-ui/index.html`
+- API identidade `dev` OpenAPI: `http://localhost:8081/v3/api-docs`
+- API identidade `hml`: `http://localhost:18081/swagger-ui/index.html`
+- API identidade `hml` OpenAPI: `http://localhost:18081/v3/api-docs`
+- API contas `dev`: `http://localhost:8082/swagger-ui/index.html`
+- API contas `dev` OpenAPI: `http://localhost:8082/v3/api-docs`
+- API contas `hml`: `http://localhost:18082/swagger-ui/index.html`
+- API contas `hml` OpenAPI: `http://localhost:18082/v3/api-docs`
+
+Proteção:
+
+- `dev`: uso local liberado;
+- `hml`: `Basic Auth` + whitelist de IP;
+- credenciais padrão de `hml`: usuário `swagger`, senha `swagger-hml`.
+
+## Leitura recomendada
+
+- `documentacao/README.md`
+- `documentacao/guia-arquitetura.md`
+- `documentacao/guia-seguranca-app-movel.md`
+- `documentacao/guia-desenvolvimento.md`
+- `documentacao/guia-mtls.md`
 
 > Toda a documentação, comentários e identificadores permanecem em português do Brasil, conforme diretriz organizacional.

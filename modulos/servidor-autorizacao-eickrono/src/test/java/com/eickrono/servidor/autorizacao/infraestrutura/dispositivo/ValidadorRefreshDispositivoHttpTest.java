@@ -15,7 +15,15 @@ class ValidadorRefreshDispositivoHttpTest {
     @Test
     void deveRetornarResultadoDaApiInterna() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/realms/desenvolvimento/protocol/openid-connect/token", exchange -> {
+            String body = "{\"access_token\":\"jwt-interno\",\"expires_in\":300}";
+            exchange.sendResponseHeaders(200, body.length());
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body.getBytes());
+            }
+        });
         server.createContext("/identidade/dispositivos/token/validacao/interna", exchange -> {
+            assertEquals("Bearer jwt-interno", exchange.getRequestHeaders().getFirst("Authorization"));
             String body = "{\"valido\":false,\"codigo\":\"DEVICE_TOKEN_REVOKED\",\"mensagem\":\"revogado\"}";
             exchange.sendResponseHeaders(200, body.length());
             try (OutputStream output = exchange.getResponseBody()) {
@@ -27,6 +35,15 @@ class ValidadorRefreshDispositivoHttpTest {
             ConfiguracaoValidacaoRefreshDispositivo configuracao = new ConfiguracaoValidacaoRefreshDispositivo(
                     "http://localhost:" + server.getAddress().getPort(),
                     "segredo",
+                    "http://localhost:" + server.getAddress().getPort(),
+                    "desenvolvimento",
+                    "servidor-autorizacao-interno",
+                    "segredo-client",
+                    false,
+                    "",
+                    "",
+                    "",
+                    "",
                     java.time.Duration.ofSeconds(2));
             ValidadorRefreshDispositivoHttp validador = new ValidadorRefreshDispositivoHttp(
                     configuracao,
@@ -45,6 +62,13 @@ class ValidadorRefreshDispositivoHttpTest {
     @Test
     void deveFalharQuandoApiInternaResponderStatusNaoOk() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/realms/desenvolvimento/protocol/openid-connect/token", exchange -> {
+            String body = "{\"access_token\":\"jwt-interno\",\"expires_in\":300}";
+            exchange.sendResponseHeaders(200, body.length());
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body.getBytes());
+            }
+        });
         server.createContext("/identidade/dispositivos/token/validacao/interna", exchange -> {
             exchange.sendResponseHeaders(401, -1);
             exchange.close();
@@ -54,6 +78,15 @@ class ValidadorRefreshDispositivoHttpTest {
             ConfiguracaoValidacaoRefreshDispositivo configuracao = new ConfiguracaoValidacaoRefreshDispositivo(
                     "http://localhost:" + server.getAddress().getPort(),
                     "segredo",
+                    "http://localhost:" + server.getAddress().getPort(),
+                    "desenvolvimento",
+                    "servidor-autorizacao-interno",
+                    "segredo-client",
+                    false,
+                    "",
+                    "",
+                    "",
+                    "",
                     java.time.Duration.ofSeconds(2));
             ValidadorRefreshDispositivoHttp validador = new ValidadorRefreshDispositivoHttp(
                     configuracao,

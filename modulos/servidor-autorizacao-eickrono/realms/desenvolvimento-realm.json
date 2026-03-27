@@ -139,7 +139,7 @@
     {
       "alias": "UPDATE_PROFILE",
       "name": "Update Profile",
-      "enabled": true,
+      "enabled": false,
       "defaultAction": false,
       "providerId": "UPDATE_PROFILE",
       "priority": 50
@@ -147,7 +147,7 @@
     {
       "alias": "VERIFY_PROFILE",
       "name": "Verify Profile",
-      "enabled": true,
+      "enabled": false,
       "defaultAction": false,
       "providerId": "VERIFY_PROFILE",
       "priority": 60
@@ -179,7 +179,7 @@
     {
       "alias": "update_user_locale",
       "name": "Update User Locale",
-      "enabled": true,
+      "enabled": false,
       "defaultAction": false,
       "providerId": "update_user_locale",
       "priority": 100
@@ -203,7 +203,7 @@
     {
       "alias": "UPDATE_EMAIL",
       "name": "Update Email",
-      "enabled": true,
+      "enabled": false,
       "defaultAction": false,
       "providerId": "UPDATE_EMAIL",
       "priority": 140
@@ -432,6 +432,160 @@
         "roles",
         "email"
       ]
+    },
+    {
+      "clientId": "api-flashcard-eickrono",
+      "name": "API Flashcard",
+      "description": "Resource server da API Flashcard",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": false,
+      "attributes": {},
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ]
+    },
+    {
+      "clientId": "flashcard-servidor-interno",
+      "name": "Flashcard Servidor Interno",
+      "description": "Cliente confidencial do flashcard-servidor para backchannel com a API Identidade",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "attributes": {},
+      "protocolMappers": [
+        {
+          "name": "aud-api-identidade",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "api-identidade-eickrono",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "secret": "CHANGE_ME"
+    },
+    {
+      "clientId": "autenticacao-servidor-interno",
+      "name": "Autenticacao Servidor Interno",
+      "description": "Cliente confidencial da API Identidade para backchannel com a API Flashcard",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "attributes": {},
+      "protocolMappers": [
+        {
+          "name": "aud-api-flashcard",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "api-flashcard-eickrono",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "secret": "CHANGE_ME"
+    },
+    {
+      "clientId": "servidor-autorizacao-interno",
+      "name": "Servidor Autorizacao Interno",
+      "description": "Cliente confidencial do SPI do Keycloak para validacao interna de device token",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "frontchannelLogout": false,
+      "attributes": {},
+      "protocolMappers": [
+        {
+          "name": "aud-api-identidade",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "api-identidade-eickrono",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "secret": "CHANGE_ME"
     },
     {
       "clientId": "app-flutter-local",

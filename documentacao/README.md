@@ -1,34 +1,34 @@
 # Eickrono Autenticação
 
-Bem-vinda(o) ao monorepo **Eickrono Autenticação**. Este projeto reúne a plataforma de identidade, APIs de domínio e infraestrutura de suporte da organização Eickrono, com foco em requisitos FAPI (Financial-grade API) e integrações com Keycloak/RH-SSO.
+Esta pasta reúne a documentação canônica do ecossistema de identidade da Eickrono.
 
-## Visão geral
+## Diretriz vigente
 
-- **Linguagem:** Java 21  
-- **Build:** Maven multi-módulo  
-- **Segurança:** Spring Security, Keycloak, FAPI (PAR/JAR/JARM), mTLS  
-- **Observabilidade:** Spring Boot Actuator, Micrometer, Prometheus, OpenTelemetry  
-- **Qualidade:** Checkstyle, SpotBugs, JUnit 5, Testcontainers  
-- **Banco de dados:** PostgreSQL com Flyway  
-- **Cache:** Caffeine padronizado  
-- **Ambientes:** desenvolvimento, homologação, produção
-- **Onboarding de dispositivos móveis:** registro com e-mail obrigatório, SMS opcional por política, geração de `device_token` opaco e revogação automática de aparelhos anteriores.
+Para o app móvel:
 
-## Estrutura principal
+- cadastro, confirmação de e-mail, login e recuperação de senha entram pela autenticação;
+- o `flashcard-servidor` não é mais a borda pública de senha ou código;
+- o flashcard recebe apenas provisionamento interno depois que a autenticação conclui as etapas sensíveis;
+- o `X-Device-Token` canônico nasce no próprio login público da autenticação;
+- qualquer explicação antiga centrada em navegador, OIDC interativo no app ou autenticação pública via flashcard deve ser considerada legada.
 
-- `/modulos`: código-fonte das aplicações (servidor de autorização e APIs)  
-- `/infraestrutura`: provisionamento local (dev/hml) e diretrizes de produção (AWS + Cloudflare)  
-- `/documentacao`: guias funcionais, operacionais e checklist de conformidade  
-- `pom.xml`: agregador Maven com as configurações de build compartilhadas
+## Guias principais
 
-## Diagramas e fluxos
+- `guia-arquitetura.md`: papel de cada serviço, contratos canônicos e segurança do fluxo
+- `guia-seguranca-app-movel.md`: sinais locais do app, integração com atestação oficial e decisão de risco no backend
+- `guia-desenvolvimento.md`: ambiente local, `MailHog`, Docker e rotina de desenvolvimento
+- `guia-mtls.md`: malha mTLS do backchannel e geração de certificados
+- `guia-operacao-producao.md`: runtime, operação e observabilidade
 
-Arquivos na pasta `documentacao/diagramas` incluem o fluxo Authorization Code + PKCE e o fluxograma de registro de dispositivos móveis com política de canais configurável.
+## Estrutura
 
-## Próximos passos sugeridos
+- `/modulos`: servidor de autorização e APIs Spring Boot
+- `/infraestrutura`: `docker compose`, variáveis e material de runtime por ambiente
+- `/documentacao`: guias arquiteturais, operacionais e diagramas
 
-1. Ler o `guia-desenvolvimento.md` para configurar o ambiente local.  
-2. Executar `mvn verify` na raiz para validar o build.  
-3. Subir o ambiente `docker-compose` de desenvolvimento para validar o fluxo Authorization Code + PKCE com o Keycloak local.  
-4. Ler `guia-debug-eclipse.md` para configurar depuração remota no Eclipse (dev/hml).  
-5. Preencher e revisar o `checklist-seguranca-fapi.md` antes de cada entrega.
+## Leitura recomendada
+
+1. `guia-arquitetura.md`
+2. `guia-desenvolvimento.md`
+3. `guia-mtls.md`
+4. `checklist-seguranca-fapi.md`
