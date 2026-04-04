@@ -9,6 +9,7 @@ import com.eickrono.api.identidade.aplicacao.modelo.DispositivoSessaoRegistrado;
 import com.eickrono.api.identidade.aplicacao.modelo.RecuperacaoSenhaIniciada;
 import com.eickrono.api.identidade.aplicacao.modelo.SessaoInternaAutenticada;
 import com.eickrono.api.identidade.aplicacao.servico.AtestacaoAppServico;
+import com.eickrono.api.identidade.aplicacao.servico.AvaliacaoSegurancaAplicativoService;
 import com.eickrono.api.identidade.aplicacao.servico.AutenticacaoSessaoInternaServico;
 import com.eickrono.api.identidade.aplicacao.servico.CadastroContaInternaServico;
 import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfil;
@@ -34,6 +35,8 @@ import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,6 +53,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/publica")
 public class FluxoPublicoController {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(FluxoPublicoController.class);
+
     private static final String ERRO_KEYCLOAK_CONTA_DESABILITADA = "Account disabled";
     private static final String ERRO_KEYCLOAK_CONTA_INCOMPLETA = "Account is not fully set up";
     private static final String ERRO_KEYCLOAK_CREDENCIAIS_INVALIDAS = "Invalid user credentials";
@@ -58,6 +63,7 @@ public class FluxoPublicoController {
 
     private final CadastroContaInternaServico cadastroContaInternaServico;
     private final AtestacaoAppServico atestacaoAppServico;
+    private final AvaliacaoSegurancaAplicativoService avaliacaoSegurancaAplicativoService;
     private final AutenticacaoSessaoInternaServico autenticacaoSessaoInternaServico;
     private final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil;
     private final RecuperacaoSenhaService recuperacaoSenhaService;
@@ -65,6 +71,7 @@ public class FluxoPublicoController {
 
     public FluxoPublicoController(final CadastroContaInternaServico cadastroContaInternaServico,
                                   final AtestacaoAppServico atestacaoAppServico,
+                                  final AvaliacaoSegurancaAplicativoService avaliacaoSegurancaAplicativoService,
                                   final AutenticacaoSessaoInternaServico autenticacaoSessaoInternaServico,
                                   final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil,
                                   final RecuperacaoSenhaService recuperacaoSenhaService,
@@ -72,6 +79,8 @@ public class FluxoPublicoController {
         this.cadastroContaInternaServico = Objects.requireNonNull(
                 cadastroContaInternaServico, "cadastroContaInternaServico é obrigatório");
         this.atestacaoAppServico = Objects.requireNonNull(atestacaoAppServico, "atestacaoAppServico é obrigatório");
+        this.avaliacaoSegurancaAplicativoService = Objects.requireNonNull(
+                avaliacaoSegurancaAplicativoService, "avaliacaoSegurancaAplicativoService é obrigatório");
         this.autenticacaoSessaoInternaServico = Objects.requireNonNull(
                 autenticacaoSessaoInternaServico, "autenticacaoSessaoInternaServico é obrigatório");
         this.clienteContextoPessoaPerfil = Objects.requireNonNull(
@@ -88,6 +97,13 @@ public class FluxoPublicoController {
                                              final HttpServletRequest servletRequest) {
         validarRegrasCadastro(requisicao);
         atestacaoAppServico.validarComprovante(requisicao.atestacao().paraEntrada());
+        avaliacaoSegurancaAplicativoService.avaliar(
+                "CADASTRO",
+                requisicao.aplicacaoId(),
+                requisicao.plataformaApp().name(),
+                requisicao.segurancaAplicativo(),
+                requisicao.emailPrincipal()
+        );
         CadastroInternoRealizado cadastro = cadastroContaInternaServico.cadastrarPublico(
                 requisicao.tipoPessoa(),
                 requisicao.nomeCompleto(),
@@ -162,9 +178,67 @@ public class FluxoPublicoController {
     }
 
     @PostMapping("/sessoes")
-    public SessaoApiResposta criarSessao(@Valid @RequestBody final CriarSessaoApiRequest requisicao) {
-        atestacaoAppServico.validarComprovante(requisicao.atestacao().paraEntrada());
+    public SessaoApiResposta criarSessao(@Valid @RequestBody final CriarSessaoApiRequest requisicao,
+                                         final HttpServletRequest servletRequest) {
         String loginNormalizado = requisicao.login().trim().toLowerCase(Locale.ROOT);
+        String loginMascarado = mascararIdentificador(loginNormalizado);
+        String instalacaoMascarada = mascararIdentificador(requisicao.dispositivo().identificadorInstalacao());
+        String identificadorAplicativo = resolverIdentificadorAplicativo(requisicao);
+        LOGGER.info(
+                "login_publico_recebido login={} aplicacaoId={} plataforma={} instalacao={} identificadorAplicativo={} ip={}",
+                loginMascarado,
+                requisicao.aplicacaoId(),
+                requisicao.dispositivo().plataforma(),
+                instalacaoMascarada,
+                identificadorAplicativo,
+                extrairIp(servletRequest)
+        );
+
+        try {
+            atestacaoAppServico.validarComprovante(requisicao.atestacao().paraEntrada());
+            LOGGER.info(
+                    "login_publico_atestacao_validada login={} provedor={} tipoComprovante={}",
+                    loginMascarado,
+                    requisicao.atestacao().provedor(),
+                    requisicao.atestacao().tipoComprovante()
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.warn(
+                    "login_publico_atestacao_rejeitada login={} provedor={} tipoComprovante={} motivo={}",
+                    loginMascarado,
+                    requisicao.atestacao().provedor(),
+                    requisicao.atestacao().tipoComprovante(),
+                    exception.getMessage()
+            );
+            throw exception;
+        }
+        try {
+            avaliacaoSegurancaAplicativoService.avaliar(
+                    "LOGIN",
+                    requisicao.aplicacaoId(),
+                    requisicao.dispositivo().plataforma(),
+                    requisicao.segurancaAplicativo(),
+                    loginNormalizado
+            );
+            LOGGER.info(
+                    "login_publico_seguranca_aprovada login={} provedorAtestacao={} scoreRiscoLocal={} assinaturaValida={} identidadeAplicativoValida={} sinaisRisco={}",
+                    loginMascarado,
+                    requisicao.segurancaAplicativo().provedorAtestacao(),
+                    requisicao.segurancaAplicativo().scoreRiscoLocal(),
+                    requisicao.segurancaAplicativo().assinaturaValida(),
+                    requisicao.segurancaAplicativo().identidadeAplicativoValida(),
+                    requisicao.segurancaAplicativo().sinaisRisco() == null ? 0 : requisicao.segurancaAplicativo().sinaisRisco().size()
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.warn(
+                    "login_publico_seguranca_rejeitada login={} provedorAtestacao={} scoreRiscoLocal={} motivo={}",
+                    loginMascarado,
+                    requisicao.segurancaAplicativo().provedorAtestacao(),
+                    requisicao.segurancaAplicativo().scoreRiscoLocal(),
+                    exception.getMessage()
+            );
+            throw exception;
+        }
         SessaoInternaAutenticada sessao;
         try {
             sessao = autenticacaoSessaoInternaServico.autenticar(
@@ -172,16 +246,41 @@ public class FluxoPublicoController {
                     requisicao.senha()
             );
         } catch (ResponseStatusException exception) {
-            throw mapearErroLoginPublico(loginNormalizado, exception);
+            FluxoPublicoException erroMapeado = mapearErroLoginPublico(loginNormalizado, exception);
+            LOGGER.warn(
+                    "login_publico_autenticacao_rejeitada login={} codigo={} status={} motivo={}",
+                    loginMascarado,
+                    erroMapeado.getCodigo(),
+                    erroMapeado.getStatus().value(),
+                    Objects.requireNonNullElse(exception.getReason(), "")
+            );
+            throw erroMapeado;
         }
+        LOGGER.info(
+                "login_publico_credenciais_validadas login={} autenticado={} expiresIn={}",
+                loginMascarado,
+                sessao.autenticado(),
+                sessao.expiresIn()
+        );
         ContextoPessoaPerfil contexto = clienteContextoPessoaPerfil.buscarPorEmail(loginNormalizado)
-                .orElseThrow(() -> new FluxoPublicoException(
-                        HttpStatus.FORBIDDEN,
-                        "conta_nao_liberada",
-                        "A conta ainda não está liberada para utilizar o aplicativo."
-                ));
+                .orElseThrow(() -> {
+                    LOGGER.warn(
+                            "login_publico_contexto_ausente login={} motivo=conta_nao_liberada",
+                            loginMascarado
+                    );
+                    return new FluxoPublicoException(
+                            HttpStatus.FORBIDDEN,
+                            "conta_nao_liberada",
+                            "A conta ainda não está liberada para utilizar o aplicativo."
+                    );
+                });
         String statusUsuario = Objects.requireNonNullElse(contexto.statusUsuario(), STATUS_LIBERADO);
         if (!STATUS_LIBERADO.equalsIgnoreCase(statusUsuario)) {
+            LOGGER.warn(
+                    "login_publico_contexto_bloqueado login={} statusUsuario={}",
+                    loginMascarado,
+                    statusUsuario
+            );
             throw new FluxoPublicoException(
                     HttpStatus.FORBIDDEN,
                     "conta_nao_liberada",
@@ -191,6 +290,14 @@ public class FluxoPublicoController {
         DispositivoSessaoRegistrado dispositivoRegistrado = registroDispositivoLoginSilenciosoService.registrar(
                 contexto,
                 requisicao.dispositivo()
+        );
+        LOGGER.info(
+                "login_publico_sucesso login={} usuarioId={} statusUsuario={} tokenDispositivoEmitido={} tokenDispositivoExpiraEm={}",
+                loginMascarado,
+                contexto.usuarioId(),
+                statusUsuario,
+                dispositivoRegistrado.tokenDispositivo() != null && !dispositivoRegistrado.tokenDispositivo().isBlank(),
+                dispositivoRegistrado.tokenDispositivoExpiraEm()
         );
         return new SessaoApiResposta(
                 sessao.autenticado(),
@@ -362,5 +469,41 @@ public class FluxoPublicoController {
             return servletRequest.getRemoteAddr();
         }
         return forwardedFor.split(",")[0].trim();
+    }
+
+    private static String mascararIdentificador(final String valor) {
+        if (valor == null || valor.isBlank()) {
+            return "vazio";
+        }
+        String normalizado = valor.trim().toLowerCase(Locale.ROOT);
+        int indiceArroba = normalizado.indexOf('@');
+        if (indiceArroba > 0) {
+            return mascararTrecho(normalizado.substring(0, indiceArroba))
+                    + "@"
+                    + mascararTrecho(normalizado.substring(indiceArroba + 1));
+        }
+        return mascararTrecho(normalizado);
+    }
+
+    private static String mascararTrecho(final String valor) {
+        if (valor == null || valor.isBlank()) {
+            return "vazio";
+        }
+        if (valor.length() <= 2) {
+            return "*".repeat(valor.length());
+        }
+        return valor.charAt(0) + "***" + valor.charAt(valor.length() - 1);
+    }
+
+    private static String resolverIdentificadorAplicativo(final CriarSessaoApiRequest requisicao) {
+        if (requisicao.segurancaAplicativo().bundleIdentifier() != null
+                && !requisicao.segurancaAplicativo().bundleIdentifier().isBlank()) {
+            return requisicao.segurancaAplicativo().bundleIdentifier();
+        }
+        if (requisicao.segurancaAplicativo().packageName() != null
+                && !requisicao.segurancaAplicativo().packageName().isBlank()) {
+            return requisicao.segurancaAplicativo().packageName();
+        }
+        return requisicao.aplicacaoId();
     }
 }

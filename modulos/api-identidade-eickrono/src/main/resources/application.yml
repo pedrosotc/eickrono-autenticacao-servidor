@@ -56,6 +56,13 @@ fapi:
     tolerancia-clock-skew-segundos: 60
 
 identidade:
+  seguranca:
+    app:
+      habilitado: true
+      modo-observacao: true
+      score-maximo-permitido: 69
+      aplicacoes-permitidas:
+        - eickrono-flashcard-app
   atestacao:
     app:
       duracao-desafio: PT5M

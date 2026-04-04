@@ -10,7 +10,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Configura beans fundamentais compartilhados pelo domínio.
  */
 @Configuration
-@EnableConfigurationProperties({DispositivoProperties.class, CadastroEmailProperties.class, PerfilDominioBackchannelProperties.class})
+@EnableConfigurationProperties({DispositivoProperties.class, CadastroEmailProperties.class,
+        PerfilDominioBackchannelProperties.class, SegurancaAplicativoProperties.class})
 @EnableScheduling
 public class InfraestruturaBasicaConfiguracao {
 

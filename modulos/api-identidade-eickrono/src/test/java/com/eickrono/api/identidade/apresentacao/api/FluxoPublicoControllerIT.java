@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.eickrono.api.identidade.AplicacaoApiIdentidade;
 import com.eickrono.api.identidade.aplicacao.servico.AtestacaoAppServico;
+import com.eickrono.api.identidade.aplicacao.servico.AvaliacaoSegurancaAplicativoService;
 import com.eickrono.api.identidade.aplicacao.servico.AutenticacaoSessaoInternaServico;
 import com.eickrono.api.identidade.aplicacao.servico.CadastroContaInternaServico;
 import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfil;
@@ -50,6 +51,9 @@ class FluxoPublicoControllerIT {
     private AtestacaoAppServico atestacaoAppServico;
 
     @MockBean
+    private AvaliacaoSegurancaAplicativoService avaliacaoSegurancaAplicativoService;
+
+    @MockBean
     private AutenticacaoSessaoInternaServico autenticacaoSessaoInternaServico;
 
     @MockBean
@@ -66,6 +70,16 @@ class FluxoPublicoControllerIT {
         org.mockito.Mockito.doNothing()
                 .when(atestacaoAppServico)
                 .validarComprovante(org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.doAnswer(invocacao -> new com.eickrono.api.identidade.aplicacao.modelo
+                        .AvaliacaoSegurancaAplicativoRealizada(false, true, 0, java.util.List.of()))
+                .when(avaliacaoSegurancaAplicativoService)
+                .avaliar(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.anyString()
+                );
         when(registroDispositivoLoginSilenciosoService.registrar(
                 org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()))
@@ -110,6 +124,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                                 {
+                                  "aplicacaoId": "eickrono-flashcard-app",
                                   "login": "b@b.com",
                                   "senha": "SenhaForte123",
                                   "dispositivo": {
@@ -129,6 +144,21 @@ class FluxoPublicoControllerIT {
                                     "conteudoComprovante": "Y29tcHJvdmFudGU=",
                                     "geradoEm": "2026-03-26T20:00:00Z",
                                     "chaveId": "chave"
+                                  },
+                                  "segurancaAplicativo": {
+                                    "plataforma": "IOS",
+                                    "provedorAtestacao": "APPLE_APP_ATTEST",
+                                    "rootOuJailbreak": false,
+                                    "debuggerDetectado": false,
+                                    "hookingSuspeito": false,
+                                    "tamperSuspeito": false,
+                                    "riscoCapturaTela": false,
+                                    "assinaturaValida": true,
+                                    "identidadeAplicativoValida": true,
+                                    "sinaisRisco": [],
+                                    "scoreRiscoLocal": 0,
+                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "teamIdentifier": "TEAM123"
                                   }
                                 }
                                 """))
@@ -146,6 +176,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "aplicacaoId": "eickrono-flashcard-app",
                                   "login": "a@a.com",
                                   "senha": "SenhaErrada123",
                                   "dispositivo": {
@@ -165,6 +196,21 @@ class FluxoPublicoControllerIT {
                                     "conteudoComprovante": "Y29tcHJvdmFudGU=",
                                     "geradoEm": "2026-03-26T20:00:00Z",
                                     "chaveId": "chave"
+                                  },
+                                  "segurancaAplicativo": {
+                                    "plataforma": "IOS",
+                                    "provedorAtestacao": "APPLE_APP_ATTEST",
+                                    "rootOuJailbreak": false,
+                                    "debuggerDetectado": false,
+                                    "hookingSuspeito": false,
+                                    "tamperSuspeito": false,
+                                    "riscoCapturaTela": false,
+                                    "assinaturaValida": true,
+                                    "identidadeAplicativoValida": true,
+                                    "sinaisRisco": [],
+                                    "scoreRiscoLocal": 0,
+                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "teamIdentifier": "TEAM123"
                                   }
                                 }
                                 """))
@@ -184,6 +230,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "aplicacaoId": "eickrono-flashcard-app",
                                   "login": "b@b.com",
                                   "senha": "SenhaForte123",
                                   "dispositivo": {
@@ -203,6 +250,21 @@ class FluxoPublicoControllerIT {
                                     "conteudoComprovante": "Y29tcHJvdmFudGU=",
                                     "geradoEm": "2026-03-26T20:00:00Z",
                                     "chaveId": "chave"
+                                  },
+                                  "segurancaAplicativo": {
+                                    "plataforma": "IOS",
+                                    "provedorAtestacao": "APPLE_APP_ATTEST",
+                                    "rootOuJailbreak": false,
+                                    "debuggerDetectado": false,
+                                    "hookingSuspeito": false,
+                                    "tamperSuspeito": false,
+                                    "riscoCapturaTela": false,
+                                    "assinaturaValida": true,
+                                    "identidadeAplicativoValida": true,
+                                    "sinaisRisco": [],
+                                    "scoreRiscoLocal": 0,
+                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "teamIdentifier": "TEAM123"
                                   }
                                 }
                                 """))
@@ -235,6 +297,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "aplicacaoId": "eickrono-flashcard-app",
                                   "login": "a@a.com",
                                   "senha": "SenhaForte123",
                                   "dispositivo": {
@@ -254,6 +317,21 @@ class FluxoPublicoControllerIT {
                                     "conteudoComprovante": "Y29tcHJvdmFudGU=",
                                     "geradoEm": "2026-03-26T20:00:00Z",
                                     "chaveId": "chave"
+                                  },
+                                  "segurancaAplicativo": {
+                                    "plataforma": "IOS",
+                                    "provedorAtestacao": "APPLE_APP_ATTEST",
+                                    "rootOuJailbreak": false,
+                                    "debuggerDetectado": false,
+                                    "hookingSuspeito": false,
+                                    "tamperSuspeito": false,
+                                    "riscoCapturaTela": false,
+                                    "assinaturaValida": true,
+                                    "identidadeAplicativoValida": true,
+                                    "sinaisRisco": [],
+                                    "scoreRiscoLocal": 0,
+                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "teamIdentifier": "TEAM123"
                                   }
                                 }
                                 """))

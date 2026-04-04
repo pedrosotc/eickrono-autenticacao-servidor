@@ -57,6 +57,9 @@ logging:
     com.eickrono.api.identidade: INFO
 
 identidade:
+  seguranca:
+    app:
+      modo-observacao: false
   atestacao:
     app:
       permitir-validacao-local-sem-provedor-oficial: false

@@ -18,6 +18,24 @@ A autenticacao:
 - correlaciona os sinais locais com o contexto da sessao e do aparelho;
 - decide se libera, desafia, limita ou bloqueia.
 
+## Status atual implementado
+
+Nesta etapa, o `servidor de autenticacao` ja recebe e correlaciona:
+
+- `aplicacaoId`;
+- payload `segurancaAplicativo`;
+- plataforma e provedor declarados pelo app;
+- `packageName` no Android;
+- `bundleIdentifier` e `teamIdentifier` no iOS;
+- score e sinais locais informados pelo cliente;
+- score e sinais recalculados no servidor.
+
+Tambem ja esta implementado:
+
+- modo observacao para `dev/hml`;
+- endurecimento em `prod`;
+- auditoria de eventos de risco no cadastro e no login.
+
 ## O que esta em jogo
 
 Camadas contempladas:

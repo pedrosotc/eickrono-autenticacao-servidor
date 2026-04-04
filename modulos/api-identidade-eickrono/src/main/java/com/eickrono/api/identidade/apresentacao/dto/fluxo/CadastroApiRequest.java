@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public record CadastroApiRequest(
+        @NotBlank String aplicacaoId,
         @NotNull TipoPessoaCadastro tipoPessoa,
         @NotBlank String nomeCompleto,
         String nomeFantasia,
@@ -26,6 +27,7 @@ public record CadastroApiRequest(
         @AssertTrue boolean aceitouTermos,
         @AssertTrue boolean aceitouPrivacidade,
         @NotNull PlataformaAtestacaoApp plataformaApp,
-        @Valid @NotNull AtestacaoOperacaoApiRequest atestacao
+        @Valid @NotNull AtestacaoOperacaoApiRequest atestacao,
+        @Valid @NotNull SegurancaAplicativoApiRequest segurancaAplicativo
 ) {
 }

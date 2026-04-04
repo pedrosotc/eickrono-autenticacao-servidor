@@ -51,7 +51,7 @@ public class CanalNotificacaoTentativaCadastroEmailSmtp implements CanalNotifica
         return """
                 Ola,%n%n\
                 Recebemos uma tentativa de criar um novo cadastro utilizando este endereco de e-mail no %s.%n%n\
-                Se foi voce, tente entrar com sua conta atual ou utilize o fluxo de recuperacao de senha.%n\
+                Se foi voce, tente entrar com sua conta atual ou utilize o fluxo de recuperação de senha.%n\
                 Se nao foi voce, ignore esta mensagem.%n\
                 """
                 .formatted(cadastroEmailProperties.getNomeAplicacao());

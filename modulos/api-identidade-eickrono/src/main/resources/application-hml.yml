@@ -45,6 +45,9 @@ logging:
     com.eickrono.api.identidade: INFO
 
 identidade:
+  seguranca:
+    app:
+      modo-observacao: true
   atestacao:
     app:
       permitir-validacao-local-sem-provedor-oficial: ${IDENTIDADE_ATESTACAO_APP_PERMITIR_VALIDACAO_LOCAL_SEM_PROVEDOR_OFICIAL:true}
