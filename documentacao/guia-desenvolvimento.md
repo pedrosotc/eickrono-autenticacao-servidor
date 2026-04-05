@@ -86,6 +86,32 @@ Observações importantes:
 
 - o código enviado por e-mail é numérico e hoje possui 6 dígitos;
 - o link `Reenviar código` do app é funcional para e-mail;
+
+## Como usar um SMTP real em vez do MailHog
+
+O backend já suporta SMTP real. O que prendia o ambiente local ao MailHog era apenas o `docker compose` de `dev`/`hml`.
+
+Agora:
+
+- se você não definir nada, o ambiente continua usando o MailHog local;
+- se você preencher `SPRING_MAIL_*` e `IDENTIDADE_CADASTRO_EMAIL_*` no `.env`, a API passa a usar esse SMTP real sem depender do MailHog.
+
+Exemplo local:
+
+1. abra [`infraestrutura/dev/.env.email-real.exemplo`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/.env.email-real.exemplo);
+2. copie as variáveis desejadas para [`infraestrutura/dev/.env`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/.env);
+3. ajuste host, porta, usuário e credencial do seu provedor;
+4. reinicie o ambiente:
+   - `cd infraestrutura/dev`
+   - `docker compose down`
+   - `docker compose up -d`
+
+Observações:
+
+- não extraímos credenciais automaticamente de apps locais como Outlook, Gmail ou Mail do macOS;
+- para segurança e previsibilidade, o servidor deve receber essas credenciais explicitamente por variável de ambiente;
+- para Gmail pessoal, o fluxo mais comum é usar `smtp.gmail.com:587` com `STARTTLS` e uma senha de app;
+- para Outlook/Microsoft, o host costuma ser `smtp-mail.outlook.com:587` com autenticação e `STARTTLS`.
 - ao reenviar, o sistema gera um código novo e invalida o anterior;
 - portanto, sempre use o código do e-mail mais recente no `MailHog`;
 - se nenhum e-mail aparecer, verifique primeiro se a API de identidade e o `MailHog` estão rodando no `docker compose`.

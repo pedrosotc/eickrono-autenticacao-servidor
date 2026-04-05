@@ -1,0 +1,95 @@
+// ====================================================================================================
+// PROJETO: Eickrono Autenticacao - Modelo conceitual de fatores de autenticacao
+// FORMATO: DBML (Database Markup Language)
+// BANCO DE DADOS: PostgreSQL
+// ----------------------------------------------------------------------------------------------------
+// Este arquivo e conceitual. Ele nao substitui o schema do Keycloak nem o schema atual da API
+// Identidade. O objetivo e mostrar como modelar:
+// - politica de TOTP por cliente/sistema
+// - catalogo de fatores do usuario
+// - relacionamento desses fatores com email, telefone, social e credenciais do Keycloak
+//
+// Regra central:
+// - segredo TOTP continua exclusivamente no Keycloak
+// - esta modelagem nao replica segredo nem material criptografico do TOTP
+// ====================================================================================================
+
+Project eickrono_fatores_autenticacao {
+    database_type: "PostgreSQL"
+    Note: "Modelo conceitual para politica de autenticacao por cliente e catalogo de fatores do usuario. Serve para organizar EMAIL_OTP, SMS_OTP, TOTP, SENHA e SOCIAL sem deslocar a credencial real do Keycloak."
+}
+
+Table politicas_autenticacao_cliente {
+    id                        uuid         [pk, note: "Identificador interno da politica"]
+    realm                     varchar(64)  [not null, note: "Realm do Keycloak ao qual a politica pertence"]
+    client_id                 varchar(255) [not null, note: "Client ID logico do sistema. Ex.: app-flutter-local"]
+    modo_totp                 varchar(16)  [not null, note: "Enum: DISABLED, OPTIONAL, REQUIRED"]
+    exige_email_verificado    boolean      [not null, default: true, note: "Se true, a conta precisa ter e-mail verificado antes de oferecer ou exigir TOTP"]
+    exige_telefone_verificado boolean      [not null, default: false, note: "Se true, a conta precisa ter telefone verificado antes de oferecer ou exigir TOTP"]
+    criado_em                 timestamptz  [not null, note: "Momento de criacao da politica"]
+    atualizado_em             timestamptz  [not null, note: "Momento da ultima alteracao da politica"]
+
+    indexes {
+        (realm, client_id) [unique]
+    }
+
+    Note: "Politica por sistema/cliente. Aqui mora a decisao do produto, como TOTP opcional para o app flashcard."
+}
+
+Table fatores_autenticacao_usuario {
+    id                       uuid         [pk, note: "Identificador interno do fator do usuario"]
+    usuario_sub              varchar(255) [not null, note: "Subject do usuario no Keycloak"]
+    keycloak_user_id         varchar(36)  [note: "Identificador tecnico do usuario no Keycloak, quando conveniente"]
+    tipo_fator               varchar(32)  [not null, note: "Enum: SENHA, TOTP, EMAIL_OTP, SMS_OTP, SOCIAL"]
+    origem_fator             varchar(32)  [not null, note: "Enum: KEYCLOAK, IDENTIDADE, EXTERNO"]
+    papel_fator              varchar(32)  [not null, note: "Enum: LOGIN, SEGUNDO_FATOR, RECUPERACAO, VERIFICACAO"]
+    status                   varchar(32)  [not null, note: "Enum: PENDENTE_ATIVACAO, ATIVO, REVOGADO, BLOQUEADO"]
+    nome_exibicao            varchar(255) [note: "Nome amigavel do fator, como TOTP principal ou Google pessoal"]
+    principal                boolean      [not null, default: false, note: "Indica se este e o fator principal daquela categoria"]
+    criado_em                timestamptz  [not null, note: "Momento de criacao do fator"]
+    habilitado_em            timestamptz  [note: "Momento em que o fator entrou em uso"]
+    desabilitado_em          timestamptz  [note: "Momento em que o fator saiu de uso"]
+    atualizado_em            timestamptz  [not null, note: "Momento da ultima mutacao do fator"]
+    metadata_json            text         [note: "Carga complementar nao sensivel. Nao armazenar segredo TOTP"]
+
+    indexes {
+        (usuario_sub, tipo_fator, principal)
+    }
+
+    Note: "Catalogo de fatores do usuario. Esta tabela organiza a existencia funcional do fator, mas nao guarda senha nem segredo TOTP."
+}
+
+Table fator_autenticacao_keycloak {
+    fator_id                 uuid         [pk, note: "Fator associado"]
+    credential_type          varchar(32)  [not null, note: "Tipo da credencial no Keycloak, como password ou otp"]
+    keycloak_credential_id   varchar(36)  [note: "ID da credencial no Keycloak, quando fizer sentido expor essa referencia"]
+    credential_label         varchar(255) [note: "Rotulo amigavel da credencial no Keycloak"]
+
+    Note: "Ligacao logica entre o catalogo de fatores do usuario e a credencial efetivamente persistida no Keycloak."
+}
+
+Table fator_autenticacao_email {
+    fator_id                 uuid [pk, note: "Fator associado"]
+    pessoa_email_id          uuid [not null, note: "Referencia logica ao email canonico da pessoa no modelo alvo"]
+
+    Note: "Relaciona o fator EMAIL_OTP ao email canonico do usuario. No schema atual pode ser mapeado incrementalmente a estrutura equivalente de acesso/contato."
+}
+
+Table fator_autenticacao_telefone {
+    fator_id                 uuid [pk, note: "Fator associado"]
+    pessoa_telefone_id       uuid [not null, note: "Referencia logica ao telefone canonico da pessoa no modelo alvo"]
+
+    Note: "Relaciona o fator SMS_OTP ao telefone canonico do usuario."
+}
+
+Table fator_autenticacao_social {
+    fator_id                 uuid [pk, note: "Fator associado"]
+    acesso_social_id         uuid [not null, note: "Referencia logica ao vinculo social/federado da pessoa"]
+
+    Note: "Relaciona o fator SOCIAL ao vinculo federado existente. SOCIAL continua util para login, mas nao substitui TOTP quando a politica exigir segundo fator forte."
+}
+
+Ref: fator_autenticacao_keycloak.fator_id > fatores_autenticacao_usuario.id
+Ref: fator_autenticacao_email.fator_id > fatores_autenticacao_usuario.id
+Ref: fator_autenticacao_telefone.fator_id > fatores_autenticacao_usuario.id
+Ref: fator_autenticacao_social.fator_id > fatores_autenticacao_usuario.id

@@ -1,0 +1,376 @@
+{
+  "version": "1.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "detailLevel": "All",
+  "tablePositions": [
+    {
+      "name": "dominios_autenticacao",
+      "schemaName": "public",
+      "x": 667.788330078125,
+      "y": 1981.3487442983203
+    },
+    {
+      "name": "clientes_autenticacao",
+      "schemaName": "public",
+      "x": 554.0341953096809,
+      "y": 2159.279684666627
+    },
+    {
+      "name": "atributos_clientes_autenticacao",
+      "schemaName": "public",
+      "x": 551.4846347628059,
+      "y": 2425.328748549812
+    },
+    {
+      "name": "usuarios_autenticacao",
+      "schemaName": "public",
+      "x": 557.211669921875,
+      "y": 1687.6383003984638
+    },
+    {
+      "name": "credenciais_autenticacao",
+      "schemaName": "public",
+      "x": -186.56171835971682,
+      "y": 1901.3487442983203
+    },
+    {
+      "name": "pessoas_identidade",
+      "schemaName": "public",
+      "x": -190.91210925764557,
+      "y": 1655.5010857468133
+    },
+    {
+      "name": "pessoas_formas_acesso",
+      "schemaName": "public",
+      "x": 556.0849609375,
+      "y": 753
+    },
+    {
+      "name": "cadastros_conta",
+      "schemaName": "public",
+      "x": 1111.538723586273,
+      "y": 1623.6383003984638
+    },
+    {
+      "name": "pessoas_contatos_telefone",
+      "schemaName": "public",
+      "x": -186.56171835971682,
+      "y": 1263.3942720059372
+    },
+    {
+      "name": "fatores_autenticacao_usuario",
+      "schemaName": "public",
+      "x": 556.0849609375,
+      "y": 1087
+    },
+    {
+      "name": "fator_autenticacao_credencial",
+      "schemaName": "public",
+      "x": 1136.559129919858,
+      "y": 1087
+    },
+    {
+      "name": "fator_autenticacao_forma_acesso",
+      "schemaName": "public",
+      "x": 1176.0190752849144,
+      "y": 753
+    },
+    {
+      "name": "fator_autenticacao_telefone",
+      "schemaName": "public",
+      "x": -186.56171835971682,
+      "y": 1092.2871120824707
+    }
+  ],
+  "tableGroupCollapseStates": [],
+  "stickyNoteLayouts": [],
+  "referencePaths": [
+    {
+      "firstFieldNames": [
+        "dominio_autenticacao_id"
+      ],
+      "firstTableName": "clientes_autenticacao",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dominios_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_autenticacao_id"
+      ],
+      "firstTableName": "atributos_clientes_autenticacao",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "firstEndpointSide": "left",
+      "secondEndpointSide": "left",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dominio_autenticacao_id"
+      ],
+      "firstTableName": "usuarios_autenticacao",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dominios_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_autenticacao_id"
+      ],
+      "firstTableName": "credenciais_autenticacao",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sub"
+      ],
+      "firstTableName": "pessoas_identidade",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "subject_remoto"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_formas_acesso",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "secondEndpointSide": "left",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_contatos_telefone",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "fatores_autenticacao_usuario",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_identidade",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_autenticacao_id"
+      ],
+      "firstTableName": "fatores_autenticacao_usuario",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "secondEndpointSide": "right",
+      "checkPoints": [
+        {
+          "x": 990.9687750099583,
+          "y": 1199
+        },
+        {
+          "x": 990.9687750099583,
+          "y": 1735.6383003984638
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "fator_id"
+      ],
+      "firstTableName": "fator_autenticacao_credencial",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "fatores_autenticacao_usuario",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_autenticacao_id"
+      ],
+      "firstTableName": "fator_autenticacao_credencial",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_autenticacao",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": [
+        {
+          "x": 992.7349016356332,
+          "y": 1167
+        },
+        {
+          "x": 992.7349016356332,
+          "y": 1735.6383003984638
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "fator_id"
+      ],
+      "firstTableName": "fator_autenticacao_forma_acesso",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "fatores_autenticacao_usuario",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": [
+        {
+          "x": 1023.8074637804657,
+          "y": 833
+        },
+        {
+          "x": 1023.8074637804657,
+          "y": 1135
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "forma_acesso_id"
+      ],
+      "firstTableName": "fator_autenticacao_forma_acesso",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_formas_acesso",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "fator_id"
+      ],
+      "firstTableName": "fator_autenticacao_telefone",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "fatores_autenticacao_usuario",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "checkPoints": [
+        {
+          "x": 129.94362467591472,
+          "y": 1135
+        }
+      ]
+    },
+    {
+      "firstFieldNames": [
+        "telefone_id"
+      ],
+      "firstTableName": "fator_autenticacao_telefone",
+      "firstSchemaName": "public",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_contatos_telefone",
+      "secondSchemaName": "public",
+      "secondRelation": "1",
+      "firstEndpointSide": "right",
+      "checkPoints": [
+        {
+          "x": 128.58156582995127,
+          "y": 1172.2871120824707
+        },
+        {
+          "x": 128.58156582995127,
+          "y": 1311.3942720059372
+        }
+      ]
+    }
+  ]
+}

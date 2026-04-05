@@ -1,0 +1,214 @@
+// ====================================================================================================
+// PROJETO: Eickrono Autenticacao - Modelo de teste para implementacao unica de MFA/TOTP
+// FORMATO: DBML (linguagem de modelagem de banco)
+// BANCO DE DADOS: PostgreSQL
+// ----------------------------------------------------------------------------------------------------
+// Este arquivo mostra apenas as tabelas envolvidas na implementacao unica discutida para:
+// - politica de TOTP por cliente ou sistema no servidor de autenticacao
+// - catalogo de fatores do usuario
+// - relacao desses fatores com senha, TOTP, email, telefone e rede social
+//
+// Regras assumidas neste modelo:
+// - TOTP e opcional para o aplicativo principal
+// - a politica por cliente usa enum DESABILITADO | OPCIONAL | OBRIGATORIO
+// - o segredo TOTP permanece exclusivamente no Keycloak
+// - o cadastro e o onboarding nao viram fonte de verdade do MFA
+// ====================================================================================================
+
+Project eickrono_teste_mfa_impl_unica {
+    database_type: "PostgreSQL"
+    Note: "Recorte de tabelas envolvidas na implementacao unica de MFA/TOTP. Mistura apenas os pontos necessarios do Keycloak e da API Identidade para orientar alteracoes de banco e integracao."
+}
+
+// ====================================================================================================
+// SERVIDOR DE AUTENTICACAO / KEYCLOAK
+// ====================================================================================================
+
+Table dominios_autenticacao {
+    id                           varchar(36)  [pk, note: "Identificador tecnico do dominio de autenticacao no Keycloak"]
+    nome                         varchar(255) [not null, unique, note: "Nome logico do dominio de autenticacao"]
+    ativo                        boolean      [not null, note: "Indica se o dominio de autenticacao esta habilitado"]
+
+    Note: "Tabela existente do Keycloak no modelo real. Foi adicionada aqui para ligar clientes e usuarios pelo mesmo dominio de autenticacao."
+}
+
+Table clientes_autenticacao {
+    id                           varchar(36)  [pk, note: "Identificador tecnico do cliente no Keycloak"]
+    dominio_autenticacao_id      varchar(36)  [not null, note: "Dominio de autenticacao dono do cliente"]
+    identificador_cliente        varchar(255) [not null, note: "Identificador logico do cliente. Ex.: aplicativo-flutter-local"]
+    ativo                        boolean      [not null, note: "Cliente ativo no dominio de autenticacao"]
+    cliente_publico              boolean      [not null, note: "Indica se o cliente e publico"]
+    grants_diretos_habilitados   boolean      [not null, note: "Precisa seguir habilitado para o login atual via grant_type=password"]
+
+    indexes {
+        (dominio_autenticacao_id, identificador_cliente) [unique]
+    }
+
+    Note: "Tabela existente do Keycloak. A politica de TOTP por sistema ou cliente pode ser aplicada sem nova tabela no servidor de autenticacao, reutilizando atributos do cliente."
+}
+
+Table atributos_clientes_autenticacao {
+    cliente_autenticacao_id      varchar(36)  [pk, not null, note: "Cliente ao qual o atributo pertence"]
+    nome                         varchar(255) [pk, not null, note: "Nome do atributo. Neste contexto, o principal e eickrono.modo.totp"]
+    valor                        varchar(255) [note: "Valor do atributo. Neste contexto: DESABILITADO, OPCIONAL ou OBRIGATORIO"]
+
+    Note: "Tabela existente do Keycloak. Recomendacao: armazenar eickrono.modo.totp aqui. Para o aplicativo principal, usar OPCIONAL."
+}
+
+Table usuarios_autenticacao {
+    id                           varchar(36)  [pk, note: "Identificador tecnico do usuario no Keycloak"]
+    dominio_autenticacao_id      varchar(36)  [not null, note: "Dominio de autenticacao ao qual o usuario pertence"]
+    nome_usuario                 varchar(255) [note: "Login do usuario"]
+    email                        varchar(255) [note: "Email principal conhecido pelo Keycloak"]
+    ativo                        boolean      [not null, note: "Conta habilitada para autenticar"]
+    email_verificado             boolean      [not null, note: "Email verificado no Keycloak"]
+    criado_em_marcador           bigint       [note: "Marcador nativo de criacao do usuario"]
+
+    Note: "Fonte de verdade da conta OIDC. Os fatores de senha e TOTP do usuario ancoram tecnicamente neste usuario."
+}
+
+Table credenciais_autenticacao {
+    id                           varchar(36)  [pk, note: "Identificador tecnico da credencial no Keycloak"]
+    usuario_autenticacao_id      varchar(36)  [not null, note: "Usuario dono da credencial"]
+    tipo_credencial              varchar(255) [note: "Tipo da credencial. Exemplos relevantes: senha e otp"]
+    rotulo_usuario               varchar(255) [note: "Rotulo amigavel da credencial"]
+    criado_em_marcador           bigint       [note: "Instante de criacao da credencial"]
+    dados_secretos               text         [note: "Conteudo secreto da credencial. Nao replicar fora do Keycloak"]
+    dados_credencial             text         [note: "Conteudo estrutural da credencial. Nao tratar como fonte publica de negocio"]
+    prioridade                   integer      [not null, note: "Prioridade da credencial"]
+
+    Note: "Fonte de verdade da senha e do TOTP no Keycloak. O segredo TOTP fica aqui, nao no banco da API Identidade."
+}
+
+// ====================================================================================================
+// API IDENTIDADE - ESTADO ATUAL ENVOLVIDO
+// ====================================================================================================
+
+Table pessoas_identidade {
+    id                           bigint       [pk, increment, note: "Identificador interno da pessoa na API Identidade"]
+    sub                          varchar(255) [not null, unique, note: "Espelho do identificador remoto do usuario no Keycloak"]
+    email                        varchar(255) [not null, unique, note: "Email principal atual da pessoa"]
+    nome                         varchar(255) [not null, note: "Nome canonicamente conhecido"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima atualizacao do espelho"]
+
+    Note: "Raiz local da identidade. O catalogo de fatores proposto abaixo deve apontar para a pessoa, e nao para o cadastro."
+}
+
+Table pessoas_formas_acesso {
+    id                           bigint       [pk, increment, note: "Identificador da forma de acesso local"]
+    pessoa_id                    bigint       [not null, note: "Pessoa dona desta forma de acesso"]
+    tipo                         varchar(50)  [not null, note: "Tipo de forma de acesso do modelo legado"]
+    provedor                     varchar(100) [not null, note: "Ex.: EMAIL, GOOGLE, APPLE"]
+    identificador                varchar(255) [not null, note: "Identificador utilizado no provedor"]
+    principal                    boolean      [not null, default: false, note: "Forma de acesso principal da pessoa"]
+    criado_em                    timestamptz  [not null, note: "Momento da criacao"]
+    verificado_em                timestamptz  [note: "Momento da verificacao da forma de acesso"]
+
+    indexes {
+        (tipo, provedor, identificador) [unique]
+    }
+
+    Note: "Tabela existente. Pode continuar servindo de ancora para EMAIL e acesso social, sem precisar remover o modelo atual."
+}
+
+Table cadastros_conta {
+    id                           bigint       [pk, increment, note: "Identificador tecnico do cadastro"]
+    cadastro_id                  uuid         [not null, unique, note: "Identificador publico do fluxo de cadastro"]
+    subject_remoto               varchar(255) [not null, unique, note: "Usuario pendente ou criado no Keycloak"]
+    email_principal              varchar(255) [not null, unique, note: "Email principal do cadastro"]
+    telefone_principal           varchar(32)  [note: "Telefone coletado no cadastro, quando houver"]
+    canal_validacao_telefone     varchar(16)  [note: "Canal de verificacao do telefone, quando configurado"]
+    status                       varchar(32)  [not null, note: "Estado do processo de cadastro"]
+    email_confirmado_em          timestamptz  [note: "Momento em que o email do cadastro foi confirmado"]
+    atualizado_em                timestamptz  [not null, note: "Ultima alteracao do cadastro"]
+
+    Note: "Tabela existente de processo. Ela participa do controle de liberacao da conta, mas nao deve ser usada como fonte de verdade do estado MFA."
+}
+
+// ====================================================================================================
+// API IDENTIDADE - NOVAS TABELAS SUGERIDAS
+// ====================================================================================================
+
+Table pessoas_contatos_telefone {
+    id                           bigint       [pk, increment, note: "Identificador do telefone canonico da pessoa"]
+    pessoa_id                    bigint       [not null, note: "Pessoa dona do telefone"]
+    telefone                     varchar(32)  [not null, unique, note: "Telefone normalizado"]
+    principal                    boolean      [not null, default: false, note: "Telefone principal da pessoa"]
+    verificado_em                timestamptz  [note: "Momento em que o telefone foi verificado"]
+    criado_em                    timestamptz  [not null, note: "Momento da criacao do telefone"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima alteracao"]
+
+    Note: "Tabela nova sugerida para a implementacao unica. Resolve a falta de um telefone canonico permanente para relacionar CODIGO_SMS sem depender de cadastros_conta."
+}
+
+Table fatores_autenticacao_usuario {
+    id                           uuid         [pk, note: "Identificador do fator do usuario"]
+    pessoa_id                    bigint       [not null, note: "Pessoa dona do fator"]
+    usuario_autenticacao_id      varchar(255) [not null, note: "Identificador do usuario no Keycloak"]
+    tipo_fator                   varchar(32)  [not null, note: "Enum: SENHA, TOTP, CODIGO_EMAIL, CODIGO_SMS, REDE_SOCIAL"]
+    origem_fator                 varchar(32)  [not null, note: "Enum: AUTENTICACAO, IDENTIDADE, EXTERNO"]
+    papel_fator                  varchar(32)  [not null, note: "Enum: ENTRADA, SEGUNDO_FATOR, RECUPERACAO, VERIFICACAO"]
+    status                       varchar(32)  [not null, note: "Enum: PENDENTE_ATIVACAO, ATIVO, REVOGADO, BLOQUEADO"]
+    principal                    boolean      [not null, default: false, note: "Indica se este e o fator principal daquele tipo"]
+    atende_autenticacao_forte    boolean      [not null, default: false, note: "Marca se este fator satisfaz requisito de autenticacao forte. TOTP atende; rede social isolada nao atende"]
+    nome_exibicao                varchar(255) [note: "Nome amigavel do fator no aplicativo ou no painel administrativo"]
+    criado_em                    timestamptz  [not null, note: "Momento da criacao do fator"]
+    habilitado_em                timestamptz  [note: "Momento em que o fator entrou em uso"]
+    desabilitado_em              timestamptz  [note: "Momento em que o fator saiu de uso"]
+    atualizado_em                timestamptz  [not null, note: "Ultima alteracao do fator"]
+    metadados_json               text         [note: "Metadados nao sensiveis do fator. Nao armazenar segredo TOTP"]
+
+    indexes {
+        (pessoa_id, tipo_fator, principal)
+    }
+
+    Note: "Catalogo local dos fatores do usuario. Organiza o dominio de autenticacao sem mover a credencial real para fora do Keycloak."
+}
+
+Table fator_autenticacao_credencial {
+    fator_id                      uuid         [pk, note: "Fator associado"]
+    usuario_autenticacao_id       varchar(36)  [not null, note: "Usuario no Keycloak ao qual a credencial pertence"]
+    tipo_credencial               varchar(32)  [not null, note: "Tipo da credencial no Keycloak. Ex.: senha ou otp"]
+    credencial_autenticacao_id    varchar(36)  [note: "Identificador da credencial no Keycloak, quando exposto ou consultavel"]
+    rotulo_credencial             varchar(255) [note: "Rotulo amigavel da credencial no Keycloak"]
+
+    Note: "Ligacao entre o catalogo de fatores e a credencial efetiva do Keycloak. Usado para SENHA e TOTP."
+}
+
+Table fator_autenticacao_forma_acesso {
+    forma_acesso_id               bigint [not null, note: "Forma de acesso local associada ao fator"]
+    fator_id                      uuid   [pk, note: "Fator associado"]
+    
+    Note: "Relaciona CODIGO_EMAIL e REDE_SOCIAL a pessoas_formas_acesso. Rede social pode continuar no dominio de autenticacao, mas nao deve satisfazer sozinha uma politica de TOTP obrigatorio."
+}
+
+Table fator_autenticacao_telefone {
+    fator_id                      uuid   [pk, note: "Fator associado"]
+    telefone_id                   bigint [not null, note: "Telefone canonico da pessoa associado ao fator CODIGO_SMS"]
+
+    Note: "Relaciona o fator CODIGO_SMS ao telefone permanente da pessoa."
+}
+
+// ====================================================================================================
+// RELACOES
+// ====================================================================================================
+
+Ref: clientes_autenticacao.dominio_autenticacao_id > dominios_autenticacao.id
+Ref: atributos_clientes_autenticacao.cliente_autenticacao_id > clientes_autenticacao.id
+Ref: usuarios_autenticacao.dominio_autenticacao_id > dominios_autenticacao.id
+Ref: credenciais_autenticacao.usuario_autenticacao_id > usuarios_autenticacao.id
+
+Ref: pessoas_identidade.sub > usuarios_autenticacao.id
+Ref: cadastros_conta.subject_remoto > usuarios_autenticacao.id
+Ref: pessoas_formas_acesso.pessoa_id > pessoas_identidade.id
+Ref: pessoas_contatos_telefone.pessoa_id > pessoas_identidade.id
+
+Ref: fatores_autenticacao_usuario.pessoa_id > pessoas_identidade.id
+Ref: fatores_autenticacao_usuario.usuario_autenticacao_id > usuarios_autenticacao.id
+
+Ref: fator_autenticacao_credencial.fator_id > fatores_autenticacao_usuario.id
+Ref: fator_autenticacao_credencial.usuario_autenticacao_id > usuarios_autenticacao.id
+Ref: fator_autenticacao_forma_acesso.fator_id > fatores_autenticacao_usuario.id
+Ref: fator_autenticacao_forma_acesso.forma_acesso_id > pessoas_formas_acesso.id
+Ref: fator_autenticacao_telefone.fator_id > fatores_autenticacao_usuario.id
+Ref: fator_autenticacao_telefone.telefone_id > pessoas_contatos_telefone.id
