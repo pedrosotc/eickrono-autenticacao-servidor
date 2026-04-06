@@ -432,7 +432,11 @@ public class CadastroContaInternaServico {
                     .orElse(statusUsuario);
         }
 
-        clienteAdministracaoCadastroKeycloak.confirmarEmailEAtivarUsuario(cadastroConta.getSubjectRemoto());
+        clienteAdministracaoCadastroKeycloak.confirmarEmailEAtivarUsuario(
+                cadastroConta.getSubjectRemoto(),
+                cadastroConta.getNomeCompleto(),
+                cadastroConta.getDataNascimento()
+        );
         cadastroConta.marcarEmailConfirmado(agora);
 
         return montarRespostaConfirmacao(cadastroConta, statusUsuario);

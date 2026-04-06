@@ -3,6 +3,7 @@ package com.eickrono.api.identidade.support;
 import com.eickrono.api.identidade.aplicacao.modelo.CadastroKeycloakProvisionado;
 import com.eickrono.api.identidade.aplicacao.modelo.UsuarioCadastroKeycloakExistente;
 import com.eickrono.api.identidade.aplicacao.servico.ClienteAdministracaoCadastroKeycloak;
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,7 +30,9 @@ public class ClienteAdministracaoCadastroKeycloakStubConfiguration implements Cl
     }
 
     @Override
-    public void confirmarEmailEAtivarUsuario(final String subjectRemoto) {
+    public void confirmarEmailEAtivarUsuario(final String subjectRemoto,
+                                             final String nomeCompleto,
+                                             final LocalDate dataNascimento) {
         AtomicBoolean status = usuarios.get(Objects.requireNonNull(subjectRemoto, "subjectRemoto é obrigatório"));
         if (status == null) {
             throw new IllegalStateException("Usuário pendente não encontrado no stub do Keycloak.");

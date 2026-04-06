@@ -67,9 +67,14 @@ class FluxoPublicoControllerIT {
 
     @BeforeEach
     void setUp() {
-        org.mockito.Mockito.doNothing()
-                .when(atestacaoAppServico)
-                .validarComprovante(org.mockito.ArgumentMatchers.any());
+        when(atestacaoAppServico.validarComprovante(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.eickrono.api.identidade.aplicacao.modelo.ValidacaoAtestacaoAppConcluida(
+                        null,
+                        com.eickrono.api.identidade.aplicacao.modelo.ValidacaoOficialAtestacaoAppResultado.naoExecutada(
+                                "validacao oficial nao executada no teste"
+                        ),
+                        com.eickrono.api.identidade.aplicacao.modelo.StatusValidacaoAtestacaoApp.VALIDADA_LOCALMENTE
+                ));
         org.mockito.Mockito.doAnswer(invocacao -> new com.eickrono.api.identidade.aplicacao.modelo
                         .AvaliacaoSegurancaAplicativoRealizada(false, true, 0, java.util.List.of()))
                 .when(avaliacaoSegurancaAplicativoService)
@@ -137,7 +142,7 @@ class FluxoPublicoControllerIT {
                                   },
                                   "atestacao": {
                                     "plataforma": "IOS",
-                                    "provedor": "APP_ATTEST",
+                                    "provedor": "APPLE_APP_ATTEST",
                                     "tipoComprovante": "OBJETO_ASSERCAO",
                                     "identificadorDesafio": "desafio",
                                     "desafioBase64": "ZGVzYWZpbw==",
@@ -189,7 +194,7 @@ class FluxoPublicoControllerIT {
                                   },
                                   "atestacao": {
                                     "plataforma": "IOS",
-                                    "provedor": "APP_ATTEST",
+                                    "provedor": "APPLE_APP_ATTEST",
                                     "tipoComprovante": "OBJETO_ASSERCAO",
                                     "identificadorDesafio": "desafio",
                                     "desafioBase64": "ZGVzYWZpbw==",
@@ -243,7 +248,7 @@ class FluxoPublicoControllerIT {
                                   },
                                   "atestacao": {
                                     "plataforma": "IOS",
-                                    "provedor": "APP_ATTEST",
+                                    "provedor": "APPLE_APP_ATTEST",
                                     "tipoComprovante": "OBJETO_ASSERCAO",
                                     "identificadorDesafio": "desafio",
                                     "desafioBase64": "ZGVzYWZpbw==",
@@ -271,6 +276,59 @@ class FluxoPublicoControllerIT {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("conta_nao_liberada"))
                 .andExpect(jsonPath("$.detalhes.cadastroId").value(cadastroId.toString()));
+    }
+
+    @Test
+    void deveMapearContaIncompletaQuandoKeycloakRetornaContaNaoConfiguradaSemCadastroPendente() throws Exception {
+        when(autenticacaoSessaoInternaServico.autenticar("c@c.com", "SenhaForte123"))
+                .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account is not fully set up"));
+        when(cadastroContaInternaServico.buscarCadastroPendenteEmailPublico("c@c.com"))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/publica/sessoes")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "aplicacaoId": "eickrono-flashcard-app",
+                                  "login": "c@c.com",
+                                  "senha": "SenhaForte123",
+                                  "dispositivo": {
+                                    "plataforma": "IOS",
+                                    "identificadorInstalacao": "instalacao-teste",
+                                    "modelo": "simulador",
+                                    "sistemaOperacional": "ios",
+                                    "versaoSistema": "18",
+                                    "versaoApp": "1.0.0"
+                                  },
+                                  "atestacao": {
+                                    "plataforma": "IOS",
+                                    "provedor": "APPLE_APP_ATTEST",
+                                    "tipoComprovante": "OBJETO_ASSERCAO",
+                                    "identificadorDesafio": "desafio",
+                                    "desafioBase64": "ZGVzYWZpbw==",
+                                    "conteudoComprovante": "Y29tcHJvdmFudGU=",
+                                    "geradoEm": "2026-03-26T20:00:00Z",
+                                    "chaveId": "chave"
+                                  },
+                                  "segurancaAplicativo": {
+                                    "plataforma": "IOS",
+                                    "provedorAtestacao": "APPLE_APP_ATTEST",
+                                    "rootOuJailbreak": false,
+                                    "debuggerDetectado": false,
+                                    "hookingSuspeito": false,
+                                    "tamperSuspeito": false,
+                                    "riscoCapturaTela": false,
+                                    "assinaturaValida": true,
+                                    "identidadeAplicativoValida": true,
+                                    "sinaisRisco": [],
+                                    "scoreRiscoLocal": 0,
+                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "teamIdentifier": "TEAM123"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.codigo").value("conta_incompleta"));
     }
 
     @Test
@@ -310,7 +368,7 @@ class FluxoPublicoControllerIT {
                                   },
                                   "atestacao": {
                                     "plataforma": "IOS",
-                                    "provedor": "APP_ATTEST",
+                                    "provedor": "APPLE_APP_ATTEST",
                                     "tipoComprovante": "OBJETO_ASSERCAO",
                                     "identificadorDesafio": "desafio",
                                     "desafioBase64": "ZGVzYWZpbw==",

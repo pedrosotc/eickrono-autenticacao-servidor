@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -185,7 +186,11 @@ class CadastroContaInternaServicoTest {
         assertThat(confirmacao.emailConfirmado()).isTrue();
         assertThat(confirmacao.podeAutenticar()).isTrue();
         assertThat(salvo.get().emailJaConfirmado()).isTrue();
-        verify(clienteAdministracaoCadastroKeycloak).confirmarEmailEAtivarUsuario("sub-ana");
+        verify(clienteAdministracaoCadastroKeycloak).confirmarEmailEAtivarUsuario(
+                eq("sub-ana"),
+                eq("Ana Souza"),
+                isNull()
+        );
         verify(provisionamentoIdentidadeService).confirmarEmailCadastro(
                 eq("sub-ana"),
                 eq("ana@eickrono.com"),

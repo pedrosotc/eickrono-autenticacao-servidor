@@ -1,6 +1,7 @@
 package com.eickrono.api.identidade.infraestrutura.integracao;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -31,6 +32,7 @@ import com.eickrono.api.identidade.infraestrutura.configuracao.CadastroInternoKe
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Component
@@ -38,6 +40,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdministracaoCadastroKeycloak {
 
     private static final DefaultResponseErrorHandler NO_OP_ERROR_HANDLER = new NoOpResponseErrorHandler();
+    private static final String ATRIBUTO_DATA_NASCIMENTO = "data_nascimento";
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -60,10 +63,12 @@ public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdminist
                                                              final String emailPrincipal,
                                                              final String senhaPura) {
         String accessToken = obterAccessTokenAdministrador();
+        DadosNomeUsuario dadosNome = DadosNomeUsuario.de(nomeCompleto);
         ObjectNode requisicao = objectMapper.createObjectNode();
         requisicao.put("username", emailPrincipal);
         requisicao.put("email", emailPrincipal);
-        requisicao.put("firstName", nomeCompleto);
+        requisicao.put("firstName", dadosNome.primeiroNome());
+        requisicao.put("lastName", dadosNome.sobrenome());
         requisicao.put("enabled", false);
         requisicao.put("emailVerified", false);
 
@@ -102,12 +107,21 @@ public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdminist
     }
 
     @Override
-    public void confirmarEmailEAtivarUsuario(final String subjectRemoto) {
+    public void confirmarEmailEAtivarUsuario(final String subjectRemoto,
+                                             final String nomeCompleto,
+                                             final LocalDate dataNascimento) {
         String accessToken = obterAccessTokenAdministrador();
         JsonNode usuario = consultarUsuario(accessToken, subjectRemoto);
         ObjectNode atualizacao = usuario.deepCopy();
+        DadosNomeUsuario dadosNome = DadosNomeUsuario.de(nomeCompleto);
         atualizacao.put("enabled", true);
         atualizacao.put("emailVerified", true);
+        atualizacao.put("firstName", dadosNome.primeiroNome());
+        atualizacao.put("lastName", dadosNome.sobrenome());
+        if (dataNascimento != null) {
+            ObjectNode atributos = garantirObjeto(atualizacao, "attributes");
+            atributos.set(ATRIBUTO_DATA_NASCIMENTO, arrayComValor(dataNascimento.toString()));
+        }
         atualizarUsuario(accessToken, subjectRemoto, atualizacao);
     }
 
@@ -259,6 +273,22 @@ public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdminist
         return headers;
     }
 
+    private ObjectNode garantirObjeto(final ObjectNode noPai, final String nomeCampo) {
+        JsonNode atual = noPai.get(nomeCampo);
+        if (atual instanceof ObjectNode objeto) {
+            return objeto;
+        }
+        ObjectNode criado = objectMapper.createObjectNode();
+        noPai.set(nomeCampo, criado);
+        return criado;
+    }
+
+    private ArrayNode arrayComValor(final String valor) {
+        ArrayNode valores = objectMapper.createArrayNode();
+        valores.add(valor);
+        return valores;
+    }
+
     private String extrairUserId(final ResponseEntity<String> response) {
         List<String> locations = response.getHeaders().get(HttpHeaders.LOCATION);
         if (locations != null && !locations.isEmpty()) {
@@ -287,6 +317,25 @@ public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdminist
 
     private ResponseStatusException erroGenerico(final String mensagem, final Exception ex) {
         return new ResponseStatusException(BAD_GATEWAY, mensagem, ex);
+    }
+
+    private record DadosNomeUsuario(String primeiroNome, String sobrenome) {
+        private static DadosNomeUsuario de(final String nomeCompleto) {
+            String nomeNormalizado = Objects.requireNonNull(nomeCompleto, "nomeCompleto é obrigatório").trim();
+            if (nomeNormalizado.isBlank()) {
+                throw new IllegalArgumentException("nomeCompleto é obrigatório");
+            }
+            int indiceSeparador = nomeNormalizado.indexOf(' ');
+            if (indiceSeparador < 0) {
+                return new DadosNomeUsuario(nomeNormalizado, nomeNormalizado);
+            }
+            String primeiroNome = nomeNormalizado.substring(0, indiceSeparador).trim();
+            String sobrenome = nomeNormalizado.substring(indiceSeparador + 1).trim();
+            if (sobrenome.isBlank()) {
+                sobrenome = primeiroNome;
+            }
+            return new DadosNomeUsuario(primeiroNome, sobrenome);
+        }
     }
 
     private static final class NoOpResponseErrorHandler extends DefaultResponseErrorHandler {

@@ -226,6 +226,10 @@ nbdist/
 **/build/
 !src/**/build/
 
+# Evidencias locais de documentacao
+documentacao/evidencias/*
+!documentacao/evidencias/.gitkeep
+
 ### Visual Studio ###
 .vs/
 *.rsuser

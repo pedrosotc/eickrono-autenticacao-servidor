@@ -18,8 +18,8 @@ Descrever como a Eickrono deve introduzir TOTP no ecossistema atual sem quebrar 
 - Se um usuário com TOTP habilitado tentar logar hoje, a tendência é o fluxo falhar como se fossem credenciais inválidas, porque o backend atual não envia `otp`/`totp` nem distingue "senha errada" de "TOTP faltando".
 - O TOTP deve entrar somente depois de a conta estar liberada, isto é, após verificação de e-mail e, quando a política do produto exigir, após verificação de telefone.
 - A melhor direção para a Eickrono é manter o segredo TOTP e a validação final dentro do Keycloak, mas expor o provisionamento e a orquestração ao aplicativo via `api-identidade-eickrono`.
-- Para interoperabilidade real com Google Authenticator e Microsoft Authenticator, a política deve ficar em `TOTP + SHA1 + 6 dígitos + período de 30s + reusableCode=false`.
-- O backend deve devolver ao aplicativo os dados de provisionamento em formato canônico (`otpauth://...` + segredo Base32), para que ele possa mostrar código QR, copiar a chave manual e, opcionalmente, tentar abrir um autenticador instalado no mesmo aparelho.
+- Para interoperabilidade real com Google Authenticator, Microsoft Authenticator e o app Senhas da Apple, a política deve ficar em `TOTP + SHA1 + 6 dígitos + período de 30s + reusableCode=false`.
+- O backend deve devolver ao aplicativo os dados de provisionamento em formato canônico (`otpauth://...` + segredo Base32), para que ele possa mostrar código QR, copiar a chave manual e, opcionalmente, tentar abrir um autenticador instalado no mesmo aparelho. No iOS, o aplicativo também pode derivar a variante `apple-otpauth://...` para integração com o app Senhas.
 - Código QR e chave manual devem ser o fluxo canônico. "Abrir aplicativo autenticador" deve ser apenas conveniência, não contrato principal.
 - Códigos de recuperação devem entrar junto do TOTP desde a primeira versão.
 
@@ -69,7 +69,7 @@ Portanto, do ponto de vista técnico:
 - a Eickrono ainda não orquestra isso no login do aplicativo;
 - habilitar TOTP apenas no console ou no domínio não resolve o produto móvel por si só.
 
-## Como Google Authenticator e Microsoft Authenticator entram nessa história
+## Como Google Authenticator, Microsoft Authenticator e Senhas da Apple entram nessa história
 
 ### Formato canônico de provisionamento
 
@@ -86,6 +86,14 @@ Essa mesma carga serve para:
 - gerar um código QR;
 - permitir cópia manual da chave;
 - tentar abrir um aplicativo autenticador que registre o esquema `otpauth://`.
+
+Para o ecossistema Apple, existe ainda uma variante oficial do mesmo padrão:
+
+```text
+apple-otpauth://totp/Eickrono:usuario@exemplo.com?secret=BASE32SECRET&issuer=exemplo.com&digits=6&period=30
+```
+
+Essa variante é específica do gerenciador de senhas da Apple e pode ser aberta pelo aplicativo em resposta a um toque de botão no iOS. Nela, o `issuer` deve seguir o domínio do serviço.
 
 ### Google Authenticator
 
@@ -111,6 +119,33 @@ Pontos relevantes para o desenho:
 Implicação para a Eickrono:
 
 - se quisermos interoperabilidade real com Microsoft Authenticator, a política também precisa ficar no padrão clássico `SHA1 + 6 dígitos + 30 segundos`.
+
+### Senhas da Apple
+
+Pontos relevantes para o desenho:
+
+- a Apple suporta códigos TOTP no app Senhas e no Preenchimento Automático do sistema;
+- a Apple documenta uma variante própria baseada no padrão `otpauth://`, trocando apenas o esquema para `apple-otpauth://`;
+- essa URL pode ser aberta por um app iOS em resposta a um toque de botão para oferecer a gravação direta do TOTP no gerenciador de senhas da Apple;
+- a Apple também continua suportando configuração por código QR e por chave de configuração manual.
+
+Implicação para a Eickrono:
+
+- o contrato do backend pode continuar canônico em `otpauth://...` + segredo Base32;
+- no iOS, o aplicativo pode derivar `apple-otpauth://...` como conveniência específica da plataforma;
+- isso não substitui `código QR + chave manual` como contrato principal, porque é uma integração específica do ecossistema Apple.
+
+### Tabela resumida de autenticadores
+
+| Autenticadores | QR | Link (`otpauth://` e ou `apple-otpauth://`) | Observação |
+| --- | --- | --- | --- |
+| Google Authenticator | Sim | `otpauth://...` | Link genérico amplamente compatível com o ecossistema TOTP. |
+| Senhas da Apple | Sim | `apple-otpauth://...` | Conveniência oficial da Apple para iOS e macOS, além de QR e chave manual. |
+| Microsoft Authenticator | Sim | `otpauth://...` | QR é o caminho oficialmente documentado; a abertura por link deve ser tratada como tentativa genérica, não como contrato específico do app. |
+
+Observação:
+
+- além desses três, outros autenticadores compatíveis com TOTP podem aceitar `QR` e `otpauth://...`, mas este guia só assume oficialmente os autenticadores verificados nesta análise.
 
 ## O que recomendar para a Eickrono
 
@@ -138,6 +173,12 @@ Ordem recomendada:
 5. tela separada de `Segurança da conta` para ativação opcional de TOTP.
 
 Se algum sistema da Eickrono quiser tornar TOTP obrigatório, a mesma tela continua existindo, mas com comportamento bloqueante antes da liberação completa das operações protegidas.
+
+Importante:
+
+- isso deve ser tratado como uma única tela autenticada de `Segurança da conta`;
+- dentro dela, a seção de TOTP pode trocar de estado entre provisionamento, configuração manual, validação e exibição dos recovery codes;
+- não é necessário modelar várias telas independentes para a ativação do TOTP na área autenticada.
 
 ### Política do sistema versus fator do usuário
 
@@ -200,6 +241,7 @@ O contrato ideal entre backend e aplicativo não é "uma página pronta", e sim 
 - `otpauthUri` para o aplicativo gerar o código QR localmente;
 - `secretBase32` para cópia manual;
 - `issuer` e `accountName` para texto de ajuda;
+- opcionalmente, dados suficientes para o aplicativo derivar `apple-otpauth://...` no iOS sem depender de novo contrato;
 - metadados de política para fins de diagnóstico e telemetria, se desejado.
 
 Vantagens:
@@ -213,7 +255,7 @@ Vantagens:
 Para dois dispositivos, o fluxo mais simples e mais interoperável continua sendo:
 
 - o aplicativo mostra o código QR;
-- o usuário escaneia com Google Authenticator ou Microsoft Authenticator.
+- o usuário escaneia com Google Authenticator, Microsoft Authenticator ou com o app Senhas da Apple.
 
 #### 4. Chave manual deve existir obrigatoriamente
 
@@ -228,23 +270,26 @@ Para o caso em que o autenticador está no mesmo aparelho do aplicativo, ou quan
 É aceitável oferecer um botão do tipo:
 
 - `Abrir aplicativo autenticador`
+- `Adicionar ao app Senhas` no iOS
 
 Mas com estas regras:
 
 - o backend não deve depender de link profundo proprietário de Google ou Microsoft;
 - o aplicativo pode tentar abrir o `otpauthUri` no sistema e cair em contingência se não houver aplicativo registrado;
+- no iOS, o aplicativo pode oferecer um botão específico que abra `apple-otpauth://...` para integração com o app Senhas;
 - a experiência sempre precisa continuar funcional com código QR e chave manual.
 
 Observação importante:
 
 - não encontrei documentação oficial pública suficiente para tratar um link profundo proprietário da Microsoft como contrato estável de integração para contas TOTP arbitrárias;
+- para a Apple, existe documentação oficial suficiente para tratar `apple-otpauth://...` como conveniência suportada no iOS e no macOS;
 - por isso, código QR e chave manual precisam continuar sendo o caminho garantido;
-- a tentativa de abertura automática via `otpauth://` deve ser tratada apenas como melhoria de experiência quando o sistema operacional tiver um aplicativo associado compatível.
+- a tentativa de abertura automática via `otpauth://` ou `apple-otpauth://` deve ser tratada apenas como melhoria de experiência quando o sistema operacional tiver um aplicativo associado compatível.
 
 Conclusão prática:
 
 - `código QR + segredo manual` é contrato;
-- `abrir aplicativo autenticador` é conveniência.
+- `abrir aplicativo autenticador` e `Adicionar ao app Senhas` são conveniências.
 
 ## Como o login deve evoluir
 
@@ -525,12 +570,16 @@ Escopo consolidado:
 - expor status do segundo fator no perfil/segurança da conta;
 - habilitar códigos de recuperação;
 - manter código QR e chave manual como contrato principal;
-- permitir abertura via `otpauth://` apenas como conveniência;
+- permitir abertura via `otpauth://` e, no iOS, via `apple-otpauth://` apenas como conveniência;
 - introduzir as tabelas de catálogo de fatores e seus relacionamentos com acesso social/contato, sem replicar segredo TOTP.
 
 O recorte de banco sugerido para essa implementação única foi documentado em:
 
 - [`documentacao/diagramas/modelo_teste_mfa_impl_unica.dbml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/documentacao/diagramas/modelo_teste_mfa_impl_unica.dbml)
+
+O recorte de fluxo, telas e integrações sugerido para essa implementação única foi documentado em:
+
+- [`documentacao/diagramas/fluxo-sequencia-totp.md`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/documentacao/diagramas/fluxo-sequencia-totp.md)
 
 ## Checklist futuro de implementação
 
@@ -538,6 +587,8 @@ O recorte de banco sugerido para essa implementação única foi documentado em:
 - testar ativação com Google Authenticator em iOS;
 - testar ativação com Microsoft Authenticator em Android;
 - testar ativação com Microsoft Authenticator em iOS;
+- testar ativação com app Senhas da Apple em iPhone;
+- testar adição direta via `apple-otpauth://` no iOS;
 - validar contingência manual sem código QR;
 - validar login sem TOTP para usuário não enrolado;
 - validar login com TOTP obrigatório;
@@ -554,3 +605,6 @@ O recorte de banco sugerido para essa implementação única foi documentado em:
 - Google Security Blog sobre sincronização do Google Authenticator: https://security.googleblog.com/2023/04/google-authenticator-now-supports.html
 - Microsoft Support, adicionar contas no Microsoft Authenticator: https://support.microsoft.com/en-US/authenticator/how-to-add-your-accounts-to-microsoft-authenticator
 - Microsoft Support, backup de contas no Microsoft Authenticator: https://support.microsoft.com/en-US/authenticator/back-up-your-accounts-in-microsoft-authenticator
+- Apple Developer, Securing Logins with iCloud Keychain Verification Codes: https://developer.apple.com/documentation/AuthenticationServices/securing-logins-with-icloud-keychain-verification-codes
+- Apple Support, preencha automaticamente códigos de verificação no iPhone: https://support.apple.com/pt-br/guide/iphone/ipha6173c19f/ios
+- Apple Support, usar o app Senhas para criar e gerenciar senhas e códigos: https://support.apple.com/pt-br/120758

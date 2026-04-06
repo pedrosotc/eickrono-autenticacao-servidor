@@ -438,8 +438,8 @@ public class FluxoPublicoController {
             if (ERRO_KEYCLOAK_CONTA_INCOMPLETA.equalsIgnoreCase(motivo)) {
                 return new FluxoPublicoException(
                         HttpStatus.FORBIDDEN,
-                        "conta_nao_liberada",
-                        "A conta ainda não está liberada para utilizar o aplicativo."
+                        "conta_incompleta",
+                        "A conta nao esta completamente configurada para autenticacao."
                 );
             }
             return new FluxoPublicoException(
