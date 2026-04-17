@@ -8,7 +8,7 @@ No estado atual do código, o `mTLS` é usado para proteger o `backchannel` entr
 
 Para a arquitetura canônica do app móvel, a direção mais importante desse `backchannel` passa a ser:
 
-- `autenticação -> flashcard` para provisionamento de perfil depois da confirmação de e-mail.
+- `autenticação -> thimisu` para provisionamento de perfil depois da confirmação de e-mail.
 
 Camadas reais do desenho:
 
@@ -90,7 +90,7 @@ Isso significa que o serviço:
 
 No auth, o uso real do cliente `mTLS` hoje está no `backchannel` para resolver contexto de pessoa no serviço de perfil.
 
-Na arquitetura canônica, esse mesmo mecanismo também é a base para o provisionamento `autenticação -> flashcard` depois da confirmação de e-mail do cadastro.
+Na arquitetura canônica, esse mesmo mecanismo também é a base para o provisionamento `autenticação -> thimisu` depois da confirmação de e-mail do cadastro.
 
 A chamada segue este desenho:
 
@@ -188,7 +188,7 @@ Eles geram:
 
 - uma CA interna autoassinada;
 - `api-identidade-eickrono.p12`;
-- `api-flashcard-eickrono.p12`;
+- `api-thimisu-eickrono.p12`;
 - `servidor-autorizacao-interno.p12`;
 - `backchannel-truststore.p12`.
 
@@ -200,7 +200,7 @@ Arquivos principais:
 - `backchannel-ca.crt`
 - `backchannel-truststore.p12`
 - `api-identidade-eickrono.p12`
-- `api-flashcard-eickrono.p12`
+- `api-thimisu-eickrono.p12`
 - `servidor-autorizacao-interno.p12`
 
 ### Execução em dev
@@ -235,13 +235,13 @@ MTLS_TRUSTSTORE_SENHA=senhaBackchannelHml \
 O script gera:
 
 - `api-identidade-eickrono` com `serverAuth,clientAuth`;
-- `api-flashcard-eickrono` com `serverAuth,clientAuth`;
+- `api-thimisu-eickrono` com `serverAuth,clientAuth`;
 - `servidor-autorizacao-interno` com `clientAuth`.
 
 Os SANs incluem nomes úteis para container e host local, como:
 
 - `api-identidade-eickrono`
-- `api-flashcard-eickrono`
+- `api-thimisu-eickrono`
 - `servidor-autorizacao`
 - `host.docker.internal`
 - `localhost`
@@ -254,13 +254,13 @@ Em `dev` e `hml`, o `docker-compose` monta a pasta `certificados` em `/certifica
 Exemplos de uso real:
 
 - a identidade lê `file:/certificados/api-identidade-eickrono.p12`;
-- o flashcard lê `file:/certificados/api-flashcard-eickrono.p12`;
+- o thimisu lê `file:/certificados/api-thimisu-eickrono.p12`;
 - a SPI do Keycloak lê `/certificados/servidor-autorizacao-interno.p12`;
 - todos confiam na CA via `/certificados/backchannel-truststore.p12`.
 
 ## Limitações e observações importantes
 
 - os caminhos `classpath:certificados/...` dos `application-*.yml` não são a fonte real usada no `docker-compose` local; os containers atuais dependem dos arquivos montados em `/certificados`;
-- hoje só a malha `identidade <-> flashcard` e `servidor-autorizacao -> identidade` está realmente usando `mTLS` no fluxo local;
+- hoje só a malha `identidade <-> thimisu` e `servidor-autorizacao -> identidade` está realmente usando `mTLS` no fluxo local;
 - o `api-contas-eickrono` ainda precisa de evolução se for entrar no mesmo padrão;
 - as variáveis `SERVIDOR_AUTORIZACAO_MTLS_CERTIFICADO` e `SERVIDOR_AUTORIZACAO_MTLS_SENHA` aparecem nos `docker-compose`, mas não são consumidas pelo código Java atual.

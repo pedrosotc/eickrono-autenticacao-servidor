@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 public class SincronizacaoModeloMultiappService {
 
     private static final String CLIENTE_PADRAO_CODIGO = "eickrono-thimisu-app";
-    private static final String CLIENTE_PADRAO_NOME = "Eickrono Flashcard App";
+    private static final String CLIENTE_PADRAO_NOME = "Eickrono Thimisu App";
     private static final String CLIENTE_PADRAO_TIPO = "APP_MOVEL";
     private static final String STATUS_USUARIO_ATIVO = "ATIVO";
     private static final String STATUS_VINCULO_ATIVO = "ATIVO";

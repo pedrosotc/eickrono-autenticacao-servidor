@@ -7,10 +7,10 @@ Esta pasta reúne a documentação canônica do ecossistema de identidade da Eic
 Para o app móvel:
 
 - cadastro, confirmação de e-mail, login e recuperação de senha entram pela autenticação;
-- o `flashcard-servidor` não é mais a borda pública de senha ou código;
-- o flashcard recebe apenas provisionamento interno depois que a autenticação conclui as etapas sensíveis;
+- o `identidade-servidor` não é mais a borda pública de senha ou código;
+- o thimisu recebe apenas provisionamento interno depois que a autenticação conclui as etapas sensíveis;
 - o `X-Device-Token` canônico nasce no próprio login público da autenticação;
-- qualquer explicação antiga centrada em navegador, OIDC interativo no app ou autenticação pública via flashcard deve ser considerada legada.
+- qualquer explicação antiga centrada em navegador, OIDC interativo no app ou autenticação pública via thimisu deve ser considerada legada.
 
 ## Guias principais
 

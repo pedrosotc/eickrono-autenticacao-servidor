@@ -15,7 +15,7 @@
 
 Project eickrono_api_identidade_alvo {
     database_type: "PostgreSQL"
-    Note: "Modelo alvo normalizado da API Identidade. A pessoa vira a unica raiz canonica; email e telefone vivem em tabelas proprias; cadastro, registro de dispositivo e atestacao apontam para contexto relacional em vez de repetir dados textuais. O modelo assume uso de backchannel interno, especialmente pelo flashcard-servidor, para abrir operacoes ja informando o melhor contexto conhecido."
+    Note: "Modelo alvo normalizado da API Identidade. A pessoa vira a unica raiz canonica; email e telefone vivem em tabelas proprias; cadastro, registro de dispositivo e atestacao apontam para contexto relacional em vez de repetir dados textuais. O modelo assume uso de backchannel interno, especialmente pelo identidade-servidor, para abrir operacoes ja informando o melhor contexto conhecido."
 }
 
 // ====================================================================================================
@@ -24,7 +24,7 @@ Project eickrono_api_identidade_alvo {
 
 Table sistemas_origem {
     id          integer      [pk, increment, note: "Identificador interno do sistema chamador"]
-    codigo      varchar(64)  [not null, unique, note: "Codigo estavel do sistema interno. Exemplos esperados: flashcard-servidor, api-contas-eickrono, servidor-autorizacao"]
+    codigo      varchar(64)  [not null, unique, note: "Codigo estavel do sistema interno. Exemplos esperados: identidade-servidor, api-contas-eickrono, servidor-autorizacao"]
     descricao   varchar(255) [note: "Descricao funcional do sistema"]
     criado_em   timestamptz  [not null, note: "Momento de cadastro do sistema de origem"]
     Note: "Catalogo normalizado de chamadores internos do ecossistema. Substitui strings soltas como sistema_solicitante espalhadas em varias tabelas."
@@ -105,7 +105,7 @@ Table cadastros_conta {
     id                           uuid         [pk, note: "Identificador publico do processo de cadastro"]
     pessoa_id                    uuid         [not null, note: "Pessoa em processo de cadastro. O cadastro deixa de duplicar nome e passa a apontar para a raiz canonica"]
     email_id                     uuid         [not null, note: "Email sendo confirmado neste cadastro"]
-    sistema_origem_id            integer      [not null, note: "Sistema interno que abriu o cadastro; tipicamente flashcard-servidor via backchannel"]
+    sistema_origem_id            integer      [not null, note: "Sistema interno que abriu o cadastro; tipicamente identidade-servidor via backchannel"]
     status                       varchar(32)  [not null, note: "Estado do processo. Sugestao de valores: ABERTO, EMAIL_CONFIRMADO, EXPIRADO, CANCELADO"]
     codigo_email_hash            varchar(64)  [not null, note: "Hash HMAC do codigo de confirmacao por email"]
     codigo_email_gerado_em       timestamptz  [not null, note: "Momento da emissao do codigo"]

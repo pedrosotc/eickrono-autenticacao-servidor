@@ -189,7 +189,7 @@ Minimo recomendado:
 - ampliar auditoria e monitoramento com mascaramento adequado;
 - integrar bloqueio progressivo, quarentena e alertas operacionais.
 
-### No app flashcard
+### No app thimisu
 
 - coletar os sinais locais por `MethodChannel` nativo;
 - enviar esses sinais junto da atestacao oficial;

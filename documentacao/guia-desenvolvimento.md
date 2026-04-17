@@ -42,8 +42,8 @@ Se um comportamento visto no app não bater com o código atual, valide primeiro
 Observações importantes do fluxo canônico:
 
 - a API de identidade é a borda pública do app para cadastro, confirmação de e-mail, login e recuperação de senha;
-- o `flashcard-servidor` não deve mais receber senha, código de recuperação ou tentativa de login vindos do app;
-- depois da confirmação de e-mail, a autenticação provisiona o perfil no `flashcard-servidor` por backchannel;
+- o `identidade-servidor` não deve mais receber senha, código de recuperação ou tentativa de login vindos do app;
+- depois da confirmação de e-mail, a autenticação provisiona o perfil no `identidade-servidor` por backchannel;
 - esse provisionamento interno precisa ser idempotente por `cadastroId`;
 - o login público já emite o `X-Device-Token` quando o backend aprova o aparelho;
 - o app não usa mais tela dedicada de registro de dispositivo no fluxo principal;
@@ -132,7 +132,7 @@ Credenciais de acesso manual:
 - **Usuário:** `adm`
 - **Senha:** `AdmDev2026!`
 - **JDBC URL do autorização:** `jdbc:postgresql://localhost:5432/eickrono_dev`
-- **JDBC URL do flashcard:** `jdbc:postgresql://localhost:5432/eickrono_flashcard`
+- **JDBC URL do thimisu:** `jdbc:postgresql://localhost:5432/eickrono_thimisu`
 
 Observações:
 
@@ -168,7 +168,7 @@ Credenciais de acesso manual ao mesmo PostgreSQL compartilhado:
 
 Observações do `hml` local:
 
-- a malha interna `api-identidade <-> flashcard` e `servidor-autorizacao -> api-identidade` já usa `mTLS`;
+- a malha interna `api-identidade <-> thimisu` e `servidor-autorizacao -> api-identidade` já usa `mTLS`;
 - o `api-contas-eickrono` continua fora dessa malha no `docker-compose` atual;
 - localmente, as APIs de identidade e contas usam `ddl-auto=update` para complementar tabelas ainda não cobertas pelas migrations atuais;
 - o objetivo desse perfil local é testar o fluxo real de login sem dividir estado com o `dev`.

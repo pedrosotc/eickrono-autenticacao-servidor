@@ -9,7 +9,7 @@ INSERT INTO catalogo.clientes_ecossistema (
 )
 VALUES (
     'eickrono-thimisu-app',
-    'Eickrono Flashcard App',
+    'Eickrono Thimisu App',
     'APP_MOVEL',
     NULL,
     TRUE,
@@ -31,8 +31,8 @@ SELECT origem.identificador_sistema,
        CURRENT_TIMESTAMP,
        CURRENT_TIMESTAMP
 FROM (
-    SELECT 'flashcard-servidor' AS identificador_sistema,
-           'Backend legado do produto flashcard que abre fluxos internos por backchannel' AS descricao
+    SELECT 'identidade-servidor' AS identificador_sistema,
+           'Backend legado do produto thimisu que abre fluxos internos por backchannel' AS descricao
     UNION
     SELECT 'servidor-autorizacao',
            'Servidor de autorizacao do ecossistema para fluxos internos de autenticacao'
@@ -41,8 +41,8 @@ FROM (
            CASE
                WHEN BTRIM(cadastro.sistema_solicitante) = 'app-flutter-publico'
                    THEN 'Origem publica legada observada no fluxo de cadastro do app movel'
-               WHEN BTRIM(cadastro.sistema_solicitante) = 'flashcard-servidor'
-                   THEN 'Backend legado do produto flashcard que abre fluxos internos por backchannel'
+               WHEN BTRIM(cadastro.sistema_solicitante) = 'identidade-servidor'
+                   THEN 'Backend legado do produto thimisu que abre fluxos internos por backchannel'
                ELSE 'Origem legada observada durante o seed inicial do catalogo'
            END AS descricao
     FROM cadastros_conta cadastro

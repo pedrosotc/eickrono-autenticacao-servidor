@@ -5,8 +5,8 @@ Monorepo da plataforma de identidade, credenciais e sessão da Eickrono. Este re
 ## Arquitetura canônica
 
 - o app fala diretamente com a API de identidade/autenticação para cadastro, login e recuperação de senha;
-- o app não envia senha, código de recuperação nem tentativa de login ao `flashcard-servidor`;
-- o `flashcard-servidor` recebe apenas provisionamento interno de perfil e contexto já autorizados;
+- o app não envia senha, código de recuperação nem tentativa de login ao `identidade-servidor`;
+- o `identidade-servidor` recebe apenas provisionamento interno de perfil e contexto já autorizados;
 - a confirmação de e-mail acontece na autenticação antes de qualquer provisionamento no domínio do produto;
 - o app não abre uma tela dedicada de registro de dispositivo;
 - se a autenticação exigir validação adicional de contato, o app reutiliza a tela de verificação já existente;
@@ -20,17 +20,17 @@ Monorepo da plataforma de identidade, credenciais e sessão da Eickrono. Este re
 - aplicar rate limit, timeout, antifraude, lockout e auditoria;
 - emitir e renovar sessão;
 - decidir confiança do dispositivo e emitir o `X-Device-Token` já no login;
-- chamar o `eickrono-flashcard-servidor` por backchannel para provisionar perfil de negócio depois da confirmação de e-mail.
+- chamar o `eickrono-identidade-servidor` por backchannel para provisionar perfil de negócio depois da confirmação de e-mail.
 
-## Backchannel para o flashcard
+## Backchannel para o servidor de identidade
 
-O fluxo canônico de cadastro agora parte da autenticação para o flashcard:
+O fluxo canônico de cadastro agora parte da autenticação para o `eickrono-identidade-servidor`:
 
 1. o app cria um cadastro pendente na autenticação;
 2. a autenticação envia o código de confirmação por e-mail;
 3. o app confirma o código com a autenticação;
-4. a autenticação provisiona o perfil do usuário no `flashcard-servidor` por backchannel;
-5. o flashcard responde com os identificadores de domínio já criados;
+4. a autenticação provisiona o perfil do usuário no `identidade-servidor` por backchannel;
+5. o `identidade-servidor` responde com os identificadores de domínio já criados;
 6. a autenticação libera o login no app.
 
 Esse provisionamento interno deve ser:
@@ -38,7 +38,7 @@ Esse provisionamento interno deve ser:
 - autenticado por JWT de serviço;
 - restrito por allowlist de `client_id`;
 - protegido por `mTLS`;
-- idempotente por `cadastroId`, para que retries não dupliquem pessoa ou usuário no flashcard.
+- idempotente por `cadastroId`, para que retries não dupliquem pessoa ou usuário no `identidade-servidor`.
 
 ## Sessão e recuperação de senha
 

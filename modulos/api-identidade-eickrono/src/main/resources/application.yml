@@ -171,7 +171,7 @@ integracao:
   interna:
     segredo: ${EICKRONO_INTERNAL_SECRET:local-internal-secret}
     clientes-permitidos:
-      - ${INTEGRACAO_INTERNA_CLIENTE_FLASHCARD:flashcard-servidor-interno}
+      - ${INTEGRACAO_INTERNA_CLIENTE_THIMISU:identidade-servidor-interno}
       - ${INTEGRACAO_INTERNA_CLIENTE_AUTORIZACAO:servidor-autorizacao-interno}
   perfil:
     url-base: ${INTEGRACAO_PERFIL_URL_BASE:http://localhost:8082}

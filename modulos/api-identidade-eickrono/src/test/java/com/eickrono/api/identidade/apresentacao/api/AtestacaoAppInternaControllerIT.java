@@ -44,7 +44,7 @@ class AtestacaoAppInternaControllerIT {
     void deveGerarDesafioInternoComSegredoValido() throws Exception {
         desafioRepositorio.deleteAll();
         mockMvc.perform(post("/identidade/atestacoes/interna/desafios")
-                        .with(jwtInternoFlashcard())
+                        .with(jwtInternoThimisu())
                         .header("X-Eickrono-Internal-Secret", SEGREDO_INTERNO)
                         .header("X-Eickrono-Client-Ip", "10.10.10.1")
                         .header("X-Eickrono-Client-User-Agent", "JUnit/MockMvc")
@@ -89,7 +89,7 @@ class AtestacaoAppInternaControllerIT {
         JsonNode desafio = criarDesafio("IOS");
 
         mockMvc.perform(post("/identidade/atestacoes/interna/validacoes")
-                        .with(jwtInternoFlashcard())
+                        .with(jwtInternoThimisu())
                         .header("X-Eickrono-Internal-Secret", SEGREDO_INTERNO)
                         .contentType(APPLICATION_JSON)
                         .content("""
@@ -120,7 +120,7 @@ class AtestacaoAppInternaControllerIT {
     void deveRecusarSegredoInternoInvalido() throws Exception {
         desafioRepositorio.deleteAll();
         mockMvc.perform(post("/identidade/atestacoes/interna/desafios")
-                        .with(jwtInternoFlashcard())
+                        .with(jwtInternoThimisu())
                         .header("X-Eickrono-Internal-Secret", "segredo-invalido")
                         .contentType(APPLICATION_JSON)
                         .content("""
@@ -134,7 +134,7 @@ class AtestacaoAppInternaControllerIT {
 
     private JsonNode criarDesafio(final String plataforma) throws Exception {
         String corpo = mockMvc.perform(post("/identidade/atestacoes/interna/desafios")
-                        .with(jwtInternoFlashcard())
+                        .with(jwtInternoThimisu())
                         .header("X-Eickrono-Internal-Secret", SEGREDO_INTERNO)
                         .contentType(APPLICATION_JSON)
                         .content("""
@@ -150,10 +150,10 @@ class AtestacaoAppInternaControllerIT {
         return objectMapper.readTree(Objects.requireNonNull(corpo));
     }
 
-    private RequestPostProcessor jwtInternoFlashcard() {
+    private RequestPostProcessor jwtInternoThimisu() {
         return jwt().jwt(jwt -> jwt
-                .subject("service-account-flashcard-servidor-interno")
-                .claim("azp", "flashcard-servidor-interno")
-                .claim("preferred_username", "service-account-flashcard-servidor-interno"));
+                .subject("service-account-identidade-servidor-interno")
+                .claim("azp", "identidade-servidor-interno")
+                .claim("preferred_username", "service-account-identidade-servidor-interno"));
     }
 }

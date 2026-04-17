@@ -4,7 +4,7 @@
 
 - Revisar a politica de expurgo de cadastros pendentes quando a validacao canonica de telefone entrar no fluxo.
 - Hoje, no modelo atual, apenas `PENDENTE_EMAIL` pode ser apagado automaticamente.
-- `EMAIL_CONFIRMADO` nao deve ser apagado, porque nesse ponto o fluxo ja provisiona o perfil no servidor flashcard, ativa/confirma o usuario no Keycloak e marca o cadastro como confirmado.
+- `EMAIL_CONFIRMADO` nao deve ser apagado, porque nesse ponto o fluxo ja provisiona o perfil no servidor thimisu, ativa/confirma o usuario no Keycloak e marca o cadastro como confirmado.
 - Com a futura validacao de telefone, um e-mail confirmado sem telefone confirmado nao devera mais liberar o usuario imediatamente; o modelo de estados de `cadastros_conta` precisara ser revisto antes de manter essa politica de limpeza.
 
 ## Governanca De Sessao E Dispositivo

@@ -141,9 +141,9 @@ Pontos de atencao:
 
 Arquivos impactados:
 
-- `flashcard/eickrono-thimisu-app/assets/config/app_config.dev.json`
-- `flashcard/eickrono-thimisu-app/assets/config/app_config.staging.json`
-- `flashcard/eickrono-thimisu-app/assets/config/app_config.prod.json`
+- `eickrono-thimisu/eickrono-thimisu-app/assets/config/app_config.dev.json`
+- `eickrono-thimisu/eickrono-thimisu-app/assets/config/app_config.staging.json`
+- `eickrono-thimisu/eickrono-thimisu-app/assets/config/app_config.prod.json`
 
 Pontos de atencao:
 

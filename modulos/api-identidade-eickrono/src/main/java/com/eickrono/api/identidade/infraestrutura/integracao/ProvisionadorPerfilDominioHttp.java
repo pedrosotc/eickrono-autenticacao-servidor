@@ -77,7 +77,7 @@ public class ProvisionadorPerfilDominioHttp implements ProvisionadorPerfilDomini
         if (!response.getStatusCode().is2xxSuccessful() || body == null) {
             throw new ResponseStatusException(
                     BAD_GATEWAY,
-                    "Nao foi possivel validar a disponibilidade do usuario no dominio do flashcard."
+                    "Nao foi possivel validar a disponibilidade do usuario no dominio do thimisu."
             );
         }
         return body.disponivel();
@@ -108,13 +108,13 @@ public class ProvisionadorPerfilDominioHttp implements ProvisionadorPerfilDomini
                 ProvisionamentoCadastroInternoResponse.class
         );
         if (response.getStatusCode().value() == CONFLICT.value()) {
-            throw new ResponseStatusException(CONFLICT, "O perfil local do flashcard entrou em conflito durante o provisionamento.");
+            throw new ResponseStatusException(CONFLICT, "O perfil local do thimisu entrou em conflito durante o provisionamento.");
         }
         ProvisionamentoCadastroInternoResponse body = response.getBody();
         if (!response.getStatusCode().is2xxSuccessful() || body == null) {
             throw new ResponseStatusException(
                     BAD_GATEWAY,
-                    "Nao foi possivel provisionar o perfil no dominio do flashcard."
+                    "Nao foi possivel provisionar o perfil no dominio do thimisu."
             );
         }
         return new ProvisionamentoPerfilRealizado(

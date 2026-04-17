@@ -7,15 +7,15 @@ Este guia descreve a arquitetura canônica do ecossistema de autenticação da E
 Para o app móvel:
 
 - cadastro, confirmação de e-mail, login e recuperação de senha entram pela autenticação;
-- o app não abre páginas do `realm` nem delega senha ao `flashcard-servidor`;
-- o `flashcard-servidor` não é mais a borda pública de senha, código de recuperação ou código de confirmação de cadastro;
-- o `flashcard-servidor` recebe apenas provisionamento de perfil de negócio por backchannel depois que a autenticação conclui as etapas sensíveis.
+- o app não abre páginas do `realm` nem delega senha ao `identidade-servidor`;
+- o `identidade-servidor` não é mais a borda pública de senha, código de recuperação ou código de confirmação de cadastro;
+- o `identidade-servidor` recebe apenas provisionamento de perfil de negócio por backchannel depois que a autenticação conclui as etapas sensíveis.
 
 ## Componentes principais
 
 - **Servidor de autorização (Keycloak/RH-SSO):** autoridade de credencial, token, required actions, derivação de senha e políticas de refresh.
 - **API Identidade Eickrono:** borda pública do app para cadastro, confirmação de e-mail, login, recuperação de senha, emissão de `X-Device-Token` e integrações móveis.
-- **Flashcard servidor:** downstream de domínio, provisionado por backchannel depois da confirmação de e-mail.
+- **Thimisu servidor:** downstream de domínio, provisionado por backchannel depois da confirmação de e-mail.
 - **API Contas Eickrono:** domínio financeiro separado, sem receber senha ou código do app.
 - **PostgreSQL + Flyway:** persistência dos estados de cadastro, dispositivos, códigos, tokens e auditoria.
 - **Observabilidade:** Actuator, Micrometer, Prometheus e OpenTelemetry.
@@ -30,9 +30,9 @@ Para o app móvel:
 - responde de forma genérica na recuperação de senha para não enumerar usuários;
 - executa login e emite sessão;
 - controla confiança do dispositivo e emite `X-Device-Token` já no login;
-- provisiona o perfil no flashcard depois da confirmação de e-mail.
+- provisiona o perfil no thimisu depois da confirmação de e-mail.
 
-### Flashcard
+### Thimisu
 
 - persiste pessoa e usuário do domínio de estudo;
 - recebe apenas os dados necessários para criar o perfil do produto;
@@ -46,8 +46,8 @@ Para o app móvel:
 1. o app envia o cadastro para a autenticação;
 2. a autenticação cria um cadastro pendente e envia o código de e-mail;
 3. o app confirma o código com a autenticação;
-4. a autenticação provisiona o perfil no flashcard por backchannel;
-5. o flashcard devolve os identificadores de domínio criados;
+4. a autenticação provisiona o perfil no thimisu por backchannel;
+5. o thimisu devolve os identificadores de domínio criados;
 6. a autenticação libera o login do usuário.
 
 ### Login
@@ -82,7 +82,7 @@ Para o app móvel, os contratos canônicos passam a ser:
 
 Qualquer contrato antigo em que servidor de produto receba senha ou código do app deve ser tratado como legado.
 
-## Backchannel autenticação -> flashcard
+## Backchannel autenticação -> thimisu
 
 O provisionamento interno do perfil deve seguir estas regras:
 
@@ -96,16 +96,16 @@ O provisionamento interno do perfil deve seguir estas regras:
 
 Se a autenticação repetir o mesmo provisionamento por timeout, retry ou falha de rede:
 
-- o flashcard não pode criar uma segunda pessoa;
-- o flashcard deve reconhecer o mesmo `cadastroId`;
-- o flashcard deve devolver a mesma resposta lógica da primeira criação.
+- o thimisu não pode criar uma segunda pessoa;
+- o thimisu deve reconhecer o mesmo `cadastroId`;
+- o thimisu deve devolver a mesma resposta lógica da primeira criação.
 
 Isso evita duplicidade de perfil quando a primeira resposta se perde no caminho.
 
 ## Segurança
 
 - o app nunca recebe resposta que diga explicitamente se o e-mail existe na recuperação de senha;
-- o flashcard não recebe segredo principal do usuário;
+- o thimisu não recebe segredo principal do usuário;
 - logs precisam mascarar tokens, e-mails e identificadores sensíveis;
 - rate limit, lockout, expiração de código, limite de tentativas e antifraude ficam concentrados na autenticação;
 - qualquer integração interna entre serviços modernos deve usar `mTLS` + JWT de serviço.

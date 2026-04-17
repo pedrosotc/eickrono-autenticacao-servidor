@@ -78,7 +78,7 @@ Em outras palavras:
 
 Isso ja esta alinhado com o fluxo documentado no app:
 
-- `/Users/thiago/Desenvolvedor/flutter/flashcard/eickrono-thimisu-app/docs/guia_acoes.md`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/docs/guia_acoes.md`
 
 ### Matriz rapida
 
@@ -394,7 +394,7 @@ Ou seja:
 No app Android atual, o projeto fica em:
 
 ```text
-/Users/thiago/Desenvolvedor/flutter/flashcard/eickrono-thimisu-app/android
+/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android
 ```
 
 E a `debug.keystore` padrão desta máquina fica em:
@@ -407,7 +407,7 @@ Como o comando usa caminho absoluto para a keystore, ele pode ser executado de q
 Mesmo assim, para evitar ambiguidade operacional, a referência adotada aqui passa a ser rodar a partir da pasta Android do app:
 
 ```bash
-cd /Users/thiago/Desenvolvedor/flutter/flashcard/eickrono-thimisu-app/android
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android
 keytool -list -v -alias androiddebugkey -keystore /Users/thiago/.android/debug.keystore -storepass android -keypass android
 ```
 
@@ -527,6 +527,11 @@ Os dados úteis já identificados desse arquivo são:
 - `BUNDLE_ID`: `com.eickrono.thimisu`
 - `PLIST_VERSION`: `1`
 
+Observacao:
+
+- `com.eickrono.thimisu` continua sendo o bundle id tecnico atual do app;
+- a renomeacao do workspace e do pacote Dart nao alterou ainda esse identificador nas plataformas moveis.
+
 ### Como esse arquivo deve ser entendido no iOS
 
 Esse `plist` representa a credencial OAuth local atual do Google para o app iOS de desenvolvimento/testes.
@@ -607,14 +612,14 @@ keytool -list -v -alias <keyAlias> -keystore <storeFile> -storepass <storePasswo
 No workspace atual, o app Android do `Thimísu` está em:
 
 ```text
-/Users/thiago/Desenvolvedor/flutter/flashcard/eickrono-thimisu-app/android
+/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android
 ```
 
 Também não encontrei `key.properties` Android versionado.
 
 Também encontrei que o app Flutter localizado em:
 
-- `/Users/thiago/Desenvolvedor/flutter/flashcard/eickrono-thimisu-app/android/app/build.gradle.kts`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android/app/build.gradle.kts`
 
 está usando a `signingConfig` de `debug` inclusive no bloco `release`.
 

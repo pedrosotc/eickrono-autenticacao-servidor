@@ -123,7 +123,7 @@ class CadastroContaInternaServicoTest {
                 "+5511999999999",
                 CanalValidacaoTelefoneCadastro.WHATSAPP,
                 "SenhaForte@123",
-                "flashcard-servidor",
+                "identidade-servidor",
                 "127.0.0.1",
                 "JUnit"
         );
@@ -134,7 +134,7 @@ class CadastroContaInternaServicoTest {
 
         verify(cadastroContaRepositorio).save(cadastroCaptor.capture());
         assertThat(cadastroCaptor.getValue().getStatus().name()).isEqualTo("PENDENTE_EMAIL");
-        assertThat(cadastroCaptor.getValue().getSistemaSolicitante()).isEqualTo("flashcard-servidor");
+        assertThat(cadastroCaptor.getValue().getSistemaSolicitante()).isEqualTo("identidade-servidor");
         assertThat(cadastroCaptor.getValue().getTelefonePrincipal()).isEqualTo("+5511999999999");
         assertThat(cadastroCaptor.getValue().getCanalValidacaoTelefone())
                 .isEqualTo(CanalValidacaoTelefoneCadastro.WHATSAPP);
@@ -171,7 +171,7 @@ class CadastroContaInternaServicoTest {
                 "+5511999999999",
                 CanalValidacaoTelefoneCadastro.SMS,
                 "SenhaForte@123",
-                "flashcard-servidor",
+                "identidade-servidor",
                 "127.0.0.1",
                 "JUnit"
         );
@@ -220,7 +220,7 @@ class CadastroContaInternaServicoTest {
                 "+5511999999999",
                 CanalValidacaoTelefoneCadastro.SMS,
                 "SenhaForte@123",
-                "flashcard-servidor",
+                "identidade-servidor",
                 "127.0.0.1",
                 "JUnit"
         );

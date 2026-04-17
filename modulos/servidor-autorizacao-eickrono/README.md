@@ -16,7 +16,7 @@ No fluxo móvel atual:
 
 - a borda pública do app é a API de identidade/autenticação, não este módulo diretamente;
 - este módulo sustenta a parte de Keycloak/RH-SSO do ecossistema, com credenciais, tokens, `required actions`, políticas de cliente e refresh;
-- o `flashcard-servidor` não deve receber senha do app;
+- o `identidade-servidor` não deve receber senha do app;
 - login, recuperação de senha e demais fluxos sensíveis continuam centralizados na autenticação.
 
 ## SPI de senha derivada

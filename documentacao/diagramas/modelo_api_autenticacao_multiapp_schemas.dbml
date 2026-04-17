@@ -31,7 +31,7 @@ Project eickrono_autenticacao_multiapp_schemas {
 
 Table catalogo.clientes_ecossistema [headercolor: #0F766E] {
     id                 bigserial    [pk, increment, note: "Identificador interno do app, site, BFF ou cliente externo do ecossistema"]
-    codigo             varchar(64)  [not null, unique, note: "Codigo estavel do cliente. Ex.: flashcard-app, portal-web, contas-bff"]
+    codigo             varchar(64)  [not null, unique, note: "Codigo estavel do cliente. Ex.: thimisu-app, portal-web, contas-bff"]
     nome               varchar(255) [not null, note: "Nome amigavel do cliente"]
     tipo               varchar(32)  [not null, note: "Tipo do cliente. Ex.: APP_MOVEL, SITE, BFF, API_PUBLICA"]
     client_id_oidc     varchar(255) [unique, note: "Identificador exato do cliente cadastrado no servidor OAuth2/OIDC, como Keycloak, quando este cliente do ecossistema participar diretamente de fluxos de autenticacao ou autorizacao"]
@@ -43,7 +43,7 @@ Table catalogo.clientes_ecossistema [headercolor: #0F766E] {
 
 Table catalogo.sistemas_origem [headercolor: #0F766E] {
     id                 bigserial    [pk, increment, note: "Identificador interno do sistema chamador"]
-    identificador_sistema varchar(64) [not null, unique, note: "Identificador tecnico estavel do sistema interno. Ex.: flashcard-servidor, identidade-servidor, api-contas-eickrono"]
+    identificador_sistema varchar(64) [not null, unique, note: "Identificador tecnico estavel do sistema interno. Ex.: identidade-servidor, identidade-servidor, api-contas-eickrono"]
     descricao          varchar(255) [note: "Descricao funcional do sistema de origem"]
     ativo              boolean      [not null, default: true, note: "Indica se o sistema segue autorizado a abrir fluxos internos"]
     criado_em          timestamptz  [not null, note: "Momento da criacao do registro"]
@@ -144,7 +144,7 @@ Table autenticacao.usuarios_clientes_ecossistema [headercolor: #1565C0] {
         (usuario_id, cliente_ecossistema_id) [unique]
         (cliente_ecossistema_id, status_vinculo)
     }
-    Note: "Tabela que substitui semanticamente status locais como StatusUsuarioFlashcard. O status do produto ou site passa a existir como vinculo do usuario com aquele cliente."
+    Note: "Tabela que substitui semanticamente status locais como StatusUsuarioThimisu. O status do produto ou site passa a existir como vinculo do usuario com aquele cliente."
 }
 
 Table autenticacao.cadastros_conta [headercolor: #1565C0] {

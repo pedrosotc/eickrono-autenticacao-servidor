@@ -30,7 +30,7 @@ Project eickrono_api_identidade_autenticacao_minima {
 
 Table sistemas_origem {
     id        integer      [pk, increment, note: "Identificador interno do sistema chamador"]
-    codigo    varchar(64)  [not null, unique, note: "Codigo estavel do sistema interno. Exemplos: flashcard-servidor, api-contas-eickrono, servidor-autorizacao"]
+    codigo    varchar(64)  [not null, unique, note: "Codigo estavel do sistema interno. Exemplos: identidade-servidor, api-contas-eickrono, servidor-autorizacao"]
     descricao varchar(255) [note: "Descricao funcional do sistema"]
     criado_em timestamptz  [not null, note: "Momento de cadastro do sistema"]
     Note: "Catalogo de chamadores internos. Evita espalhar strings de sistema_solicitante pelas tabelas operacionais."
@@ -45,7 +45,7 @@ Table cadastros_conta {
     pessoa_id_perfil             bigint       [not null, note: "Referencia externa para identidade.pessoas.id no b.dbml"]
     email_id_perfil              bigint       [not null, note: "Referencia externa para contato.emails.id no b.dbml; email que esta sendo confirmado"]
     keycloak_user_id             varchar(36)  [not null, unique, note: "Referencia externa para USER_ENTITY.ID no Keycloak; usuario criado em estado pendente"]
-    sistema_origem_id            integer      [not null, note: "Sistema interno que abriu o cadastro; tipicamente flashcard-servidor via backchannel"]
+    sistema_origem_id            integer      [not null, note: "Sistema interno que abriu o cadastro; tipicamente identidade-servidor via backchannel"]
     status                       varchar(32)  [not null, note: "Estado do processo. Sugestao: ABERTO, EMAIL_CONFIRMADO, EXPIRADO, CANCELADO"]
     codigo_email_hash            varchar(64)  [not null, note: "Hash HMAC do codigo de confirmacao por email"]
     codigo_email_gerado_em       timestamptz  [not null, note: "Momento da emissao do codigo"]
@@ -171,7 +171,7 @@ Table atestacoes_app_desafios {
     criado_em                     timestamptz  [not null, note: "Momento da emissao do desafio"]
     expira_em                     timestamptz  [not null, note: "Prazo maximo de uso"]
     consumido_em                  timestamptz  [note: "Momento do consumo bem sucedido"]
-    Note: "Desafio efemero de atestacao vinculado ao melhor contexto disponivel sem replicar dado cadastral. Se o flashcard-servidor ja conhece pessoa, email, cadastro ou dispositivo via backchannel, a autenticacao persiste apenas essas referencias externas."
+    Note: "Desafio efemero de atestacao vinculado ao melhor contexto disponivel sem replicar dado cadastral. Se o identidade-servidor ja conhece pessoa, email, cadastro ou dispositivo via backchannel, a autenticacao persiste apenas essas referencias externas."
 }
 
 // ====================================================================================================

@@ -120,7 +120,7 @@ Table cadastros_conta {
     tentativas_confirmacao_email  integer      [not null, default: 0, note: "Contador de tentativas de confirmacao do codigo de email"]
     reenvios_email                integer      [not null, default: 0, note: "Contador de reenvios do codigo de email"]
     email_confirmado_em           timestamptz  [note: "Momento em que o email do cadastro foi efetivamente confirmado e o usuario pendente pode ser ativado no Keycloak"]
-    sistema_solicitante           varchar(64)  [not null, note: "Sistema chamador que iniciou o cadastro interno; no fluxo atual o default do controller e flashcard-servidor"]
+    sistema_solicitante           varchar(64)  [not null, note: "Sistema chamador que iniciou o cadastro interno; no fluxo atual o default do controller e identidade-servidor"]
     ip_solicitante                varchar(64)  [note: "Endereco IP observado ao solicitar o cadastro, para trilha operacional do pedido inicial"]
     user_agent_solicitante        varchar(512) [note: "User-Agent bruto observado ao solicitar o cadastro, quando o chamador o encaminha"]
     criado_em                     timestamptz  [not null, note: "Momento da criacao do processo de cadastro"]

@@ -1,4 +1,4 @@
-WITH cliente_flashcard AS (
+WITH cliente_thimisu AS (
     SELECT cliente.id AS cliente_ecossistema_id
     FROM catalogo.clientes_ecossistema cliente
     WHERE cliente.codigo = 'eickrono-thimisu-app'
@@ -22,7 +22,7 @@ registros_base AS (
     FROM registro_dispositivo registro
     LEFT JOIN pessoas_identidade pessoa
       ON pessoa.id = registro.pessoa_id_perfil
-    CROSS JOIN cliente_flashcard cliente
+    CROSS JOIN cliente_thimisu cliente
 ),
 registros_resolvidos AS (
     SELECT base.id,
@@ -177,7 +177,7 @@ SELECT base.id,
 FROM codigos_base base
 ON CONFLICT (id) DO NOTHING;
 
-WITH cliente_flashcard AS (
+WITH cliente_thimisu AS (
     SELECT cliente.id AS cliente_ecossistema_id
     FROM catalogo.clientes_ecossistema cliente
     WHERE cliente.codigo = 'eickrono-thimisu-app'
@@ -197,7 +197,7 @@ dispositivos_base AS (
     FROM dispositivos_identidade dispositivo
     LEFT JOIN pessoas_identidade pessoa
       ON pessoa.id = dispositivo.pessoa_id_perfil
-    CROSS JOIN cliente_flashcard cliente
+    CROSS JOIN cliente_thimisu cliente
 ),
 dispositivos_resolvidos AS (
     SELECT (
@@ -252,7 +252,7 @@ FROM dispositivos_resolvidos base
 WHERE base.usuario_id IS NOT NULL
 ON CONFLICT (usuario_id, cliente_ecossistema_id, fingerprint) DO NOTHING;
 
-WITH cliente_flashcard AS (
+WITH cliente_thimisu AS (
     SELECT cliente.id AS cliente_ecossistema_id
     FROM catalogo.clientes_ecossistema cliente
     WHERE cliente.codigo = 'eickrono-thimisu-app'
@@ -267,7 +267,7 @@ dispositivos_mapeados AS (
       ON pessoa.id = dispositivo.pessoa_id_perfil
     LEFT JOIN autenticacao.usuarios usuario
       ON usuario.sub_remoto = COALESCE(NULLIF(BTRIM(dispositivo.usuario_sub), ''), pessoa.sub)
-    CROSS JOIN cliente_flashcard cliente
+    CROSS JOIN cliente_thimisu cliente
     LEFT JOIN dispositivos.dispositivos_confiaveis dispositivo_novo
       ON dispositivo_novo.usuario_id = usuario.id
      AND dispositivo_novo.cliente_ecossistema_id = cliente.cliente_ecossistema_id
@@ -324,7 +324,7 @@ FROM tokens_resolvidos base
 WHERE base.dispositivo_id IS NOT NULL
 ON CONFLICT (id) DO NOTHING;
 
-WITH cliente_flashcard AS (
+WITH cliente_thimisu AS (
     SELECT cliente.id AS cliente_ecossistema_id
     FROM catalogo.clientes_ecossistema cliente
     WHERE cliente.codigo = 'eickrono-thimisu-app'
@@ -347,7 +347,7 @@ desafios_base AS (
     FROM atestacoes_app_desafios desafio
     LEFT JOIN pessoas_identidade pessoa
       ON pessoa.id = desafio.pessoa_id_perfil
-    CROSS JOIN cliente_flashcard cliente
+    CROSS JOIN cliente_thimisu cliente
 ),
 desafios_resolvidos AS (
     SELECT (

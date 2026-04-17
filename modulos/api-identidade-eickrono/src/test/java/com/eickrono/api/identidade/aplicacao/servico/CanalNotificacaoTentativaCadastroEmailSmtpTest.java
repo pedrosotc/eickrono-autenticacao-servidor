@@ -31,7 +31,7 @@ class CanalNotificacaoTentativaCadastroEmailSmtpTest {
         properties.setRemetente("nao-responda@eickrono.com");
         properties.setResponderPara("suporte@eickrono.com");
         properties.setAssuntoTentativaCadastroEmailExistente("Tentativa de cadastro detectada");
-        properties.setNomeAplicacao("Eickrono Flashcard");
+        properties.setNomeAplicacao("Eickrono Thimisu");
 
         CanalNotificacaoTentativaCadastroEmailSmtp canal =
                 new CanalNotificacaoTentativaCadastroEmailSmtp(javaMailSender, properties);
@@ -44,7 +44,7 @@ class CanalNotificacaoTentativaCadastroEmailSmtpTest {
         assertThat(mensagem.getFrom()).isEqualTo("nao-responda@eickrono.com");
         assertThat(mensagem.getReplyTo()).isEqualTo("suporte@eickrono.com");
         assertThat(mensagem.getSubject()).isEqualTo("Tentativa de cadastro detectada");
-        assertThat(mensagem.getText()).contains("Eickrono Flashcard");
+        assertThat(mensagem.getText()).contains("Eickrono Thimisu");
         assertThat(mensagem.getText()).contains("recuperação de senha");
     }
 }

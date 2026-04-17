@@ -60,7 +60,7 @@ public class CadastroInternoController {
                 request.telefonePrincipal(),
                 request.tipoValidacaoTelefone(),
                 request.senha(),
-                Objects.requireNonNullElse(sistemaSolicitante, "flashcard-servidor"),
+                Objects.requireNonNullElse(sistemaSolicitante, "identidade-servidor"),
                 ipSolicitante,
                 userAgentSolicitante
         );

@@ -30,7 +30,7 @@ Este runbook cobre:
 ## Artefatos de referência
 
 - DBML alvo: `documentacao/diagramas/modelo_api_autenticacao_multiapp_schemas.dbml`
-- proposta de cisão: `../../eickrono-flashcard-servidor/docs/proposta_cisao_identidade_flashcard.md`
+- proposta de cisão: `../../eickrono-identidade-servidor/docs/proposta_cisao_identidade_thimisu.md`
 
 ## Fase 1. Criar a estrutura nova sem tocar no legado
 
@@ -87,7 +87,7 @@ Critérios:
 - enquanto o schema `identidade` ainda não existir, gerar `pessoa_id` transitório, mas determinístico, a partir do `sub` legado;
 - usar namespaces distintos na derivação determinística, para não colidir `usuario.id` com `pessoa_id`;
 - preservar `sub_remoto` quando existir;
-- resolver um `cliente_ecossistema_id` padrão para os registros que hoje pertencem implicitamente ao flashcard;
+- resolver um `cliente_ecossistema_id` padrão para os registros que hoje pertencem implicitamente ao thimisu;
 - materializar o vínculo do usuário com esse cliente.
 
 Implementação inicial já materializada:
@@ -151,7 +151,7 @@ Fontes legadas:
 
 - `public.atestacoes_app_desafios`
 - `public.apple_app_attest_chaves`
-- trilhas de operação existentes no flashcard, se houver
+- trilhas de operação existentes no thimisu, se houver
 
 Critérios:
 

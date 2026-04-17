@@ -17,10 +17,10 @@ ARQUIVOS_GERADOS=(
   api-identidade-eickrono.csr
   api-identidade-eickrono.crt
   api-identidade-eickrono.p12
-  api-flashcard-eickrono.key
-  api-flashcard-eickrono.csr
-  api-flashcard-eickrono.crt
-  api-flashcard-eickrono.p12
+  api-thimisu-eickrono.key
+  api-thimisu-eickrono.csr
+  api-thimisu-eickrono.crt
+  api-thimisu-eickrono.p12
   servidor-autorizacao-interno.key
   servidor-autorizacao-interno.csr
   servidor-autorizacao-interno.crt
@@ -98,9 +98,9 @@ gerar_certificado \
   "serverAuth,clientAuth"
 
 gerar_certificado \
-  "api-flashcard-eickrono" \
-  "api-flashcard-eickrono" \
-  "DNS:api-flashcard-eickrono,DNS:host.docker.internal,DNS:localhost,IP:127.0.0.1" \
+  "api-thimisu-eickrono" \
+  "api-thimisu-eickrono" \
+  "DNS:api-thimisu-eickrono,DNS:host.docker.internal,DNS:localhost,IP:127.0.0.1" \
   "serverAuth,clientAuth"
 
 gerar_certificado \

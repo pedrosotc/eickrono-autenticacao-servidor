@@ -12,7 +12,7 @@ public class IntegracaoInternaProperties {
 
     private String segredo = "local-internal-secret";
     private List<String> clientesPermitidos = new ArrayList<>(
-            List.of("flashcard-servidor-interno", "servidor-autorizacao-interno"));
+            List.of("identidade-servidor-interno", "servidor-autorizacao-interno"));
 
     public String getSegredo() {
         return segredo;

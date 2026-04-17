@@ -37,7 +37,7 @@ class CanalEnvioCodigoCadastroEmailSmtpTest {
         properties.setRemetente("nao-responda@eickrono.com");
         properties.setResponderPara("suporte@eickrono.com");
         properties.setAssunto("Confirme seu cadastro");
-        properties.setNomeAplicacao("Eickrono Flashcard");
+        properties.setNomeAplicacao("Eickrono Thimisu");
 
         CanalEnvioCodigoCadastroEmailSmtp canal = new CanalEnvioCodigoCadastroEmailSmtp(javaMailSender, properties);
         CadastroConta cadastro = new CadastroConta(
@@ -56,7 +56,7 @@ class CanalEnvioCodigoCadastroEmailSmtpTest {
                 "hash",
                 OffsetDateTime.of(2026, 3, 19, 10, 0, 0, 0, ZoneOffset.UTC),
                 OffsetDateTime.of(2026, 3, 19, 19, 0, 0, 0, ZoneOffset.UTC),
-                "flashcard-servidor",
+                "identidade-servidor",
                 "127.0.0.1",
                 "JUnit",
                 OffsetDateTime.of(2026, 3, 19, 10, 0, 0, 0, ZoneOffset.UTC),
@@ -72,7 +72,7 @@ class CanalEnvioCodigoCadastroEmailSmtpTest {
         assertThat(mensagem.getReplyTo()).isEqualTo("suporte@eickrono.com");
         assertThat(mensagem.getSubject()).isEqualTo("Confirme seu cadastro");
         assertThat(mensagem.getText()).contains("123456");
-        assertThat(mensagem.getText()).contains("Eickrono Flashcard");
+        assertThat(mensagem.getText()).contains("Eickrono Thimisu");
         assertThat(mensagem.getText()).contains("11111111-1111-1111-1111-111111111111");
     }
 }

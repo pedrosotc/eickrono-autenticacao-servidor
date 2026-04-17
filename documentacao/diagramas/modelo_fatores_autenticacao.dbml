@@ -33,7 +33,7 @@ Table politicas_autenticacao_cliente {
         (realm, client_id) [unique]
     }
 
-    Note: "Politica por sistema/cliente. Aqui mora a decisao do produto, como TOTP opcional para o app flashcard."
+    Note: "Politica por sistema/cliente. Aqui mora a decisao do produto, como TOTP opcional para o app thimisu."
 }
 
 Table fatores_autenticacao_usuario {

@@ -118,7 +118,7 @@ WITH pessoas_base AS (
     WHERE pessoa.sub IS NOT NULL
       AND BTRIM(pessoa.sub) <> ''
 ),
-cliente_flashcard AS (
+cliente_thimisu AS (
     SELECT cliente.id AS cliente_ecossistema_id
     FROM catalogo.clientes_ecossistema cliente
     WHERE cliente.codigo = 'eickrono-thimisu-app'
@@ -135,7 +135,7 @@ vinculos_base AS (
            cliente.cliente_ecossistema_id,
            pessoa.atualizado_em
     FROM pessoas_base pessoa
-    CROSS JOIN cliente_flashcard cliente
+    CROSS JOIN cliente_thimisu cliente
 )
 INSERT INTO autenticacao.usuarios_clientes_ecossistema (
     id,

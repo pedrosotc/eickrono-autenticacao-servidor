@@ -1,4 +1,4 @@
-WITH cliente_flashcard AS (
+WITH cliente_thimisu AS (
     SELECT cliente.id AS cliente_ecossistema_id
     FROM catalogo.clientes_ecossistema cliente
     WHERE cliente.codigo = 'eickrono-thimisu-app'
@@ -26,7 +26,7 @@ cadastros_base AS (
       ON pessoa.id = cadastro.pessoa_id_perfil
     LEFT JOIN catalogo.sistemas_origem sistema
       ON sistema.identificador_sistema = BTRIM(cadastro.sistema_solicitante)
-    CROSS JOIN cliente_flashcard cliente
+    CROSS JOIN cliente_thimisu cliente
 ),
 cadastros_resolvidos AS (
     SELECT base.id,
@@ -124,7 +124,7 @@ SELECT base.id,
 FROM cadastros_resolvidos base
 ON CONFLICT (id) DO NOTHING;
 
-WITH cliente_flashcard AS (
+WITH cliente_thimisu AS (
     SELECT cliente.id AS cliente_ecossistema_id
     FROM catalogo.clientes_ecossistema cliente
     WHERE cliente.codigo = 'eickrono-thimisu-app'
@@ -144,7 +144,7 @@ recuperacoes_base AS (
            recuperacao.atualizado_em,
            cliente.cliente_ecossistema_id
     FROM recuperacoes_senha recuperacao
-    CROSS JOIN cliente_flashcard cliente
+    CROSS JOIN cliente_thimisu cliente
 ),
 usuarios_por_email AS (
     SELECT forma.usuario_id,
