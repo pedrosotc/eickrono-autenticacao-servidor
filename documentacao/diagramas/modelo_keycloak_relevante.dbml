@@ -25,7 +25,7 @@ Project eickrono_keycloak_relevante {
 
 Table REALM {
     ID                        varchar(36) [pk, note: "Identificador tecnico do realm"]
-    NAME                      varchar(255) [not null, unique, note: "Nome logico do realm; neste repositorio existem desenvolvimento, homologacao e producao"]
+    NAME                      varchar(255) [not null, unique, note: "Nome logico do realm; neste repositorio o nome padronizado e eickrono"]
     ENABLED                   boolean      [not null, note: "Indica se o realm esta ativo"]
     REGISTRATION_ALLOWED      boolean      [not null, note: "Permite ou nao auto-registro no realm"]
     REG_EMAIL_AS_USERNAME     boolean      [not null, note: "Indica se o email deve ser usado como username"]
@@ -79,7 +79,7 @@ Table WEB_ORIGINS {
 Table REDIRECT_URIS {
     CLIENT_ID varchar(36)  [pk, not null, note: "Cliente dono da redirect URI"]
     VALUE     varchar(255) [pk, note: "Redirect URI permitida para o cliente"]
-    Note: "Redirect URIs permitidas. O app-flutter-local possui callbacks nativos como com.eickrono.flashcards:/oauth2redirect."
+    Note: "Redirect URIs permitidas. O app-flutter-local possui callbacks nativos como com.eickrono.thimisu:/oauth2redirect."
 }
 
 // ====================================================================================================

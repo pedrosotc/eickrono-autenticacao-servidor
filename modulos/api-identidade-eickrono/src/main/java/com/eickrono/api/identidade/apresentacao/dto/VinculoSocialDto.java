@@ -3,11 +3,12 @@ package com.eickrono.api.identidade.apresentacao.dto;
 import java.time.OffsetDateTime;
 
 /**
- * DTO que representa o vínculo de login social.
+ * DTO que representa o estado de um provedor social suportado.
  */
 public record VinculoSocialDto(
-        Long id,
         String provedor,
-        String identificador,
-        OffsetDateTime vinculadoEm) {
+        boolean suportado,
+        boolean vinculado,
+        OffsetDateTime vinculadoEm,
+        String identificadorMascarado) {
 }

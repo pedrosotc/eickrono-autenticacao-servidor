@@ -8,7 +8,7 @@ public class CadastroInternoKeycloakProperties {
 
     private String urlBase = "http://localhost:8080";
     private String adminRealm = "master";
-    private String realm = "desenvolvimento";
+    private String realm = "eickrono";
     private String clientId = "admin-cli";
     private String clientSecret;
     private String adminUsername = "admin";

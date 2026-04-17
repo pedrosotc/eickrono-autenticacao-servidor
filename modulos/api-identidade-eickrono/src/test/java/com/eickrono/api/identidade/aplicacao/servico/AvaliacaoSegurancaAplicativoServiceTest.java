@@ -30,12 +30,12 @@ class AvaliacaoSegurancaAplicativoServiceTest {
     @BeforeEach
     void setUp() {
         properties = new SegurancaAplicativoProperties();
-        properties.setAplicacoesPermitidas(List.of("eickrono-flashcard-app"));
+        properties.setAplicacoesPermitidas(List.of("eickrono-thimisu-app"));
         properties.setScoreMaximoPermitido(69);
 
         atestacaoAppProperties = new AtestacaoAppProperties();
-        atestacaoAppProperties.getGoogle().setPackageName("com.eickrono.flashCards");
-        atestacaoAppProperties.getApple().setBundleIdentifier("com.eickrono.flashCards");
+        atestacaoAppProperties.getGoogle().setPackageName("com.eickrono.thimisu");
+        atestacaoAppProperties.getApple().setBundleIdentifier("com.eickrono.thimisu");
         atestacaoAppProperties.getApple().setTeamIdentifier("TEAM12345");
     }
 
@@ -63,7 +63,7 @@ class AvaliacaoSegurancaAplicativoServiceTest {
                 true,
                 List.of("rootbeer_is_rooted"),
                 50,
-                "com.eickrono.flashCards",
+                "com.eickrono.thimisu",
                 null,
                 null,
                 "abc"
@@ -71,7 +71,7 @@ class AvaliacaoSegurancaAplicativoServiceTest {
 
         AvaliacaoSegurancaAplicativoRealizada avaliacao = service.avaliar(
                 "login",
-                "eickrono-flashcard-app",
+                "eickrono-thimisu-app",
                 "ANDROID",
                 request,
                 "usuario-123"
@@ -85,7 +85,7 @@ class AvaliacaoSegurancaAplicativoServiceTest {
         verify(auditoriaService).registrarEvento(
                 eq("SEGURANCA_APP_LOGIN"),
                 eq("usuario-123"),
-                contains("aplicacaoId=eickrono-flashcard-app")
+                contains("aplicacaoId=eickrono-thimisu-app")
         );
     }
 
@@ -114,7 +114,7 @@ class AvaliacaoSegurancaAplicativoServiceTest {
                 List.of("debugger_detectado_cliente"),
                 95,
                 null,
-                "com.eickrono.flashCards.invalido",
+                "com.eickrono.thimisu.invalido",
                 "TEAM99999",
                 null
         );
@@ -122,7 +122,7 @@ class AvaliacaoSegurancaAplicativoServiceTest {
         FluxoPublicoException exception =
                 (FluxoPublicoException) org.assertj.core.api.Assertions.catchThrowable(() -> service.avaliar(
                         "cadastro",
-                        "eickrono-flashcard-app",
+                        "eickrono-thimisu-app",
                         "IOS",
                         request,
                         "novo-usuario"

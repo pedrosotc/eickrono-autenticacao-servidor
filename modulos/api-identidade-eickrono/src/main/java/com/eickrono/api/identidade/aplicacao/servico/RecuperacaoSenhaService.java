@@ -20,6 +20,7 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -35,13 +36,16 @@ public class RecuperacaoSenhaService {
     private final CanalEnvioCodigoRecuperacaoSenhaEmail canalEnvioCodigoRecuperacaoSenhaEmail;
     private final DispositivoProperties dispositivoProperties;
     private final Clock clock;
+    private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
     private final HexFormat hexFormat = HexFormat.of();
 
+    @Autowired
     public RecuperacaoSenhaService(final RecuperacaoSenhaRepositorio recuperacaoSenhaRepositorio,
                                    final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak,
                                    final CanalEnvioCodigoRecuperacaoSenhaEmail canalEnvioCodigoRecuperacaoSenhaEmail,
                                    final DispositivoProperties dispositivoProperties,
-                                   final Clock clock) {
+                                   final Clock clock,
+                                   final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
         this.recuperacaoSenhaRepositorio = Objects.requireNonNull(
                 recuperacaoSenhaRepositorio, "recuperacaoSenhaRepositorio é obrigatório");
         this.clienteAdministracaoCadastroKeycloak = Objects.requireNonNull(
@@ -50,6 +54,22 @@ public class RecuperacaoSenhaService {
                 canalEnvioCodigoRecuperacaoSenhaEmail, "canalEnvioCodigoRecuperacaoSenhaEmail é obrigatório");
         this.dispositivoProperties = Objects.requireNonNull(dispositivoProperties, "dispositivoProperties é obrigatório");
         this.clock = Objects.requireNonNull(clock, "clock é obrigatório");
+        this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
+    }
+
+    public RecuperacaoSenhaService(final RecuperacaoSenhaRepositorio recuperacaoSenhaRepositorio,
+                                   final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak,
+                                   final CanalEnvioCodigoRecuperacaoSenhaEmail canalEnvioCodigoRecuperacaoSenhaEmail,
+                                   final DispositivoProperties dispositivoProperties,
+                                   final Clock clock) {
+        this(
+                recuperacaoSenhaRepositorio,
+                clienteAdministracaoCadastroKeycloak,
+                canalEnvioCodigoRecuperacaoSenhaEmail,
+                dispositivoProperties,
+                clock,
+                null
+        );
     }
 
     public RecuperacaoSenhaIniciada iniciar(final String emailPrincipal) {
@@ -73,6 +93,7 @@ public class RecuperacaoSenhaService {
                 agora
         ));
 
+        sincronizarRecuperacaoSeConfigurado(recuperacaoSenha);
         if (usuarioExistente.isPresent()) {
             canalEnvioCodigoRecuperacaoSenhaEmail.enviar(recuperacaoSenha, codigoClaro);
         }
@@ -115,6 +136,7 @@ public class RecuperacaoSenhaService {
         }
 
         recuperacaoSenha.marcarCodigoConfirmado(agora);
+        sincronizarRecuperacaoSeConfigurado(recuperacaoSenha);
         return new ConfirmacaoCodigoRecuperacaoSenhaRealizada(fluxoId, true, true);
     }
 
@@ -138,6 +160,7 @@ public class RecuperacaoSenhaService {
                 agora.plusHours(dispositivoProperties.getCodigo().getExpiracaoHoras()),
                 agora
         );
+        sincronizarRecuperacaoSeConfigurado(recuperacaoSenha);
         if (recuperacaoSenha.possuiDestinoReal()) {
             canalEnvioCodigoRecuperacaoSenhaEmail.enviar(recuperacaoSenha, codigoClaro);
         }
@@ -168,6 +191,7 @@ public class RecuperacaoSenhaService {
 
         clienteAdministracaoCadastroKeycloak.redefinirSenha(recuperacaoSenha.getSubjectRemoto(), senhaNormalizada);
         recuperacaoSenha.marcarSenhaRedefinida(OffsetDateTime.now(clock));
+        sincronizarRecuperacaoSeConfigurado(recuperacaoSenha);
     }
 
     public static void validarPoliticaSenha(final String senhaPura) {
@@ -223,5 +247,11 @@ public class RecuperacaoSenhaService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, campo + " é obrigatório.");
         }
         return normalizado;
+    }
+
+    private void sincronizarRecuperacaoSeConfigurado(final RecuperacaoSenha recuperacaoSenha) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarRecuperacaoSenha(recuperacaoSenha);
+        }
     }
 }

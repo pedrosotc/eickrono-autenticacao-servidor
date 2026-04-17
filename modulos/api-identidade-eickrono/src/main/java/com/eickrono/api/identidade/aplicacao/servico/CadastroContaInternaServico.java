@@ -54,6 +54,7 @@ public class CadastroContaInternaServico {
     private final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail;
     private final DispositivoProperties dispositivoProperties;
     private final Clock clock;
+    private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
     private ProvisionamentoIdentidadeService provisionamentoIdentidadeServiceCompat;
     private final HexFormat hexFormat = HexFormat.of();
 
@@ -65,7 +66,8 @@ public class CadastroContaInternaServico {
                                        final CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail,
                                        final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail,
                                        final DispositivoProperties dispositivoProperties,
-                                       final Clock clock) {
+                                       final Clock clock,
+                                       final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
         this(
                 cadastroContaRepositorio,
                 clienteContextoPessoaPerfil,
@@ -75,6 +77,7 @@ public class CadastroContaInternaServico {
                 canalNotificacaoTentativaCadastroEmail,
                 dispositivoProperties,
                 clock,
+                sincronizacaoModeloMultiappService,
                 true
         );
     }
@@ -98,9 +101,32 @@ public class CadastroContaInternaServico {
                 },
                 dispositivoProperties,
                 clock,
+                null,
                 false
         );
         this.provisionamentoIdentidadeServiceCompat = provisionamentoIdentidadeService;
+    }
+
+    public CadastroContaInternaServico(final CadastroContaRepositorio cadastroContaRepositorio,
+                                       final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil,
+                                       final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak,
+                                       final ProvisionadorPerfilDominioServico provisionadorPerfilDominioServico,
+                                       final CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail,
+                                       final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail,
+                                       final DispositivoProperties dispositivoProperties,
+                                       final Clock clock) {
+        this(
+                cadastroContaRepositorio,
+                clienteContextoPessoaPerfil,
+                clienteAdministracaoCadastroKeycloak,
+                provisionadorPerfilDominioServico,
+                canalEnvioCodigoCadastroEmail,
+                canalNotificacaoTentativaCadastroEmail,
+                dispositivoProperties,
+                clock,
+                null,
+                true
+        );
     }
 
     private CadastroContaInternaServico(final CadastroContaRepositorio cadastroContaRepositorio,
@@ -111,6 +137,7 @@ public class CadastroContaInternaServico {
                                         final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail,
                                         final DispositivoProperties dispositivoProperties,
                                         final Clock clock,
+                                        final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService,
                                         final boolean exigirProvisionadorPerfil) {
         this.cadastroContaRepositorio = Objects.requireNonNull(cadastroContaRepositorio, "cadastroContaRepositorio é obrigatório");
         this.clienteContextoPessoaPerfil = Objects.requireNonNull(
@@ -129,6 +156,7 @@ public class CadastroContaInternaServico {
                 canalNotificacaoTentativaCadastroEmail, "canalNotificacaoTentativaCadastroEmail é obrigatório");
         this.dispositivoProperties = Objects.requireNonNull(dispositivoProperties, "dispositivoProperties é obrigatório");
         this.clock = Objects.requireNonNull(clock, "clock é obrigatório");
+        this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
         this.provisionamentoIdentidadeServiceCompat = null;
     }
 
@@ -248,6 +276,7 @@ public class CadastroContaInternaServico {
                 agora.plusHours(dispositivoProperties.getCodigo().getExpiracaoHoras()),
                 agora
         );
+        sincronizarCadastroSeConfigurado(cadastroConta);
         canalEnvioCodigoCadastroEmail.enviar(cadastroConta, codigoClaro);
     }
 
@@ -354,6 +383,7 @@ public class CadastroContaInternaServico {
             );
         }
 
+        sincronizarCadastroSeConfigurado(cadastroConta);
         canalEnvioCodigoCadastroEmail.enviar(cadastroConta, codigoClaro);
 
         return new CadastroInternoRealizado(
@@ -438,6 +468,7 @@ public class CadastroContaInternaServico {
                 cadastroConta.getDataNascimento()
         );
         cadastroConta.marcarEmailConfirmado(agora);
+        sincronizarCadastroSeConfigurado(cadastroConta);
 
         return montarRespostaConfirmacao(cadastroConta, statusUsuario);
     }
@@ -513,6 +544,7 @@ public class CadastroContaInternaServico {
     private void removerCadastroPendente(final CadastroConta cadastroConta) {
         clienteAdministracaoCadastroKeycloak.removerUsuarioPendente(cadastroConta.getSubjectRemoto());
         cadastroContaRepositorio.delete(cadastroConta);
+        removerCadastroSeConfigurado(cadastroConta.getCadastroId());
     }
 
     private boolean ehFluxoCadastroPublico(final CadastroConta cadastroConta) {
@@ -558,6 +590,18 @@ public class CadastroContaInternaServico {
         }
         String normalizado = valor.trim();
         return normalizado.isBlank() ? null : normalizado;
+    }
+
+    private void sincronizarCadastroSeConfigurado(final CadastroConta cadastroConta) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarCadastro(cadastroConta);
+        }
+    }
+
+    private void removerCadastroSeConfigurado(final UUID cadastroId) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.removerCadastro(cadastroId);
+        }
     }
 
     private static String normalizarUsuarioOpcional(final String valor) {

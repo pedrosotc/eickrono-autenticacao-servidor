@@ -28,7 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 class AutenticacaoSessaoInternaServicoTest {
 
-    private static final String URL_TOKEN = "http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token";
+    private static final String URL_TOKEN = "http://localhost:8080/realms/eickrono/protocol/openid-connect/token";
     private static final String PASSWORD_PEPPER = "pepperLocalDevTrocar";
 
     private AutenticacaoSessaoInternaServico servico;
@@ -39,7 +39,7 @@ class AutenticacaoSessaoInternaServicoTest {
     void setUp() {
         SessaoInternaKeycloakProperties properties = new SessaoInternaKeycloakProperties();
         properties.setUrlBase("http://localhost:8080");
-        properties.setRealm("desenvolvimento");
+        properties.setRealm("eickrono");
         properties.setClientId("app-flutter-local");
         properties.setClientSecret("");
         properties.setPasswordPepper(PASSWORD_PEPPER);

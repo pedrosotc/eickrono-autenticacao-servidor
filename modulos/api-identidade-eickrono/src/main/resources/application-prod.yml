@@ -12,8 +12,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://identidade.eickrono.com.br/realms/producao
-          jwk-set-uri: https://identidade.eickrono.com.br/realms/producao/protocol/openid-connect/certs
+          issuer-uri: https://oidc.eickrono.com/realms/eickrono
+          jwk-set-uri: https://oidc.eickrono.com/realms/eickrono/protocol/openid-connect/certs
 
 seguranca:
   mtls:
@@ -73,7 +73,7 @@ identidade:
     interna:
       keycloak:
         url-base: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_URL_BASE}
-        realm: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_REALM:producao}
+        realm: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_REALM:eickrono}
         client-id: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_CLIENT_ID:admin-cli}
         client-secret: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_CLIENT_SECRET:}
         admin-username: ${IDENTIDADE_CADASTRO_INTERNO_KEYCLOAK_ADMIN_USERNAME}
@@ -82,7 +82,7 @@ identidade:
     interna:
       keycloak:
         url-base: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_URL_BASE}
-        realm: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_REALM:producao}
+        realm: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_REALM:eickrono}
         client-id: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID:app-flutter-prod}
         client-secret: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_SECRET:}
   dispositivo:

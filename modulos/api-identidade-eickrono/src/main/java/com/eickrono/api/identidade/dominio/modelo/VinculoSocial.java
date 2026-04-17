@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.Objects;
 
 /**
  * Vinculo de uma conta social com o perfil.
@@ -63,5 +64,9 @@ public class VinculoSocial {
 
     public OffsetDateTime getVinculadoEm() {
         return vinculadoEm;
+    }
+
+    public void atualizarIdentificador(final String novoIdentificador) {
+        this.identificador = Objects.requireNonNull(novoIdentificador, "identificador é obrigatório");
     }
 }

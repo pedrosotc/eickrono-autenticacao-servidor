@@ -22,12 +22,20 @@ public class DispositivoIdentidadeService {
 
     private final DispositivoIdentidadeRepositorio dispositivoRepositorio;
     private final Clock clock;
+    private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
 
     @Autowired
     public DispositivoIdentidadeService(DispositivoIdentidadeRepositorio dispositivoRepositorio,
-                                        Clock clock) {
+                                        Clock clock,
+                                        SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
         this.dispositivoRepositorio = dispositivoRepositorio;
         this.clock = clock;
+        this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
+    }
+
+    public DispositivoIdentidadeService(final DispositivoIdentidadeRepositorio dispositivoRepositorio,
+                                        final Clock clock) {
+        this(dispositivoRepositorio, clock, null);
     }
 
     public DispositivoIdentidadeService(final DispositivoIdentidadeRepositorio dispositivoRepositorio,
@@ -64,7 +72,9 @@ public class DispositivoIdentidadeService {
                 agora);
         dispositivo.atualizarPessoaIdPerfil(pessoaIdPerfil, agora);
 
-        return dispositivoRepositorio.save(dispositivo);
+        DispositivoIdentidade salvo = dispositivoRepositorio.save(dispositivo);
+        sincronizarDispositivoSeConfigurado(salvo);
+        return salvo;
     }
 
     @Transactional
@@ -83,5 +93,11 @@ public class DispositivoIdentidadeService {
                     tokenObrigatorio.getRegistro().getPessoaIdPerfil().orElse(null),
                     tokenObrigatorio.getRegistro());
         });
+    }
+
+    private void sincronizarDispositivoSeConfigurado(final DispositivoIdentidade dispositivo) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarDispositivoIdentidade(dispositivo);
+        }
     }
 }

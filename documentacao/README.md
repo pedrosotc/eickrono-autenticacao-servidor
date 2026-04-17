@@ -19,6 +19,9 @@ Para o app móvel:
 - `guia-desenvolvimento.md`: ambiente local, `MailHog`, Docker e rotina de desenvolvimento
 - `guia-mtls.md`: malha mTLS do backchannel e geração de certificados
 - `guia-operacao-producao.md`: runtime, operação e observabilidade
+- `guia-cloudflare-tunnel-google-keycloak-dev.md`: exposição pública temporária do Keycloak local para Google OAuth brokerado no iPhone físico
+- `plano-padronizacao-realm-unico.md`: alvo arquitetural para padronizar o realm OIDC em `eickrono` entre `dev`, `hml` e `prod`
+- `runbook_migracao_multiapp_schemas.md`: ordem prática da migração do legado em `public` para o modelo novo por schemas
 
 ## Estrutura
 

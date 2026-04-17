@@ -23,6 +23,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -38,16 +39,26 @@ public class TokenDispositivoService {
     private final TokenDispositivoRepositorio tokenRepositorio;
     private final DispositivoProperties dispositivoProperties;
     private final Clock clock;
+    private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
     private final SecureRandom secureRandom = new SecureRandom();
     private final Base64.Encoder base64Encoder = Base64.getUrlEncoder().withoutPadding();
     private final HexFormat hexFormat = HexFormat.of();
 
+    @Autowired
     public TokenDispositivoService(TokenDispositivoRepositorio tokenRepositorio,
                                    DispositivoProperties dispositivoProperties,
-                                   Clock clock) {
+                                   Clock clock,
+                                   SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
         this.tokenRepositorio = tokenRepositorio;
         this.dispositivoProperties = dispositivoProperties;
         this.clock = clock;
+        this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
+    }
+
+    public TokenDispositivoService(final TokenDispositivoRepositorio tokenRepositorio,
+                                   final DispositivoProperties dispositivoProperties,
+                                   final Clock clock) {
+        this(tokenRepositorio, dispositivoProperties, clock, null);
     }
 
     @Transactional
@@ -76,6 +87,8 @@ public class TokenDispositivoService {
         );
         tokenRepositorio.save(entidade);
         dispositivo.registrarTokenEmitido(agora);
+        sincronizarDispositivoSeConfigurado(dispositivo);
+        sincronizarTokenSeConfigurado(entidade);
 
         LOGGER.info("Token de dispositivo emitido para usuarioSub={} registro={} fingerprint={}",
                 usuarioSub, registro.getId(), registro.getFingerprint());
@@ -91,6 +104,7 @@ public class TokenDispositivoService {
                 StatusTokenDispositivo.ATIVO);
         for (TokenDispositivo token : ativos) {
             token.revogar(motivo, agora);
+            sincronizarTokenSeConfigurado(token);
             LOGGER.info("Token de dispositivo revogado. usuarioSub={} tokenId={} motivo={}",
                     usuarioSub, token.getId(), motivo);
         }
@@ -166,6 +180,18 @@ public class TokenDispositivoService {
             return hexFormat.formatHex(resultado);
         } catch (GeneralSecurityException e) {
             throw new IllegalStateException("Falha ao gerar hash do token de dispositivo", e);
+        }
+    }
+
+    private void sincronizarDispositivoSeConfigurado(final DispositivoIdentidade dispositivo) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarDispositivoIdentidade(dispositivo);
+        }
+    }
+
+    private void sincronizarTokenSeConfigurado(final TokenDispositivo token) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarTokenDispositivo(token);
         }
     }
 

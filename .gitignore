@@ -218,6 +218,9 @@ nbdist/
 ### Sonar / SonarQube ###
 .sonar/
 .sonarqube/
+
+# Credenciais locais fora do versionamento
+documentacao/SEGREDOS_LOCAIS.md
 .scannerwork/
 .sonarlint/
 
@@ -229,6 +232,9 @@ nbdist/
 # Evidencias locais de documentacao
 documentacao/evidencias/*
 !documentacao/evidencias/.gitkeep
+
+# Segredos locais e credenciais operacionais que nao devem ser versionados
+.local-secrets/
 
 ### Visual Studio ###
 .vs/

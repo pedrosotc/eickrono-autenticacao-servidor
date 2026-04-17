@@ -1,0 +1,1053 @@
+{
+  "version": "1.0.0",
+  "darkMode": true,
+  "gridEnabling": false,
+  "detailLevel": "All",
+  "tablePositions": [
+    {
+      "name": "clientes_ecossistema",
+      "schemaName": "catalogo",
+      "x": 16,
+      "y": 280
+    },
+    {
+      "name": "sistemas_origem",
+      "schemaName": "catalogo",
+      "x": 16,
+      "y": 16
+    },
+    {
+      "name": "pessoas",
+      "schemaName": "identidade",
+      "x": 586.0576168403129,
+      "y": -102.33849983345779
+    },
+    {
+      "name": "pessoas_emails",
+      "schemaName": "identidade",
+      "x": 592,
+      "y": 440
+    },
+    {
+      "name": "pessoas_telefones",
+      "schemaName": "identidade",
+      "x": 592,
+      "y": 136
+    },
+    {
+      "name": "usuarios",
+      "schemaName": "autenticacao",
+      "x": 592,
+      "y": 848
+    },
+    {
+      "name": "usuarios_formas_acesso",
+      "schemaName": "autenticacao",
+      "x": 1384,
+      "y": 1288
+    },
+    {
+      "name": "usuarios_clientes_ecossistema",
+      "schemaName": "autenticacao",
+      "x": 1384,
+      "y": 200
+    },
+    {
+      "name": "cadastros_conta",
+      "schemaName": "autenticacao",
+      "x": 1384,
+      "y": 600
+    },
+    {
+      "name": "recuperacoes_senha",
+      "schemaName": "autenticacao",
+      "x": 1384,
+      "y": 1768
+    },
+    {
+      "name": "registros_dispositivo",
+      "schemaName": "dispositivos",
+      "x": 2360,
+      "y": 176
+    },
+    {
+      "name": "codigos_verificacao_dispositivo",
+      "schemaName": "dispositivos",
+      "x": 3176,
+      "y": 120
+    },
+    {
+      "name": "dispositivos_confiaveis",
+      "schemaName": "dispositivos",
+      "x": 1384,
+      "y": 2312
+    },
+    {
+      "name": "tokens_dispositivo",
+      "schemaName": "dispositivos",
+      "x": 3176,
+      "y": 640
+    },
+    {
+      "name": "atestacoes_app_desafios",
+      "schemaName": "seguranca",
+      "x": 3176,
+      "y": 1008
+    },
+    {
+      "name": "credenciais_atestacao_dispositivo",
+      "schemaName": "seguranca",
+      "x": 3176,
+      "y": 1664
+    },
+    {
+      "name": "apple_app_attest_chaves",
+      "schemaName": "seguranca",
+      "x": 3920,
+      "y": 824
+    },
+    {
+      "name": "operacoes_atestadas",
+      "schemaName": "auditoria",
+      "x": 3920,
+      "y": 16
+    },
+    {
+      "name": "google_play_integrity_veredictos",
+      "schemaName": "auditoria",
+      "x": 4480,
+      "y": 16
+    },
+    {
+      "name": "usuarios_historico",
+      "schemaName": "auditoria",
+      "x": 1384,
+      "y": 2744
+    },
+    {
+      "name": "usuarios_clientes_ecossistema_historico",
+      "schemaName": "auditoria",
+      "x": 2360,
+      "y": 832
+    }
+  ],
+  "tableGroupCollapseStates": [],
+  "stickyNoteLayouts": [],
+  "referencePaths": [
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_emails",
+      "firstSchemaName": "identidade",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "pessoas_telefones",
+      "firstSchemaName": "identidade",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "usuarios",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "usuarios_formas_acesso",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "usuarios_formas_acesso",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "usuarios_clientes_ecossistema",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "usuarios_clientes_ecossistema",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "telefone_id"
+      ],
+      "firstTableName": "cadastros_conta",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_telefones",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "recuperacoes_senha",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "recuperacoes_senha",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "recuperacoes_senha",
+      "firstSchemaName": "autenticacao",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "telefone_id"
+      ],
+      "firstTableName": "registros_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_telefones",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "codigos_verificacao_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "email_id"
+      ],
+      "firstTableName": "codigos_verificacao_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_emails",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "telefone_id"
+      ],
+      "firstTableName": "codigos_verificacao_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas_telefones",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "dispositivos_confiaveis",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "dispositivos_confiaveis",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "tokens_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos_confiaveis",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "tokens_dispositivo",
+      "firstSchemaName": "dispositivos",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "vinculo_cliente_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_clientes_ecossistema",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "atestacoes_app_desafios",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos_confiaveis",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "credenciais_atestacao_dispositivo",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos_confiaveis",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "credenciais_atestacao_dispositivo",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "credenciais_atestacao_dispositivo",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "credenciais_atestacao_dispositivo",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "credenciais_atestacao_dispositivo",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "credencial_id"
+      ],
+      "firstTableName": "apple_app_attest_chaves",
+      "firstSchemaName": "seguranca",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "credenciais_atestacao_dispositivo",
+      "secondSchemaName": "seguranca",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "desafio_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "atestacoes_app_desafios",
+      "secondSchemaName": "seguranca",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "sistema_origem_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "sistemas_origem",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "vinculo_cliente_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_clientes_ecossistema",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cadastro_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "cadastros_conta",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "registro_dispositivo_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "registros_dispositivo",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "dispositivo_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "dispositivos_confiaveis",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "token_dispositivo_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "tokens_dispositivo",
+      "secondSchemaName": "dispositivos",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "credencial_atestacao_id"
+      ],
+      "firstTableName": "operacoes_atestadas",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "credenciais_atestacao_dispositivo",
+      "secondSchemaName": "seguranca",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "operacao_atestada_id"
+      ],
+      "firstTableName": "google_play_integrity_veredictos",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "operacoes_atestadas",
+      "secondSchemaName": "auditoria",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "usuarios_historico",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "pessoa_id"
+      ],
+      "firstTableName": "usuarios_historico",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "pessoas",
+      "secondSchemaName": "identidade",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "vinculo_id"
+      ],
+      "firstTableName": "usuarios_clientes_ecossistema_historico",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios_clientes_ecossistema",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "usuario_id"
+      ],
+      "firstTableName": "usuarios_clientes_ecossistema_historico",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "usuarios",
+      "secondSchemaName": "autenticacao",
+      "secondRelation": "1",
+      "checkPoints": []
+    },
+    {
+      "firstFieldNames": [
+        "cliente_ecossistema_id"
+      ],
+      "firstTableName": "usuarios_clientes_ecossistema_historico",
+      "firstSchemaName": "auditoria",
+      "firstRelation": "*",
+      "secondFieldNames": [
+        "id"
+      ],
+      "secondTableName": "clientes_ecossistema",
+      "secondSchemaName": "catalogo",
+      "secondRelation": "1",
+      "checkPoints": []
+    }
+  ]
+}

@@ -1,0 +1,479 @@
+// ====================================================================================================
+// PROJETO: Eickrono Autenticacao - Modelo Multiapp com Schemas Separados
+// FORMATO: DBML (Database Markup Language)
+// BANCO DE DADOS: PostgreSQL
+// ----------------------------------------------------------------------------------------------------
+// Este arquivo descreve um desenho alvo em que:
+// - a base continua unica;
+// - os contextos ficam separados por schema;
+// - as cores ficam persistidas no codigo via headercolor;
+// - o usuario central passa a viver na autenticacao;
+// - o vinculo do usuario com app/site fica explicito;
+// - a atestacao nativa e a trilha operacional ficam no servidor de autenticacao;
+// - existe uma camada comum para desafio/trilha operacional e extensoes especificas por provedor.
+// Paleta por schema:
+// - catalogo: #0F766E
+// - identidade: #2E7D32
+// - autenticacao: #1565C0
+// - dispositivos: #C77D00
+// - seguranca: #C62828
+// - auditoria: #6A1B9A
+// ====================================================================================================
+
+Project eickrono_autenticacao_multiapp_schemas {
+    database_type: "PostgreSQL"
+    Note: "Modelo alvo para a base compartilhada do ecossistema de autenticacao. A mesma base pode conter varios schemas, mas cada contexto precisa ficar claramente separado: catalogo, identidade, autenticacao, dispositivos, seguranca e auditoria."
+}
+
+// ====================================================================================================
+// SCHEMA: catalogo
+// ====================================================================================================
+
+Table catalogo.clientes_ecossistema [headercolor: #0F766E] {
+    id                 bigserial    [pk, increment, note: "Identificador interno do app, site, BFF ou cliente externo do ecossistema"]
+    codigo             varchar(64)  [not null, unique, note: "Codigo estavel do cliente. Ex.: flashcard-app, portal-web, contas-bff"]
+    nome               varchar(255) [not null, note: "Nome amigavel do cliente"]
+    tipo               varchar(32)  [not null, note: "Tipo do cliente. Ex.: APP_MOVEL, SITE, BFF, API_PUBLICA"]
+    client_id_oidc     varchar(255) [unique, note: "Identificador exato do cliente cadastrado no servidor OAuth2/OIDC, como Keycloak, quando este cliente do ecossistema participar diretamente de fluxos de autenticacao ou autorizacao"]
+    ativo              boolean      [not null, default: true, note: "Indica se o cliente continua habilitado no ecossistema"]
+    criado_em          timestamptz  [not null, note: "Momento da criacao do cliente"]
+    atualizado_em      timestamptz  [not null, note: "Momento da ultima atualizacao do cliente"]
+    Note: "Catalogo de apps, sites e clientes consumidores do ecossistema. E a referencia correta para dizer a qual cliente um usuario pertence."
+}
+
+Table catalogo.sistemas_origem [headercolor: #0F766E] {
+    id                 bigserial    [pk, increment, note: "Identificador interno do sistema chamador"]
+    identificador_sistema varchar(64) [not null, unique, note: "Identificador tecnico estavel do sistema interno. Ex.: flashcard-servidor, identidade-servidor, api-contas-eickrono"]
+    descricao          varchar(255) [note: "Descricao funcional do sistema de origem"]
+    ativo              boolean      [not null, default: true, note: "Indica se o sistema segue autorizado a abrir fluxos internos"]
+    criado_em          timestamptz  [not null, note: "Momento da criacao do registro"]
+    atualizado_em      timestamptz  [not null, note: "Momento da ultima atualizacao do registro"]
+    Note: "Catalogo normalizado de sistemas internos que acionam cadastros, desafios, provisionamentos ou operacoes sensiveis por backchannel."
+}
+
+// ====================================================================================================
+// SCHEMA: identidade
+// ====================================================================================================
+
+Table identidade.pessoas [headercolor: #2E7D32] {
+    id                 uuid         [pk, note: "Identificador canonico da pessoa no ecossistema"]
+    nome               varchar(255) [not null, note: "Nome canonico da pessoa"]
+    status_cadastral   varchar(32)  [not null, note: "Estado cadastral da pessoa. Ex.: PENDENTE_CADASTRO, CADASTRADA, BLOQUEADA_CADASTRAL, ANONIMIZADA"]
+    criado_em          timestamptz  [not null, note: "Momento da criacao da pessoa"]
+    atualizado_em      timestamptz  [not null, note: "Momento da ultima atualizacao da pessoa"]
+    Note: "Raiz canonica de pessoa. Nao deve carregar semantica de login, sessao, cliente ou atestacao."
+}
+
+Table identidade.pessoas_emails [headercolor: #2E7D32] {
+    id                 uuid         [pk, note: "Identificador do email da pessoa"]
+    pessoa_id          uuid         [not null, note: "Pessoa dona do email"]
+    email              varchar(255) [not null, unique, note: "Endereco de email normalizado"]
+    principal          boolean      [not null, default: false, note: "Indica se este e o email principal da pessoa"]
+    verificado_em      timestamptz  [note: "Momento em que este email foi verificado"]
+    criado_em          timestamptz  [not null, note: "Momento da criacao do email"]
+    atualizado_em      timestamptz  [not null, note: "Momento da ultima atualizacao do email"]
+    indexes {
+        (pessoa_id, principal)
+    }
+    Note: "Emails da pessoa. Fluxos de autenticacao e recuperacao devem apontar para email_id em vez de copiar o texto do email."
+}
+
+Table identidade.pessoas_telefones [headercolor: #2E7D32] {
+    id                 uuid        [pk, note: "Identificador do telefone da pessoa"]
+    pessoa_id          uuid        [not null, note: "Pessoa dona do telefone"]
+    telefone           varchar(32) [not null, unique, note: "Telefone normalizado"]
+    principal          boolean     [not null, default: false, note: "Indica se este e o telefone principal da pessoa"]
+    verificado_em      timestamptz [note: "Momento em que este telefone foi verificado"]
+    criado_em          timestamptz [not null, note: "Momento da criacao do telefone"]
+    atualizado_em      timestamptz [not null, note: "Momento da ultima atualizacao do telefone"]
+    indexes {
+        (pessoa_id, principal)
+    }
+    Note: "Telefones da pessoa. Fluxos de SMS devem apontar para telefone_id em vez de duplicar o numero."
+}
+
+// ====================================================================================================
+// SCHEMA: autenticacao
+// ====================================================================================================
+
+Table autenticacao.usuarios [headercolor: #1565C0] {
+    id                         uuid         [pk, note: "Identificador canonico da conta de autenticacao"]
+    pessoa_id                  uuid         [not null, note: "Pessoa dona da conta central de autenticacao"]
+    sub_remoto                 varchar(255) [unique, note: "Subject da conta no Keycloak ou no provedor principal de identidade (sub_remoto = identificador externo e estavel da conta; subject = claim sub do OIDC que identifica unicamente a conta no provedor)"]
+    status_global              varchar(32)  [not null, note: "Estado global da conta. Ex.: ATIVO, SUSPENSO, BLOQUEADO, DESATIVADO"]
+    credencial_local_habilitada boolean     [not null, default: true, note: "Indica se a conta aceita credencial local nativa, quando esse modo existir"]
+    ultimo_login_em            timestamptz  [note: "Momento do ultimo login bem sucedido"]
+    criado_em                  timestamptz  [not null, note: "Momento da criacao da conta central"]
+    atualizado_em              timestamptz  [not null, note: "Momento da ultima atualizacao da conta"]
+    indexes {
+        (pessoa_id) [unique]
+    }
+    Note: "Conta central de autenticacao do ecossistema. E aqui que deve viver o status global do usuario, em vez de um status amarrado a um produto especifico."
+}
+
+Table autenticacao.usuarios_formas_acesso [headercolor: #1565C0] {
+    id                     uuid         [pk, note: "Identificador da forma de acesso vinculada ao usuario"]
+    usuario_id             uuid         [not null, note: "Usuario dono da forma de acesso"]
+    email_id               uuid         [note: "Email associado quando a forma de acesso depende de email"]
+    tipo                   varchar(32)  [not null, note: "Tipo da forma de acesso. Ex.: EMAIL_SENHA, SOCIAL, MAGIC_LINK"]
+    provedor               varchar(64)  [not null, note: "Provedor da autenticacao. Ex.: EMAIL, GOOGLE, APPLE"]
+    identificador_externo  varchar(255) [not null, note: "Identificador da conta no provedor externo ou no canal local"]
+    principal              boolean      [not null, default: false, note: "Indica se esta e a forma de acesso principal do usuario"]
+    verificado_em          timestamptz  [note: "Momento em que a forma de acesso foi verificada"]
+    vinculado_em           timestamptz  [not null, note: "Momento da vinculacao ao usuario"]
+    desvinculado_em        timestamptz  [note: "Momento da desvinculacao, quando houver"]
+    indexes {
+        (tipo, provedor, identificador_externo) [unique]
+        (usuario_id, principal)
+    }
+    Note: "Formas de acesso da conta central. Substitui a dispersao entre tabela social, email local e regras espalhadas entre produtos."
+}
+
+Table autenticacao.usuarios_clientes_ecossistema [headercolor: #1565C0] {
+    id                           uuid         [pk, note: "Identificador do vinculo do usuario com um cliente do ecossistema"]
+    usuario_id                   uuid         [not null, note: "Usuario central vinculado ao cliente"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente do ecossistema ao qual o usuario pertence"]
+    status_vinculo               varchar(32)  [not null, note: "Estado do vinculo com o cliente. Ex.: PENDENTE, ATIVO, SUSPENSO, BLOQUEADO, REVOGADO"]
+    identificador_publico_cliente varchar(255) [note: "Handle, alias ou identificador publico exigido pelo cliente, quando houver"]
+    ultimo_acesso_em             timestamptz  [note: "Momento do ultimo acesso observado neste cliente"]
+    vinculado_em                 timestamptz  [not null, note: "Momento da criacao do vinculo"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima mutacao do vinculo"]
+    revogado_em                  timestamptz  [note: "Momento da revogacao do vinculo"]
+    motivo_revogacao             varchar(64)  [note: "Motivo padronizado da revogacao do vinculo"]
+    indexes {
+        (usuario_id, cliente_ecossistema_id) [unique]
+        (cliente_ecossistema_id, status_vinculo)
+    }
+    Note: "Tabela que substitui semanticamente status locais como StatusUsuarioFlashcard. O status do produto ou site passa a existir como vinculo do usuario com aquele cliente."
+}
+
+Table autenticacao.cadastros_conta [headercolor: #1565C0] {
+    id                           uuid         [pk, note: "Identificador publico do processo de cadastro"]
+    pessoa_id                    uuid         [not null, note: "Pessoa em processo de cadastro"]
+    usuario_id                   uuid         [note: "Conta central criada ao fim do processo, quando ja existir"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente para o qual a conta esta sendo aberta"]
+    sistema_origem_id            bigint       [note: "Sistema interno que iniciou o processo por backchannel, quando houver"]
+    email_id                     uuid         [not null, note: "Email principal sendo confirmado neste cadastro"]
+    telefone_id                  uuid         [note: "Telefone principal em contexto, quando houver"]
+    status_processo              varchar(32)  [not null, note: "Estado do processo. Ex.: ABERTO, EMAIL_CONFIRMADO, EXPIRADO, CANCELADO, CONCLUIDO"]
+    codigo_email_hash            varchar(64)  [not null, note: "Hash do codigo de confirmacao por email"]
+    codigo_email_gerado_em       timestamptz  [not null, note: "Momento da emissao do codigo"]
+    codigo_email_expira_em       timestamptz  [not null, note: "Prazo maximo de uso do codigo"]
+    tentativas_confirmacao_email integer      [not null, default: 0, note: "Quantidade de tentativas de confirmacao"]
+    reenvios_email               integer      [not null, default: 0, note: "Quantidade de reenvios do codigo"]
+    email_confirmado_em          timestamptz  [note: "Momento da confirmacao do email"]
+    concluido_em                 timestamptz  [note: "Momento terminal do processo"]
+    ip_solicitante               varchar(64)  [note: "IP observado ao abrir o cadastro"]
+    user_agent_solicitante       varchar(512) [note: "Identificacao tecnica do cliente HTTP observada ao abrir o cadastro, como app, navegador, versao e plataforma, usada para auditoria, suporte e analise de fraude"]
+    criado_em                    timestamptz  [not null, note: "Momento da criacao do processo"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima mutacao do processo"]
+    Note: "Processo de cadastro da conta central. O cadastro ja sabe para qual cliente do ecossistema a conta sera habilitada."
+}
+
+Table autenticacao.recuperacoes_senha [headercolor: #1565C0] {
+    usuario_id                   uuid         [note: "Usuario central quando a conta ja foi resolvida"]
+    id                           uuid         [pk, note: "Identificador publico do fluxo de recuperacao de senha"]
+    cliente_ecossistema_id       bigint       [note: "Cliente em que o fluxo foi iniciado"]
+    email_id                     uuid         [not null, note: "Email utilizado na recuperacao"]
+    status_processo              varchar(32)  [not null, note: "Estado do fluxo. Ex.: ABERTO, EMAIL_CONFIRMADO, SENHA_REDEFINIDA, EXPIRADO, CANCELADO"]
+    codigo_email_hash            varchar(64)  [not null, note: "Hash do codigo de recuperacao por email"]
+    codigo_email_gerado_em       timestamptz  [not null, note: "Momento da emissao do codigo"]
+    codigo_email_expira_em       timestamptz  [not null, note: "Prazo maximo de uso do codigo"]
+    tentativas_confirmacao_email integer      [not null, default: 0, note: "Quantidade de tentativas de confirmacao"]
+    reenvios_email               integer      [not null, default: 0, note: "Quantidade de reenvios do codigo"]
+    codigo_confirmado_em         timestamptz  [note: "Momento da confirmacao do codigo"]
+    senha_redefinida_em          timestamptz  [note: "Momento da redefinicao da senha"]
+    criado_em                    timestamptz  [not null, note: "Momento de criacao do fluxo"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima mutacao do fluxo"]
+    Note: "Fluxo de recuperacao da credencial central do usuario."
+}
+
+// ====================================================================================================
+// SCHEMA: dispositivos
+// ====================================================================================================
+
+Table dispositivos.registros_dispositivo [headercolor: #C77D00] {
+    id                           uuid         [pk, note: "Identificador publico do processo de onboarding do aparelho"]
+    usuario_id                   uuid         [note: "Usuario central em contexto, quando ja resolvido"]
+    pessoa_id                    uuid         [note: "Pessoa em contexto, quando ja resolvida"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente para o qual o dispositivo esta sendo registrado"]
+    sistema_origem_id            bigint       [note: "Sistema interno que abriu o processo, quando houver"]
+    cadastro_id                  uuid         [note: "Cadastro associado ao processo, quando o onboarding nasce do cadastro"]
+    email_id                     uuid         [not null, note: "Email usado no fluxo de verificacao"]
+    telefone_id                  uuid         [note: "Telefone usado no fluxo de verificacao, quando houver SMS"]
+    fingerprint                  varchar(255) [not null, note: "Identificador tecnico derivado de caracteristicas do dispositivo e do app para reconhecimento funcional do aparelho, sem relacao com biometria do usuario"]
+    plataforma                   varchar(100) [not null, note: "Plataforma do aparelho. Ex.: ANDROID, IOS"]
+    versao_app                   varchar(32)  [note: "Versao observada do aplicativo"]
+    chave_publica                text         [note: "Chave publica fornecida pelo aparelho durante o onboarding, usada para associar material criptografico inicial ao registro do dispositivo"]
+    status                       varchar(32)  [not null, note: "Estado do processo. Ex.: PENDENTE, CONFIRMADO, EXPIRADO, BLOQUEADO, CANCELADO"]
+    criado_em                    timestamptz  [not null, note: "Momento de abertura do processo"]
+    expira_em                    timestamptz  [not null, note: "Prazo maximo para confirmacao"]
+    confirmado_em                timestamptz  [note: "Momento da confirmacao do aparelho"]
+    encerrado_em                 timestamptz  [note: "Momento terminal sem sucesso, quando houver"]
+    reenvios                     integer      [not null, default: 0, note: "Quantidade de reenvios do processo"]
+    Note: "Processo efemero de onboarding do aparelho, separado da conta central e separado da atestacao nativa."
+}
+
+Table dispositivos.codigos_verificacao_dispositivo [headercolor: #C77D00] {
+    id                           uuid         [pk, note: "Identificador do codigo de verificacao"]
+    registro_dispositivo_id      uuid         [not null, note: "Registro de dispositivo ao qual o codigo pertence"]
+    canal                        varchar(16)  [not null, note: "Canal do codigo. Ex.: EMAIL, SMS"]
+    email_id                     uuid         [note: "Email de destino quando o canal for EMAIL"]
+    telefone_id                  uuid         [note: "Telefone de destino quando o canal for SMS"]
+    codigo_hash                  varchar(128) [not null, note: "Hash do codigo de verificacao"]
+    tentativas                   integer      [not null, default: 0, note: "Quantidade atual de tentativas"]
+    tentativas_maximas           integer      [not null, note: "Limite maximo de tentativas"]
+    reenvios                     integer      [not null, default: 0, note: "Quantidade atual de reenvios"]
+    reenvios_maximos             integer      [not null, note: "Limite maximo de reenvios"]
+    status                       varchar(32)  [not null, note: "Estado do codigo. Ex.: PENDENTE, CONFIRMADO, EXPIRADO, BLOQUEADO"]
+    enviado_em                   timestamptz  [note: "Momento do ultimo envio"]
+    confirmado_em                timestamptz  [note: "Momento da confirmacao"]
+    expira_em                    timestamptz  [not null, note: "Prazo maximo de uso"]
+    indexes {
+        (registro_dispositivo_id, canal) [unique]
+    }
+    Note: "Codigos de verificacao do registro de dispositivo. O destino fica referenciado e nao copiado em texto."
+}
+
+Table dispositivos.dispositivos_confiaveis [headercolor: #C77D00] {
+    id                           uuid         [pk, note: "Identificador do aparelho confiavel"]
+    usuario_id                   uuid         [not null, note: "Usuario central dono do aparelho"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente em que o aparelho e reconhecido"]
+    fingerprint                  varchar(255) [not null, note: "Identificador tecnico derivado de caracteristicas do dispositivo e do app para reconhecimento funcional do aparelho, sem relacao com biometria do usuario"]
+    plataforma                   varchar(100) [not null, note: "Plataforma atual conhecida do aparelho"]
+    versao_app_atual             varchar(100) [note: "Ultima versao do app observada"]
+    chave_publica_atual          text         [note: "Chave publica mais recente associada ao aparelho confiavel, usada para reconhecer rotacao da credencial e apoiar a validacao de provas ou assinaturas do dispositivo"]
+    status                       varchar(50)  [not null, note: "Estado de confianca do aparelho. Ex.: ATIVO, REVOGADO, EM_DISPUTA, SEM_CONFIANCA"]
+    criado_em                    timestamptz  [not null, note: "Momento da criacao do aparelho confiavel"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima atualizacao"]
+    ultimo_token_emitido_em      timestamptz  [note: "Momento do ultimo token emitido para o aparelho"]
+    indexes {
+        (usuario_id, cliente_ecossistema_id, fingerprint) [unique]
+    }
+    Note: "Aparelho persistente confiavel do usuario dentro de um cliente especifico do ecossistema."
+}
+
+Table dispositivos.tokens_dispositivo [headercolor: #C77D00] {
+    id                           uuid         [pk, note: "Identificador do token opaco emitido para o aparelho"]
+    dispositivo_id               uuid         [not null, note: "Dispositivo confiavel ao qual o token pertence"]
+    registro_dispositivo_id      uuid         [not null, note: "Registro de dispositivo que originou a emissao"]
+    token_hash                   varchar(128) [not null, unique, note: "Hash do token devolvido ao cliente"]
+    status                       varchar(32)  [not null, note: "Estado do token. Ex.: ATIVO, REVOGADO, EXPIRADO_LOGICO"]
+    emitido_em                   timestamptz  [not null, note: "Momento da emissao"]
+    expira_em                    timestamptz  [not null, note: "Prazo maximo de validade"]
+    revogado_em                  timestamptz  [note: "Momento da revogacao"]
+    motivo_revogacao             varchar(64)  [note: "Motivo padronizado da revogacao"]
+    Note: "Token opaco de confianca do aparelho. Deve apontar para o dispositivo e nunca repetir usuario, plataforma ou fingerprint em colunas redundantes."
+}
+
+// ====================================================================================================
+// SCHEMA: seguranca
+// ====================================================================================================
+
+Table seguranca.atestacoes_app_desafios [headercolor: #C62828] {
+    id                           uuid         [pk, note: "Identificador publico do desafio de atestacao"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente para o qual o desafio foi emitido"]
+    sistema_origem_id            bigint       [note: "Sistema interno que abriu o desafio por backchannel, quando houver"]
+    usuario_id                   uuid         [note: "Usuario central em contexto, quando conhecido"]
+    pessoa_id                    uuid         [note: "Pessoa em contexto, quando conhecida"]
+    vinculo_cliente_id           uuid         [note: "Vinculo do usuario com o cliente, quando esse contexto ja estiver resolvido"]
+    cadastro_id                  uuid         [note: "Cadastro em contexto, quando o desafio protege o fluxo de cadastro"]
+    registro_dispositivo_id      uuid         [note: "Registro de dispositivo em contexto, quando o desafio protege onboarding ou troca de aparelho"]
+    dispositivo_id               uuid         [note: "Dispositivo confiavel em contexto, quando a operacao parte de um aparelho ja reconhecido"]
+    operacao                     varchar(50)  [not null, note: "Operacao protegida. Ex.: CADASTRO, CONFIRMACAO_CADASTRO, LOGIN, REFRESH_SESSAO, SUBSTITUICAO_DISPOSITIVO"]
+    plataforma                   varchar(20)  [not null, note: "Plataforma esperada do comprovante"]
+    provedor_esperado            varchar(50)  [not null, note: "Provedor oficial esperado para a plataforma"]
+    desafio_base64               varchar(128) [not null, unique, note: "Nonce serializado em Base64 URL-safe"]
+    ip_solicitante               varchar(64)  [note: "IP observado ao emitir o desafio"]
+    user_agent_solicitante       varchar(512) [note: "Identificacao tecnica do cliente HTTP observada ao emitir o desafio, como app, navegador, versao e plataforma, usada para auditoria, suporte e analise de fraude"]
+    criado_em                    timestamptz  [not null, note: "Momento da emissao"]
+    expira_em                    timestamptz  [not null, note: "Prazo maximo de uso"]
+    consumido_em                 timestamptz  [note: "Momento do consumo bem sucedido"]
+    indexes {
+        (cliente_ecossistema_id, operacao, expira_em)
+        (vinculo_cliente_id)
+        (registro_dispositivo_id)
+        (dispositivo_id)
+    }
+    Note: "Desafio efemero de atestacao nativa. Fica na autenticacao porque protege cadastro, login, refresh, recuperacao de senha e operacoes sensiveis multiapp. Deve carregar contexto multiapp completo e substituir identificadores locais soltos."
+}
+
+Table seguranca.credenciais_atestacao_dispositivo [headercolor: #C62828] {
+    id                           uuid         [pk, note: "Identificador da credencial tecnica de atestacao por dispositivo"]
+    dispositivo_id               uuid         [not null, note: "Dispositivo confiavel dono da credencial"]
+    registro_dispositivo_id      uuid         [note: "Registro de onboarding que originou a credencial, quando rastreado"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente do ecossistema ao qual a credencial pertence"]
+    usuario_id                   uuid         [not null, note: "Usuario central dono do dispositivo"]
+    pessoa_id                    uuid         [note: "Pessoa em contexto, quando relevante para auditoria"]
+    plataforma                   varchar(20)  [not null, note: "Plataforma da credencial. Ex.: IOS"]
+    provedor                     varchar(50)  [not null, note: "Provedor da atestacao. Ex.: APPLE_APP_ATTEST"]
+    identificador_credencial     varchar(128) [not null, unique, note: "Identificador estavel da credencial no provedor, como o keyId do App Attest"]
+    status                       varchar(32)  [not null, note: "Estado da credencial. Ex.: ATIVA, ROTACIONADA, REVOGADA, EXPIRADA"]
+    criada_em                    timestamptz  [not null, note: "Momento da criacao da credencial"]
+    atualizada_em                timestamptz  [not null, note: "Momento da ultima atualizacao da credencial"]
+    ultimo_uso_em                timestamptz  [note: "Momento da ultima prova que utilizou esta credencial"]
+    indexes {
+        (dispositivo_id, provedor) [unique]
+        (cliente_ecossistema_id, provedor, status)
+    }
+    Note: "Camada comum de credenciais tecnicas de atestacao por dispositivo. Existe para os provedores em que o backend precisa manter estado persistente da credencial."
+}
+
+Table seguranca.apple_app_attest_chaves [headercolor: #C62828] {
+    credencial_id                uuid         [pk, note: "Credencial comum de atestacao da qual esta extensao Apple depende"]
+    chave_id                     varchar(128) [not null, unique, note: "Key ID do Apple App Attest vinculado a uma instalacao do app"]
+    objeto_atestacao_base64      text         [not null, note: "Objeto de atestacao persistido em Base64 para reconstruir o estado do autenticador"]
+    contador_assinatura          bigint       [not null, note: "Contador de assinatura observado pela ultima vez nas assertions"]
+    receipt_base64               text         [note: "Receipt retornado pelo App Attest, quando persistido para revalidacao futura"]
+    atestacao_inicial_em         timestamptz  [not null, note: "Momento da atestacao inicial bem-sucedida"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima atualizacao do material Apple"]
+    Note: "Extensao especifica do Apple App Attest. Mantem o material que o backend precisa para validar assertions futuras."
+}
+
+// ====================================================================================================
+// SCHEMA: auditoria
+// ====================================================================================================
+
+Table auditoria.operacoes_atestadas [headercolor: #6A1B9A] {
+    id                           uuid         [pk, note: "Identificador da operacao auditada que consumiu uma prova nativa"]
+    desafio_id                   uuid         [not null, note: "Desafio de atestacao que protegeu a operacao"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente em que a operacao aconteceu"]
+    sistema_origem_id            bigint       [note: "Sistema interno envolvido na operacao, quando houver"]
+    usuario_id                   uuid         [note: "Usuario central em contexto"]
+    pessoa_id                    uuid         [note: "Pessoa em contexto"]
+    vinculo_cliente_id           uuid         [note: "Vinculo do usuario com o cliente no momento da operacao, quando existente"]
+    cadastro_id                  uuid         [note: "Cadastro em contexto, quando a operacao ocorreu durante o fluxo de cadastro"]
+    registro_dispositivo_id      uuid         [note: "Registro de dispositivo em contexto"]
+    dispositivo_id               uuid         [note: "Dispositivo confiavel em contexto, quando a operacao partiu de um aparelho persistido"]
+    token_dispositivo_id         uuid         [note: "Token de dispositivo em contexto"]
+    credencial_atestacao_id      uuid         [note: "Credencial tecnica usada na prova, quando o provedor mantem estado persistente"]
+    operacao                     varchar(50)  [not null, note: "Operacao efetivamente executada"]
+    tipo_evidencia               varchar(32)  [not null, note: "Formato da prova usada. Ex.: APPLE_ATTESTATION, APPLE_ASSERTION, PLAY_INTEGRITY_TOKEN"]
+    provedor_utilizado           varchar(50)  [note: "Provedor efetivamente usado na validacao"]
+    status_validacao             varchar(32)  [not null, note: "Resultado da prova. Ex.: VALIDADA_LOCALMENTE, VALIDADA_OFICIALMENTE, REPROVADA"]
+    status_operacao              varchar(32)  [not null, note: "Desfecho da operacao. Ex.: CONCLUIDA, NEGADA, PENDENTE_INTEGRACAO"]
+    identificador_principal      varchar(255) [note: "Identificador funcional principal da operacao, como email, sub ou login"]
+    resumo_resultado             varchar(512) [note: "Resumo textual do desfecho"]
+    ip_solicitante               varchar(64)  [note: "IP observado no momento da operacao"]
+    user_agent_solicitante       varchar(512) [note: "Identificacao tecnica do cliente HTTP observada no momento da operacao, como app, navegador, versao e plataforma, usada para auditoria, suporte e analise de fraude"]
+    criado_em                    timestamptz  [not null, note: "Momento de criacao do registro operacional"]
+    atualizado_em                timestamptz  [not null, note: "Momento da ultima atualizacao do registro operacional"]
+    indexes {
+        (cliente_ecossistema_id, operacao, criado_em)
+        (usuario_id, criado_em)
+        (registro_dispositivo_id, criado_em)
+        (dispositivo_id, criado_em)
+    }
+    Note: "Trilha operacional comum para fluxos protegidos por atestacao, independentemente de Apple ou Google. Esta tabela substitui a necessidade de deixar essa auditoria dentro de um servidor de produto."
+}
+
+Table auditoria.google_play_integrity_veredictos [headercolor: #6A1B9A] {
+    operacao_atestada_id         uuid         [pk, note: "Operacao atestada cuja validacao usou Google Play Integrity"]
+    request_hash                 varchar(255) [note: "Request hash informado na requisicao padrao, quando houver"]
+    nonce_recebido               varchar(512) [note: "Nonce recebido no verdict classico, quando aplicavel"]
+    request_package_name         varchar(255) [note: "Package name reconhecido pelo Google na requisicao"]
+    app_recognition_verdict      varchar(64)  [note: "Veredito do app. Ex.: PLAY_RECOGNIZED"]
+    device_recognition_verdicts  jsonb        [note: "Lista de verdicts do dispositivo devolvida pelo Google"]
+    app_licensing_verdict        varchar(64)  [note: "Veredito de licenciamento da conta"]
+    account_activity_level       varchar(64)  [note: "Sinal de atividade da conta, quando retornado"]
+    recent_device_activity_level varchar(64)  [note: "Sinal de atividade recente do aparelho, quando retornado"]
+    device_recall                jsonb        [note: "Estado de device recall devolvido pelo Google, quando utilizado"]
+    token_emitido_em             timestamptz  [note: "Momento em que o token foi emitido segundo o provedor"]
+    avaliado_em                  timestamptz  [not null, note: "Momento em que o backend consolidou este verdict"]
+    Note: "Extensao especifica do Google Play Integrity. Guarda verdicts e sinais anti-replay sem inventar uma tabela de chaves equivalente ao App Attest."
+}
+
+Table auditoria.usuarios_historico [headercolor: #6A1B9A] {
+    id                           bigserial    [pk, increment, note: "Identificador do snapshot historico do usuario central"]
+    usuario_id                   uuid         [not null, note: "Usuario a que o snapshot pertence"]
+    pessoa_id                    uuid         [not null, note: "Pessoa vinculada ao usuario no momento do snapshot"]
+    acao                         varchar(32)  [not null, note: "Evento que gerou o snapshot. Ex.: CRIADO, STATUS_ALTERADO, BLOQUEADO"]
+    sub_remoto                   varchar(255) [note: "Snapshot do subject remoto"]
+    status_global                varchar(32)  [not null, note: "Snapshot do status global do usuario"]
+    origem_alteracao             varchar(64)  [not null, note: "Origem funcional da alteracao"]
+    alterado_em                  timestamptz  [not null, note: "Momento do snapshot"]
+    Note: "Trilha historica da conta central de autenticacao."
+}
+
+Table auditoria.usuarios_clientes_ecossistema_historico [headercolor: #6A1B9A] {
+    id                           bigserial    [pk, increment, note: "Identificador do snapshot historico do vinculo usuario-cliente"]
+    vinculo_id                   uuid         [not null, note: "Vinculo usuario-cliente ao qual o snapshot pertence"]
+    usuario_id                   uuid         [not null, note: "Usuario central do vinculo"]
+    cliente_ecossistema_id       bigint       [not null, note: "Cliente do ecossistema do vinculo"]
+    acao                         varchar(32)  [not null, note: "Evento que gerou o snapshot. Ex.: VINCULADO, STATUS_ALTERADO, REVOGADO"]
+    status_vinculo               varchar(32)  [not null, note: "Snapshot do status do vinculo no cliente"]
+    identificador_publico_cliente varchar(255) [note: "Snapshot do identificador publico no cliente, quando houver"]
+    origem_alteracao             varchar(64)  [not null, note: "Origem funcional da alteracao"]
+    alterado_em                  timestamptz  [not null, note: "Momento do snapshot"]
+    Note: "Trilha historica do pertencimento do usuario a cada app, site ou cliente do ecossistema."
+}
+
+// ====================================================================================================
+// RELACIONAMENTOS
+// ====================================================================================================
+
+Ref: identidade.pessoas_emails.pessoa_id > identidade.pessoas.id
+Ref: identidade.pessoas_telefones.pessoa_id > identidade.pessoas.id
+
+Ref: autenticacao.usuarios.pessoa_id > identidade.pessoas.id
+Ref: autenticacao.usuarios_formas_acesso.usuario_id > autenticacao.usuarios.id
+Ref: autenticacao.usuarios_formas_acesso.email_id > identidade.pessoas_emails.id
+Ref: autenticacao.usuarios_clientes_ecossistema.usuario_id > autenticacao.usuarios.id
+Ref: autenticacao.usuarios_clientes_ecossistema.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: autenticacao.cadastros_conta.pessoa_id > identidade.pessoas.id
+Ref: autenticacao.cadastros_conta.usuario_id > autenticacao.usuarios.id
+Ref: autenticacao.cadastros_conta.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: autenticacao.cadastros_conta.sistema_origem_id > catalogo.sistemas_origem.id
+Ref: autenticacao.cadastros_conta.email_id > identidade.pessoas_emails.id
+Ref: autenticacao.cadastros_conta.telefone_id > identidade.pessoas_telefones.id
+Ref: autenticacao.recuperacoes_senha.usuario_id > autenticacao.usuarios.id
+Ref: autenticacao.recuperacoes_senha.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: autenticacao.recuperacoes_senha.email_id > identidade.pessoas_emails.id
+
+Ref: dispositivos.registros_dispositivo.usuario_id > autenticacao.usuarios.id
+Ref: dispositivos.registros_dispositivo.pessoa_id > identidade.pessoas.id
+Ref: dispositivos.registros_dispositivo.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: dispositivos.registros_dispositivo.sistema_origem_id > catalogo.sistemas_origem.id
+Ref: dispositivos.registros_dispositivo.cadastro_id > autenticacao.cadastros_conta.id
+Ref: dispositivos.registros_dispositivo.email_id > identidade.pessoas_emails.id
+Ref: dispositivos.registros_dispositivo.telefone_id > identidade.pessoas_telefones.id
+Ref: dispositivos.codigos_verificacao_dispositivo.registro_dispositivo_id > dispositivos.registros_dispositivo.id
+Ref: dispositivos.codigos_verificacao_dispositivo.email_id > identidade.pessoas_emails.id
+Ref: dispositivos.codigos_verificacao_dispositivo.telefone_id > identidade.pessoas_telefones.id
+Ref: dispositivos.dispositivos_confiaveis.usuario_id > autenticacao.usuarios.id
+Ref: dispositivos.dispositivos_confiaveis.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: dispositivos.tokens_dispositivo.dispositivo_id > dispositivos.dispositivos_confiaveis.id
+Ref: dispositivos.tokens_dispositivo.registro_dispositivo_id > dispositivos.registros_dispositivo.id
+
+Ref: seguranca.atestacoes_app_desafios.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: seguranca.atestacoes_app_desafios.sistema_origem_id > catalogo.sistemas_origem.id
+Ref: seguranca.atestacoes_app_desafios.usuario_id > autenticacao.usuarios.id
+Ref: seguranca.atestacoes_app_desafios.pessoa_id > identidade.pessoas.id
+Ref: seguranca.atestacoes_app_desafios.vinculo_cliente_id > autenticacao.usuarios_clientes_ecossistema.id
+Ref: seguranca.atestacoes_app_desafios.cadastro_id > autenticacao.cadastros_conta.id
+Ref: seguranca.atestacoes_app_desafios.registro_dispositivo_id > dispositivos.registros_dispositivo.id
+Ref: seguranca.atestacoes_app_desafios.dispositivo_id > dispositivos.dispositivos_confiaveis.id
+Ref: seguranca.credenciais_atestacao_dispositivo.dispositivo_id > dispositivos.dispositivos_confiaveis.id
+Ref: seguranca.credenciais_atestacao_dispositivo.registro_dispositivo_id > dispositivos.registros_dispositivo.id
+Ref: seguranca.credenciais_atestacao_dispositivo.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: seguranca.credenciais_atestacao_dispositivo.usuario_id > autenticacao.usuarios.id
+Ref: seguranca.credenciais_atestacao_dispositivo.pessoa_id > identidade.pessoas.id
+Ref: seguranca.apple_app_attest_chaves.credencial_id > seguranca.credenciais_atestacao_dispositivo.id
+
+Ref: auditoria.operacoes_atestadas.desafio_id > seguranca.atestacoes_app_desafios.id
+Ref: auditoria.operacoes_atestadas.cliente_ecossistema_id > catalogo.clientes_ecossistema.id
+Ref: auditoria.operacoes_atestadas.sistema_origem_id > catalogo.sistemas_origem.id
+Ref: auditoria.operacoes_atestadas.usuario_id > autenticacao.usuarios.id
+Ref: auditoria.operacoes_atestadas.pessoa_id > identidade.pessoas.id
+Ref: auditoria.operacoes_atestadas.vinculo_cliente_id > autenticacao.usuarios_clientes_ecossistema.id
+Ref: auditoria.operacoes_atestadas.cadastro_id > autenticacao.cadastros_conta.id
+Ref: auditoria.operacoes_atestadas.registro_dispositivo_id > dispositivos.registros_dispositivo.id
+Ref: auditoria.operacoes_atestadas.dispositivo_id > dispositivos.dispositivos_confiaveis.id
+Ref: auditoria.operacoes_atestadas.token_dispositivo_id > dispositivos.tokens_dispositivo.id
+Ref: auditoria.operacoes_atestadas.credencial_atestacao_id > seguranca.credenciais_atestacao_dispositivo.id
+Ref: auditoria.google_play_integrity_veredictos.operacao_atestada_id > auditoria.operacoes_atestadas.id
+Ref: auditoria.usuarios_historico.usuario_id > autenticacao.usuarios.id
+Ref: auditoria.usuarios_historico.pessoa_id > identidade.pessoas.id
+Ref: auditoria.usuarios_clientes_ecossistema_historico.vinculo_id > autenticacao.usuarios_clientes_ecossistema.id
+Ref: auditoria.usuarios_clientes_ecossistema_historico.usuario_id > autenticacao.usuarios.id
+Ref: auditoria.usuarios_clientes_ecossistema_historico.cliente_ecossistema_id > catalogo.clientes_ecossistema.id

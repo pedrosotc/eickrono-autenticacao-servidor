@@ -10,6 +10,7 @@ import com.eickrono.api.identidade.dominio.modelo.RegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.StatusCodigoVerificacao;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.Pessoa;
+import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
 import com.eickrono.api.identidade.dominio.repositorio.CodigoVerificacaoRepositorio;
 import com.eickrono.api.identidade.dominio.repositorio.RegistroDispositivoRepositorio;
 import com.eickrono.api.identidade.apresentacao.dto.ConfirmacaoRegistroRequest;
@@ -62,6 +63,7 @@ public class RegistroDispositivoService {
     private final AuditoriaService auditoriaService;
     private final Map<CanalVerificacao, CanalEnvioCodigo> canaisEnvio;
     private final Clock clock;
+    private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
     private final HexFormat hexFormat = HexFormat.of();
 
     @Autowired
@@ -73,7 +75,8 @@ public class RegistroDispositivoService {
                                       DispositivoProperties propriedades,
                                       AuditoriaService auditoriaService,
                                       List<CanalEnvioCodigo> canaisEnvio,
-                                      Clock clock) {
+                                      Clock clock,
+                                      SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
         this.registroRepositorio = registroRepositorio;
         this.codigoRepositorio = codigoRepositorio;
         this.tokenDispositivoService = tokenDispositivoService;
@@ -83,6 +86,7 @@ public class RegistroDispositivoService {
         this.auditoriaService = auditoriaService;
         this.canaisEnvio = construirMapaCanais(canaisEnvio);
         this.clock = clock;
+        this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
     }
 
     public RegistroDispositivoService(final RegistroDispositivoRepositorio registroRepositorio,
@@ -104,7 +108,8 @@ public class RegistroDispositivoService {
                 propriedades,
                 auditoriaService,
                 canaisEnvio,
-                clock
+                clock,
+                null
         );
     }
 
@@ -147,6 +152,7 @@ public class RegistroDispositivoService {
         codigosGerados.forEach(codigo -> registro.adicionarCodigo(codigo.entidade()));
 
         registroRepositorio.save(registro);
+        sincronizarRegistroSeConfigurado(registro);
 
         codigosGerados.forEach(this::enviarCodigo);
 
@@ -183,15 +189,21 @@ public class RegistroDispositivoService {
         }
         if (registro.getExpiraEm().isBefore(agora)) {
             registro.definirStatus(StatusRegistroDispositivo.EXPIRADO, agora);
+            sincronizarRegistroSeConfigurado(registro);
             throw new ResponseStatusException(HttpStatus.GONE, "Registro expirado");
         }
 
         CodigoVerificacao codigoEmail = registro.codigoPorCanal(CanalVerificacao.EMAIL)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Código e-mail ausente"));
 
-        validarCodigo(codigoEmail, request.getCodigoEmail(), agora);
-        registro.codigoPorCanal(CanalVerificacao.SMS)
-                .ifPresent(codigoSms -> validarCodigo(codigoSms, request.getCodigoSms(), agora));
+        try {
+            validarCodigo(codigoEmail, request.getCodigoEmail(), agora);
+            registro.codigoPorCanal(CanalVerificacao.SMS)
+                    .ifPresent(codigoSms -> validarCodigo(codigoSms, request.getCodigoSms(), agora));
+        } catch (RuntimeException ex) {
+            sincronizarRegistroSeConfigurado(registro);
+            throw ex;
+        }
 
         String usuarioSub = resolverUsuarioSub(registro, jwtOpt);
         Long pessoaIdPerfil = registro.getPessoaIdPerfil()
@@ -203,6 +215,7 @@ public class RegistroDispositivoService {
         DispositivoIdentidade dispositivo = dispositivoIdentidadeService.garantirDispositivo(usuarioSub, pessoaIdPerfil, registro);
 
         ConfirmacaoRegistroResponse response = emitirToken(registro, dispositivo, usuarioSub, agora);
+        sincronizarRegistroSeConfigurado(registro);
 
         auditoriaService.registrarEvento("DISPOSITIVO_VERIFICACAO_SUCESSO",
                 usuarioSub,
@@ -226,6 +239,7 @@ public class RegistroDispositivoService {
         }
         if (registro.getExpiraEm().isBefore(agora)) {
             registro.definirStatus(StatusRegistroDispositivo.EXPIRADO, agora);
+            sincronizarRegistroSeConfigurado(registro);
             throw new ResponseStatusException(HttpStatus.GONE, "Registro expirado");
         }
 
@@ -244,6 +258,7 @@ public class RegistroDispositivoService {
         }
 
         registro.incrementarReenvios();
+        sincronizarRegistroSeConfigurado(registro);
 
         auditoriaService.registrarEvento("DISPOSITIVO_CODIGO_REENVIADO",
                 registro.getUsuarioSub().orElse(registro.getEmail()),
@@ -260,6 +275,7 @@ public class RegistroDispositivoService {
         for (RegistroDispositivo registro : expirados) {
             registro.definirStatus(StatusRegistroDispositivo.EXPIRADO, agora);
             registro.getCodigos().forEach(codigo -> codigo.marcarComoExpirado());
+            sincronizarRegistroSeConfigurado(registro);
             auditoriaService.registrarEvento("DISPOSITIVO_REGISTRO_EXPIRADO",
                     registro.getUsuarioSub().orElse(registro.getEmail()),
                     "Registro expirado pelo scheduler");
@@ -274,6 +290,7 @@ public class RegistroDispositivoService {
         tokenDispositivoService.validarTokenAtivo(usuarioSub, token)
                 .ifPresentOrElse(entidade -> {
                     entidade.revogar(motivo, OffsetDateTime.now(clock));
+                    sincronizarTokenSeConfigurado(entidade);
                     auditoriaService.registrarEvento("DISPOSITIVO_TOKEN_REVOGADO",
                             usuarioSub,
                             "Token revogado pelo cliente");
@@ -433,6 +450,18 @@ public class RegistroDispositivoService {
     }
 
     private record CodigoGerado(CodigoVerificacao entidade, String codigoClaro) {
+    }
+
+    private void sincronizarRegistroSeConfigurado(final RegistroDispositivo registro) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarRegistroDispositivo(registro);
+        }
+    }
+
+    private void sincronizarTokenSeConfigurado(final TokenDispositivo token) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarTokenDispositivo(token);
+        }
     }
 
     private static final class ClienteContextoPessoaPerfilLegado implements ClienteContextoPessoaPerfil {

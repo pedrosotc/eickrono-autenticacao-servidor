@@ -25,3 +25,11 @@
 - Endurecer deteccao de root/jailbreak alem da atestacao nativa.
 - Adicionar sinais de deteccao de Frida/hooking e de adulteracao do app.
 - Revisar protecao de armazenamento local, politica de screenshot, protecao de clipboard e minimizacao de dados em cache.
+
+## Padronizacao OIDC Entre Ambientes
+
+- Padronizar o nome do realm para `eickrono` em `dev`, `hml` e `prod`.
+- Separar claramente os hosts publicos em `id-*` para a API e `oidc-*` para o servidor de autorizacao.
+- Alinhar `issuer`, callbacks dos brokers sociais, exports de realm, configs Spring e configs do app ao novo padrao.
+- Tratar a mudanca como alteracao coordenada de contrato OIDC, nao como simples troca de string.
+- Ver plano detalhado em `plano-padronizacao-realm-unico.md`.

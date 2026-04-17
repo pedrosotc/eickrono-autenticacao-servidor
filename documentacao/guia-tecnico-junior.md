@@ -119,7 +119,7 @@ O desenho canônico atual não usa uma tela dedicada de registro de dispositivo 
 - **Temas**: customizações de layout/aparência do Keycloak (login, páginas de erro) armazenadas em `modulos/servidor-autorizacao-eickrono/temas-login-ptbr`.
 - **CloudWatch**: serviço de monitoramento da AWS que recebe logs e métricas do ambiente.
 - **MFA (Multi-Factor Authentication)**: autenticação com múltiplos fatores (senha + token, biometria ou WebAuthn).
-- **Realms**: contextos isolados no Keycloak que agrupam usuários, clientes, escopos e configurações por ambiente (desenvolvimento/homologação/produção).
+- **Realm**: contexto lógico do Keycloak que agrupa usuários, clientes, escopos e configurações. Neste repositório o nome padronizado é `eickrono`, com separação de ambiente feita pelo host e pela implantação.
 - **TLS (Transport Layer Security)**: protocolo de criptografia usado em todas as conexões HTTPS.
 - **Validação de audiência (`aud`)**: checagem se o token recebido é destinado à API que está processando.
 - **WAF (Web Application Firewall)**: firewall que inspeciona HTTP/HTTPS, bloqueando requisições maliciosas.

@@ -23,7 +23,7 @@ public record ConfiguracaoValidacaoRefreshDispositivo(
         String urlBase = lerAmbiente("EICKRONO_IDENTIDADE_API_BASE_URL", "http://api-identidade-eickrono:8081");
         String segredo = lerAmbiente("EICKRONO_INTERNAL_SECRET", "local-internal-secret");
         String urlBaseKeycloak = lerAmbiente("EICKRONO_KEYCLOAK_URL_BASE", "http://localhost:8080");
-        String realmKeycloak = lerAmbiente("EICKRONO_KEYCLOAK_REALM", "desenvolvimento");
+        String realmKeycloak = lerAmbiente("EICKRONO_KEYCLOAK_REALM", "eickrono");
         String clientIdInterno = lerAmbiente("EICKRONO_IDENTIDADE_CLIENT_ID_INTERNO", "servidor-autorizacao-interno");
         String clientSecretInterno = lerAmbiente("EICKRONO_IDENTIDADE_CLIENT_SECRET_INTERNO", "CHANGE_ME");
         boolean mtlsHabilitado = Boolean.parseBoolean(lerAmbiente("EICKRONO_INTERNO_MTLS_HABILITADO", "false"));

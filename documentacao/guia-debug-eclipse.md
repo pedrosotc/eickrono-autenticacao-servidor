@@ -35,7 +35,7 @@ Os artefatos serão gerados em `modulos/<nome>/target/`, prontos para serem copi
 
 ### Portas expostas em desenvolvimento
 
-- `localhost:8080`: Keycloak (`realm` desenvolvimento).
+- `localhost:8080`: Keycloak (`realm` eickrono).
 - `localhost:8081`: API Identidade (HTTP).
 - `localhost:8082`: API Contas (HTTP).
 - `localhost:5005`: depuração remota da API Identidade.
@@ -58,7 +58,7 @@ O cenário `hml` replica a configuração com parâmetros de homologação (URLs
 
 ### Portas expostas em homologação local
 
-- `localhost:8080`: Keycloak (hostname configurado para `https://hml-identidade.eickrono.com.br`).
+- `localhost:8080`: Keycloak (hostname configurado para `https://oidc-hml.eickrono.store`).
 - `localhost:18081`: API Identidade (HTTP).
 - `localhost:18082`: API Contas (HTTP).
 - `localhost:5005`: depuração remota da API Identidade.
@@ -168,7 +168,7 @@ Para uma visão rápida:
 3. Emita o token com `curl` (exemplo abaixo) ou pelo app/BFF e informe `Bearer <token>` no modal `Authorize` do Swagger.
 
 ```bash
-curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
+curl -X POST http://localhost:8080/realms/eickrono/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d 'grant_type=password' \
@@ -177,7 +177,7 @@ curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connec
   -d 'scope=openid contas:ler identidade:ler'
 ```
 
-> Em `hml`, ajuste a URL para `https://hml-identidade.eickrono.com.br/realms/homologacao/...`, use as credenciais do ambiente e lembre-se de atualizar `/etc/hosts` ou o proxy corporativo caso precise resolver o hostname externo.
+> Em `hml`, ajuste a URL para `https://oidc-hml.eickrono.store/realms/eickrono/...`, use as credenciais do ambiente e lembre-se de atualizar `/etc/hosts` ou o proxy corporativo caso precise resolver o hostname externo.
 
 ## 7. Fluxo resumido para o dia a dia
 

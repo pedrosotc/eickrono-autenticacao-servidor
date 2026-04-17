@@ -29,7 +29,7 @@ Use para fluxos que representam o app com um usuário autenticado (precisa de `R
 3. No mesmo cliente (`Clients > app-flutter-local`), valide que os escopos citados acima estão associados como optional/default conforme o guia de JWT.
 4. Em um terminal local (com o ambiente `dev` rodando), execute:
 ```bash
-curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
+curl -X POST http://localhost:8080/realms/eickrono/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d "client_secret=${CLIENT_SECRET}" \
@@ -72,7 +72,7 @@ Para o código atual, a análise rende exatamente os itens abaixo:
 Use quando quiser exercitar chamadas sem usuário humano (não recebe `ROLE_cliente`, apenas escopos):
 
 ```bash
-curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
+curl -X POST http://localhost:8080/realms/eickrono/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d "client_secret=${CLIENT_SECRET}" \

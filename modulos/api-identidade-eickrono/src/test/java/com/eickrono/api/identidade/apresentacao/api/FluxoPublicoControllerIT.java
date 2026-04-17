@@ -129,7 +129,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                                 {
-                                  "aplicacaoId": "eickrono-flashcard-app",
+                                  "aplicacaoId": "eickrono-thimisu-app",
                                   "login": "b@b.com",
                                   "senha": "SenhaForte123",
                                   "dispositivo": {
@@ -162,7 +162,7 @@ class FluxoPublicoControllerIT {
                                     "identidadeAplicativoValida": true,
                                     "sinaisRisco": [],
                                     "scoreRiscoLocal": 0,
-                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "bundleIdentifier": "com.eickrono.thimisu",
                                     "teamIdentifier": "TEAM123"
                                   }
                                 }
@@ -181,7 +181,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "aplicacaoId": "eickrono-flashcard-app",
+                                  "aplicacaoId": "eickrono-thimisu-app",
                                   "login": "a@a.com",
                                   "senha": "SenhaErrada123",
                                   "dispositivo": {
@@ -214,7 +214,7 @@ class FluxoPublicoControllerIT {
                                     "identidadeAplicativoValida": true,
                                     "sinaisRisco": [],
                                     "scoreRiscoLocal": 0,
-                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "bundleIdentifier": "com.eickrono.thimisu",
                                     "teamIdentifier": "TEAM123"
                                   }
                                 }
@@ -235,7 +235,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "aplicacaoId": "eickrono-flashcard-app",
+                                  "aplicacaoId": "eickrono-thimisu-app",
                                   "login": "b@b.com",
                                   "senha": "SenhaForte123",
                                   "dispositivo": {
@@ -268,7 +268,7 @@ class FluxoPublicoControllerIT {
                                     "identidadeAplicativoValida": true,
                                     "sinaisRisco": [],
                                     "scoreRiscoLocal": 0,
-                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "bundleIdentifier": "com.eickrono.thimisu",
                                     "teamIdentifier": "TEAM123"
                                   }
                                 }
@@ -289,7 +289,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "aplicacaoId": "eickrono-flashcard-app",
+                                  "aplicacaoId": "eickrono-thimisu-app",
                                   "login": "c@c.com",
                                   "senha": "SenhaForte123",
                                   "dispositivo": {
@@ -322,7 +322,7 @@ class FluxoPublicoControllerIT {
                                     "identidadeAplicativoValida": true,
                                     "sinaisRisco": [],
                                     "scoreRiscoLocal": 0,
-                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "bundleIdentifier": "com.eickrono.thimisu",
                                     "teamIdentifier": "TEAM123"
                                   }
                                 }
@@ -355,7 +355,7 @@ class FluxoPublicoControllerIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "aplicacaoId": "eickrono-flashcard-app",
+                                  "aplicacaoId": "eickrono-thimisu-app",
                                   "login": "a@a.com",
                                   "senha": "SenhaForte123",
                                   "dispositivo": {
@@ -388,7 +388,7 @@ class FluxoPublicoControllerIT {
                                     "identidadeAplicativoValida": true,
                                     "sinaisRisco": [],
                                     "scoreRiscoLocal": 0,
-                                    "bundleIdentifier": "com.eickrono.flashCards",
+                                    "bundleIdentifier": "com.eickrono.thimisu",
                                     "teamIdentifier": "TEAM123"
                                   }
                                 }

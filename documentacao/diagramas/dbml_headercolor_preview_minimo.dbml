@@ -1,0 +1,26 @@
+// Arquivo minimo para reproduzir problema de preview do headercolor no VS Code.
+// Comportamento esperado:
+// - a tabela teste.usuarios deve aparecer com cabecalho azul;
+// - a tabela teste.pedidos deve aparecer com cabecalho vermelho.
+// Comportamento observado no ambiente atual:
+// - o preview do VS Code ignora as cores e renderiza os cabecalhos sem destaque.
+
+Project dbml_headercolor_preview_minimo {
+    database_type: "PostgreSQL"
+    Note: "Teste minimo de reproducao para headercolor no preview da extensao dbdiagram para VS Code."
+}
+
+Table teste.usuarios [headercolor: #1565C0] {
+    id uuid [pk]
+    email varchar(255) [not null, unique]
+    criado_em timestamptz [not null]
+}
+
+Table teste.pedidos [headercolor: #C62828] {
+    id uuid [pk]
+    usuario_id uuid [not null]
+    descricao varchar(255)
+    criado_em timestamptz [not null]
+}
+
+Ref: teste.pedidos.usuario_id > teste.usuarios.id

@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -38,8 +39,10 @@ public class RegistroDispositivoLoginSilenciosoService {
     private final DispositivoProperties dispositivoProperties;
     private final AuditoriaService auditoriaService;
     private final Clock clock;
+    private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
     private final HexFormat hexFormat = HexFormat.of();
 
+    @Autowired
     public RegistroDispositivoLoginSilenciosoService(
             final RegistroDispositivoRepositorio registroDispositivoRepositorio,
             final DispositivoIdentidadeRepositorio dispositivoIdentidadeRepositorio,
@@ -47,7 +50,8 @@ public class RegistroDispositivoLoginSilenciosoService {
             final TokenDispositivoService tokenDispositivoService,
             final DispositivoProperties dispositivoProperties,
             final AuditoriaService auditoriaService,
-            final Clock clock) {
+            final Clock clock,
+            final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
         this.registroDispositivoRepositorio = Objects.requireNonNull(
                 registroDispositivoRepositorio, "registroDispositivoRepositorio é obrigatório");
         this.dispositivoIdentidadeRepositorio = Objects.requireNonNull(
@@ -60,6 +64,27 @@ public class RegistroDispositivoLoginSilenciosoService {
                 dispositivoProperties, "dispositivoProperties é obrigatório");
         this.auditoriaService = Objects.requireNonNull(auditoriaService, "auditoriaService é obrigatório");
         this.clock = Objects.requireNonNull(clock, "clock é obrigatório");
+        this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
+    }
+
+    public RegistroDispositivoLoginSilenciosoService(
+            final RegistroDispositivoRepositorio registroDispositivoRepositorio,
+            final DispositivoIdentidadeRepositorio dispositivoIdentidadeRepositorio,
+            final DispositivoIdentidadeService dispositivoIdentidadeService,
+            final TokenDispositivoService tokenDispositivoService,
+            final DispositivoProperties dispositivoProperties,
+            final AuditoriaService auditoriaService,
+            final Clock clock) {
+        this(
+                registroDispositivoRepositorio,
+                dispositivoIdentidadeRepositorio,
+                dispositivoIdentidadeService,
+                tokenDispositivoService,
+                dispositivoProperties,
+                auditoriaService,
+                clock,
+                null
+        );
     }
 
     @Transactional
@@ -92,6 +117,7 @@ public class RegistroDispositivoLoginSilenciosoService {
         );
         registro.definirStatus(StatusRegistroDispositivo.CONFIRMADO, agora);
         registroDispositivoRepositorio.save(registro);
+        sincronizarRegistroSeConfigurado(registro);
 
         DispositivoIdentidade dispositivoIdentidade = dispositivoIdentidadeService.garantirDispositivo(
                 contextoObrigatorio.sub(),
@@ -163,5 +189,11 @@ public class RegistroDispositivoLoginSilenciosoService {
 
     private String normalizarOpcional(final String valor) {
         return valor == null ? "" : valor.trim();
+    }
+
+    private void sincronizarRegistroSeConfigurado(final RegistroDispositivo registro) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarRegistroDispositivo(registro);
+        }
     }
 }

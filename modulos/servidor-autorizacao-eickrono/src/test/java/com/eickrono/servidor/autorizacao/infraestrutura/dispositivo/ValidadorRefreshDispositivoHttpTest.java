@@ -15,7 +15,7 @@ class ValidadorRefreshDispositivoHttpTest {
     @Test
     void deveRetornarResultadoDaApiInterna() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-        server.createContext("/realms/desenvolvimento/protocol/openid-connect/token", exchange -> {
+        server.createContext("/realms/eickrono/protocol/openid-connect/token", exchange -> {
             String body = "{\"access_token\":\"jwt-interno\",\"expires_in\":300}";
             exchange.sendResponseHeaders(200, body.length());
             try (OutputStream output = exchange.getResponseBody()) {
@@ -36,7 +36,7 @@ class ValidadorRefreshDispositivoHttpTest {
                     "http://localhost:" + server.getAddress().getPort(),
                     "segredo",
                     "http://localhost:" + server.getAddress().getPort(),
-                    "desenvolvimento",
+                    "eickrono",
                     "servidor-autorizacao-interno",
                     "segredo-client",
                     false,
@@ -62,7 +62,7 @@ class ValidadorRefreshDispositivoHttpTest {
     @Test
     void deveFalharQuandoApiInternaResponderStatusNaoOk() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-        server.createContext("/realms/desenvolvimento/protocol/openid-connect/token", exchange -> {
+        server.createContext("/realms/eickrono/protocol/openid-connect/token", exchange -> {
             String body = "{\"access_token\":\"jwt-interno\",\"expires_in\":300}";
             exchange.sendResponseHeaders(200, body.length());
             try (OutputStream output = exchange.getResponseBody()) {
@@ -79,7 +79,7 @@ class ValidadorRefreshDispositivoHttpTest {
                     "http://localhost:" + server.getAddress().getPort(),
                     "segredo",
                     "http://localhost:" + server.getAddress().getPort(),
-                    "desenvolvimento",
+                    "eickrono",
                     "servidor-autorizacao-interno",
                     "segredo-client",
                     false,

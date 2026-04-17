@@ -38,7 +38,7 @@ public class PerfilDominioBackchannelProperties {
     public static class JwtInterno {
 
         private String urlBase = "http://localhost:8080";
-        private String realm = "desenvolvimento";
+        private String realm = "eickrono";
         private String clientId = "autenticacao-servidor-interno";
         private String clientSecret = "CHANGE_ME";
         private Duration timeout = Duration.ofSeconds(5);

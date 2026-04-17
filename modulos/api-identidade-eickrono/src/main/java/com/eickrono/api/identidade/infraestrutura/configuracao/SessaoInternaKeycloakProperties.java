@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SessaoInternaKeycloakProperties {
 
     private String urlBase = "http://localhost:8080";
-    private String realm = "desenvolvimento";
+    private String realm = "eickrono";
     private String clientId = "app-flutter-local";
     private String clientSecret = "";
     private String passwordPepper = "";

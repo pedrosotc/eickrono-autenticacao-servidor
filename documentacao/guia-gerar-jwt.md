@@ -17,7 +17,7 @@ Este passo a passo foi escrito para quem está gerando tokens pela primeira vez.
 | 9. Usar o token nas APIs | Aplicar o token via Swagger/cURL | Teste | Todas as chamadas que forem exercitadas |
 
 > Observação: os comandos de linha de comando a seguir utilizam `jq` para manipular JSON. Em macOS, instale com `brew install jq`; em Debian/Ubuntu, `sudo apt-get install jq`.
-> O realm padrão do Keycloak local chama-se `desenvolvimento`. Sempre que o guia mencionar “ambiente dev”, utilize `REALM=desenvolvimento` nos comandos `kcadm.sh`.
+> O realm padrão do Keycloak local agora chama-se `eickrono`.
 
 ## 1. Preparar o ambiente
 
@@ -42,7 +42,7 @@ curl -I http://localhost:8080
 
 1. Clique em **Administration Console**.
 2. Informe o usuário e a senha do administrador configurados nas variáveis `KEYCLOAK_ADMIN` e `KEYCLOAK_ADMIN_PASSWORD` do arquivo `.env`.
-3. Após entrar, verifique no canto superior esquerdo se o *realm* selecionado é `desenvolvimento`. Caso veja outro nome, abra o seletor (nome do realm atual) e escolha `desenvolvimento`.
+3. Após entrar, verifique no canto superior esquerdo se o *realm* selecionado é `eickrono`. Caso veja outro nome, abra o seletor (nome do realm atual) e escolha `eickrono`.
 
 **Comandos equivalentes (kcadm)**
 ```bash
@@ -50,7 +50,7 @@ curl -I http://localhost:8080
 set -a
 source infraestrutura/dev/.env
 set +a
-REALM=desenvolvimento
+REALM=eickrono
 
 # Garante que o Keycloak recebeu as credenciais administrativas
 docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh config credentials \
@@ -62,7 +62,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh config credenti
 
 **Validação**
 ```bash
-# Lista o realm \"desenvolvimento\" para confirmar acesso
+# Lista o realm `eickrono` para confirmar acesso
 docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get realms/${REALM} --fields id,realm,enabled
 ```
 
@@ -94,7 +94,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get realms/${RE
 
 **Comandos (criação/atualização via CLI)**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 CLIENT_ID=app-flutter-local
 CLIENT_NAME="App Flutter (dev)"
 CLIENT_DESCRIPTION="Aplicativo Flutter local consumindo APIs Identidade/Contas"
@@ -147,7 +147,7 @@ fi
 
 **Validação**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 # Lista o cliente e verifica se os fluxos desejados estão habilitados
 docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get clients \
   -r ${REALM} \
@@ -163,7 +163,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get clients \
 
 **Comandos**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 CLIENT_ID=app-flutter-local
 CLIENT_UUID=$(docker exec -i eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get clients \
   -r ${REALM} \
@@ -184,7 +184,7 @@ echo "Novo segredo: ${NEW_SECRET}"
 
 **Validação**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 # Confere se o segredo está cadastrado e ativo
 docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get "clients/${CLIENT_UUID}" \
   -r ${REALM} \
@@ -202,7 +202,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get "clients/${
 
 **Comandos**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 CLIENT_ID=app-flutter-local
 CLIENT_UUID=$(docker exec -i eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get clients \
   -r ${REALM} \
@@ -239,7 +239,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh create "clients
 
 **Validação**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 # Mostra os escopos opcionais associados ao cliente
 docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get "clients/${CLIENT_UUID}/optional-client-scopes" \
   -r ${REALM} \
@@ -266,7 +266,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get "clients/${
 
 **Comandos**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 USER_USERNAME=teste.dev
 USER_PASSWORD='SenhaForte123!'
 USER_EMAIL='teste.dev@exemplo.com'
@@ -313,7 +313,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh add-roles \
 
 **Validação**
 ```bash
-REALM=desenvolvimento
+REALM=eickrono
 # Confere dados básicos do usuário
 docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get "users/${USER_ID}" -r ${REALM} --fields username,enabled
 
@@ -329,7 +329,7 @@ docker exec -it eickrono-keycloak-dev /opt/keycloak/bin/kcadm.sh get "users/${US
 Use quando quiser simular um usuário real com login e senha.
 
 ```bash
-curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
+curl -X POST http://localhost:8080/realms/eickrono/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d 'grant_type=password' \
@@ -345,7 +345,7 @@ curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connec
 
 **Validação**
 ```bash
-RESPONSE=$(curl -s http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
+RESPONSE=$(curl -s http://localhost:8080/realms/eickrono/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d 'grant_type=password' \
@@ -370,7 +370,7 @@ Use quando o serviço não tem usuário humano (ex.: integração servidor-servi
 
 ```bash
 CLIENT_SECRET='<copie_da_aba_Credentials>'
-curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
+curl -X POST http://localhost:8080/realms/eickrono/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d "client_secret=${CLIENT_SECRET}" \
@@ -383,7 +383,7 @@ curl -X POST http://localhost:8080/realms/desenvolvimento/protocol/openid-connec
 
 **Validação**
 ```bash
-SERVICE_RESPONSE=$(curl -s http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/token \
+SERVICE_RESPONSE=$(curl -s http://localhost:8080/realms/eickrono/protocol/openid-connect/token \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'client_id=app-flutter-local' \
   -d "client_secret=${NEW_SECRET:-$CLIENT_SECRET}" \
@@ -436,22 +436,22 @@ curl -s -o /dev/null -w '%{http_code}\n' \
    Esse ambiente replica os certificados e variáveis usados em homologação real.
 
 2. **Ajuste DNS/hosts para o hostname externo**  
-   - Adicione a linha `127.0.0.1  hml-identidade.eickrono.com.br` em `/etc/hosts` (ou configure seu proxy corporativo) para que o navegador resolva o domínio quando estiver testando localmente.
+   - Adicione a linha `127.0.0.1  oidc-hml.eickrono.store` em `/etc/hosts` (ou configure seu proxy corporativo) para que o navegador resolva o domínio quando estiver testando localmente.
 
 3. **Acesse o admin do Keycloak de homologação**  
-   - URL: `https://hml-identidade.eickrono.com.br/admin/`  
-   - Realm: `homologacao`  
+   - URL: `https://oidc-hml.eickrono.store/admin/`  
+   - Realm: `eickrono`  
    - Credenciais: utilize o usuário administrador exclusivo de `hml` (definido no cofre corporativo). Não reaproveite o admin de `dev`.
 
 4. **Replique o cliente com o nome do ambiente**  
    - Siga as etapas da seção 3 escolhendo um `client_id` coerente (ex.: `app-flutter-hml`).  
-   - Garanta que os redirecionamentos (`Valid redirect URIs`) apontem para os domínios de homologação (`https://hml-app.eickrono.com.br/*`, `http://localhost/*` se precisar testar localmente via tunnel).
+   - Garanta que os redirecionamentos (`Valid redirect URIs`) apontem para os domínios de homologação (`https://id-hml.eickrono.store/*`, `http://localhost/*` se precisar testar localmente via tunnel).
    - Segredo, roles e escopos são próprios desse ambiente: gere novos valores em **Credentials** e atribua as roles conforme a política de homologação.
 
 5. **Atualize as requisições `curl`**  
    ```bash
    CLIENT_SECRET='<segredo_de_hml>'
-   curl -X POST https://hml-identidade.eickrono.com.br/realms/homologacao/protocol/openid-connect/token \
+   curl -X POST https://oidc-hml.eickrono.store/realms/eickrono/protocol/openid-connect/token \
      -H 'Content-Type: application/x-www-form-urlencoded' \
      -d 'client_id=app-flutter-hml' \
      -d "client_secret=${CLIENT_SECRET}" \
@@ -467,11 +467,11 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 ## 11. Adaptando para produção (`prd`)
 
 1. **Acesso restrito**  
-   - O Keycloak de produção (realm `producao`) não fica exposto para uso local. Apenas administradores autorizados podem acessar via VPN corporativa e console oficial. Solicite acesso ao time de Segurança antes de qualquer alteração.
+   - O Keycloak de produção (realm `eickrono`) não fica exposto para uso local. Apenas administradores autorizados podem acessar via VPN corporativa e console oficial. Solicite acesso ao time de Segurança antes de qualquer alteração.
 
 2. **Criação e ajustes de clientes**  
    - Siga o mesmo checklist do ambiente `hml`, porém utilize `client_id` com o sufixo `-prd` (ex.: `app-flutter-prd`).  
-   - `Valid redirect URIs` e `Web origins` devem apontar apenas para domínios oficiais (`https://app.eickrono.com.br/*`, `https://bff.eickrono.com.br/*`).  
+   - `Valid redirect URIs` e `Web origins` devem apontar apenas para domínios oficiais (`https://id.eickrono.com/*`, `https://oidc.eickrono.com/*`).  
    - Preserve o mínimo de capabilities: evite habilitar `Direct access grants` em produção; use principalmente `Standard flow` (para apps interativos) e `Service accounts roles` (para integrações sem usuário).
 
 3. **Segredos e guarda segura**  
@@ -484,7 +484,7 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 5. **Requisições de token**  
    - Os endpoints seguem o mesmo padrão, trocando o host e o realm:  
-     `https://identidade.eickrono.com.br/realms/producao/protocol/openid-connect/token`.  
+     `https://oidc.eickrono.com/realms/eickrono/protocol/openid-connect/token`.  
    - Todos os chamados devem ocorrer a partir de infra autorizada (BFF, backoffice, serviços internos). Evite rodar `curl` diretamente na máquina local sem VPN/aprovação.
 
 6. **Auditoria e monitoração**  

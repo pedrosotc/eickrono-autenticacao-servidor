@@ -36,9 +36,9 @@ O módulo [`modulos/servidor-autorizacao-eickrono`](/Users/thiago/Desenvolvedor/
 
 Os domínios versionados já têm `CONFIGURE_TOTP` habilitado em:
 
-- [`modulos/servidor-autorizacao-eickrono/realms/desenvolvimento-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/desenvolvimento-realm.json)
-- [`modulos/servidor-autorizacao-eickrono/realms/homologacao-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/homologacao-realm.json)
-- [`modulos/servidor-autorizacao-eickrono/realms/producao-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/producao-realm.json)
+- [`modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json)
+- [`modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json)
+- [`modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json)
 
 Ao mesmo tempo, o fluxo de navegador versionado da Eickrono hoje contém apenas o formulário customizado de usuário/senha, sem o subfluxo condicional de 2FA que existe no fluxo de navegador padrão do Keycloak.
 

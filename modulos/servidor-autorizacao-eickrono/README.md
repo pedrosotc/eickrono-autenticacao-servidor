@@ -5,7 +5,7 @@ Esta pasta contém customizações do Keycloak/RH-SSO utilizadas pela Eickrono:
 - `temas-login-ptbr`: temas de login totalmente em português.  
 - `mapeamentos-atributos`: mapeamentos adicionais de claims e atributos.  
 - `configuracoes-fapi`: políticas de PAR/JAR/JARM, mTLS e client policies.  
-- `realms`: exports versionados dos realms `desenvolvimento`, `homologacao` e `producao`.  
+- `realms`: exports versionados por ambiente, todos com o nome lógico de realm `eickrono`.  
 - `scripts-spi`: código Java/JS para integrações via SPI.
 
 O módulo gera um JAR com utilidades compartilhadas e serve como ponto de empacotamento para as customizações do servidor de autorização.
@@ -84,6 +84,28 @@ Os realms versionados já saem com:
 - `clientProfiles` contendo `eickrono-device-token-refresh-profile`;
 - `clientPolicies` contendo `eickrono-device-token-refresh-policy`;
 - o cliente `app-flutter-local` marcado com `eickrono.device-token-refresh=true`.
+
+## Provedores sociais versionados
+
+Os exports versionados por ambiente agora carregam cinco brokers de identidade com aliases estáveis:
+
+- `google` com `providerId=google`
+- `apple` com `providerId=oidc`
+- `facebook` com `providerId=facebook`
+- `linkedin` com `providerId=linkedin-openid-connect`
+- `instagram` com `providerId=instagram`
+
+Observações operacionais:
+
+- A documentação do módulo passa a adotar o padrão `KEYCLOAK_IDP_<APP>_<PROVEDOR>_<CREDENCIAL>`, usando `THIMISU` como slug de app nos exemplos operacionais.
+- Apple entra como broker OIDC genérico e usa `clientSecret` no formato JWT, documentado na convenção `KEYCLOAK_IDP_<APP>_APPLE_CLIENT_SECRET_JWT`.
+- Facebook segue o broker social nativo do Keycloak com `defaultScope=email`, o suficiente para o fluxo atual de autenticação social.
+- Instagram continua no broker `instagram`, com `defaultScope=user_profile`, e permanece deprecated no Keycloak 26.5.5. Para o import aceitar `providerId=instagram`, o servidor precisa subir com `--features=instagram-broker`.
+- O setup atual de `Instagram Business Login` / Graph API da Meta não está materializado nesses exports. Publicação, mensageria e permissões como `instagram_business_*` ou `pages_*` pedem integração dedicada no servidor, não apenas ajuste de broker social.
+- Por causa disso, o app Flutter esconde temporariamente o caminho visual de `Instagram` e mantém apenas `Facebook` como login Meta exposto ao usuário final.
+- Os valores `${KEYCLOAK_IDP_<APP>_*}` nos realms são placeholders de credencial. Em `infraestrutura/dev` e `infraestrutura/hml`, o startup do Keycloak passa por `render-realms.sh`, que substitui apenas esses placeholders antes do `--import-realm`.
+- A renderização é seletiva de propósito: placeholders nativos do próprio Keycloak como `${username}` precisam continuar literais dentro do realm export.
+- Os exemplos de `.env` em `infraestrutura/dev` e `infraestrutura/hml` já listam as chaves esperadas para facilitar esse preenchimento.
 
 Teste do módulo:
 

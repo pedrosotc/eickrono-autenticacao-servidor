@@ -2,6 +2,7 @@ package com.eickrono.api.identidade.infraestrutura.integracao;
 
 import java.net.URI;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,9 +26,12 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.eickrono.api.identidade.aplicacao.modelo.CadastroKeycloakProvisionado;
+import com.eickrono.api.identidade.aplicacao.modelo.IdentidadeFederadaKeycloak;
 import com.eickrono.api.identidade.aplicacao.modelo.UsuarioCadastroKeycloakExistente;
 import com.eickrono.api.identidade.aplicacao.servico.ClienteAdministracaoCadastroKeycloak;
+import com.eickrono.api.identidade.aplicacao.servico.ClienteAdministracaoVinculosSociaisKeycloak;
 import com.eickrono.api.identidade.aplicacao.servico.DerivacaoSenhaKeycloak;
+import com.eickrono.api.identidade.dominio.modelo.ProvedorVinculoSocial;
 import com.eickrono.api.identidade.infraestrutura.configuracao.CadastroInternoKeycloakProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -37,7 +41,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Component
 @Profile("!test")
-public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdministracaoCadastroKeycloak {
+public class ClienteAdministracaoCadastroKeycloakHttp
+        implements ClienteAdministracaoCadastroKeycloak, ClienteAdministracaoVinculosSociaisKeycloak {
 
     private static final DefaultResponseErrorHandler NO_OP_ERROR_HANDLER = new NoOpResponseErrorHandler();
     private static final String ATRIBUTO_DATA_NASCIMENTO = "data_nascimento";
@@ -191,6 +196,59 @@ public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdminist
         );
     }
 
+    @Override
+    public List<IdentidadeFederadaKeycloak> listarIdentidadesFederadas(final String subjectRemoto) {
+        String accessToken = obterAccessTokenAdministrador();
+        ResponseEntity<String> response = restTemplate.exchange(
+                URI.create(urlUsuarios() + "/" + Objects.requireNonNull(subjectRemoto, "subjectRemoto é obrigatório")
+                        + "/federated-identity"),
+                HttpMethod.GET,
+                new HttpEntity<>(cabecalhosJson(accessToken)),
+                String.class
+        );
+        if (response.getStatusCode().value() == 404) {
+            throw erroGenerico("Usuário autenticado não encontrado no Keycloak para consulta de vínculos sociais.");
+        }
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw erroGenerico("Não foi possível consultar as identidades federadas do usuário.");
+        }
+        try {
+            JsonNode lista = objectMapper.readTree(Objects.requireNonNullElse(response.getBody(), "[]"));
+            if (!lista.isArray()) {
+                throw erroGenerico("O Keycloak retornou identidades federadas em formato inválido.");
+            }
+            List<IdentidadeFederadaKeycloak> identidades = new ArrayList<>();
+            for (JsonNode item : lista) {
+                ProvedorVinculoSocial.fromAlias(item.path("identityProvider").asText(null))
+                        .ifPresent(provedor -> identidades.add(new IdentidadeFederadaKeycloak(
+                                provedor,
+                                textoOuNulo(item.path("userId").asText(null)),
+                                textoOuNulo(item.path("userName").asText(null)))));
+            }
+            return identidades;
+        } catch (JsonProcessingException ex) {
+            throw erroGenerico("Falha ao interpretar as identidades federadas retornadas pelo Keycloak.", ex);
+        }
+    }
+
+    @Override
+    public void removerIdentidadeFederada(final String subjectRemoto, final ProvedorVinculoSocial provedor) {
+        String accessToken = obterAccessTokenAdministrador();
+        ResponseEntity<String> response = restTemplate.exchange(
+                URI.create(urlUsuarios() + "/" + Objects.requireNonNull(subjectRemoto, "subjectRemoto é obrigatório")
+                        + "/federated-identity/" + Objects.requireNonNull(provedor, "provedor é obrigatório").getAliasApi()),
+                HttpMethod.DELETE,
+                new HttpEntity<>(cabecalhosJson(accessToken)),
+                String.class
+        );
+        if (response.getStatusCode().value() == 404 || response.getStatusCode().value() == 204) {
+            return;
+        }
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw erroGenerico("Não foi possível remover a identidade federada do usuário.");
+        }
+    }
+
     private String obterAccessTokenAdministrador() {
         LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "password");
@@ -309,6 +367,13 @@ public class ClienteAdministracaoCadastroKeycloakHttp implements ClienteAdminist
 
     private String urlUsuarios() {
         return properties.getUrlBase() + "/admin/realms/" + properties.getRealm() + "/users";
+    }
+
+    private String textoOuNulo(final String valor) {
+        if (!StringUtils.hasText(valor)) {
+            return null;
+        }
+        return valor.trim();
     }
 
     private ResponseStatusException erroGenerico(final String mensagem) {

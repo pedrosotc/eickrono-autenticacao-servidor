@@ -57,7 +57,7 @@ public class SegurancaConfiguracao {
     private static final long CORS_MAX_AGE_HORAS = 1L;
     private static final Duration CACHE_EXPIRACAO_PADRAO = Duration.ofMinutes(CACHE_EXPIRACAO_MINUTOS);
     private static final Duration CORS_MAX_AGE = Duration.ofHours(CORS_MAX_AGE_HORAS);
-    private static final List<String> CORS_METODOS = List.of("GET", "POST", "OPTIONS");
+    private static final List<String> CORS_METODOS = List.of("GET", "POST", "DELETE", "OPTIONS");
     private static final List<String> CORS_CABECALHOS = List.of("Authorization", "Content-Type", "X-Device-Token");
     private static final AntPathRequestMatcher ACTUATOR_HEALTH_MATCHER = AntPathRequestMatcher.antMatcher("/actuator/health");
     private static final AntPathRequestMatcher ACTUATOR_INFO_MATCHER = AntPathRequestMatcher.antMatcher("/actuator/info");
@@ -106,8 +106,12 @@ public class SegurancaConfiguracao {
                         .requestMatchers(HttpMethod.POST, "/api/publica/sessoes/refresh").permitAll()
                         .requestMatchers("/api/publica/recuperacoes-senha/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/identidade/perfil").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/identidade/vinculos-sociais").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/identidade/vinculos-sociais").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/identidade/vinculos-sociais")
+                        .hasAnyAuthority("SCOPE_vinculos:ler", "ROLE_cliente")
+                        .requestMatchers(HttpMethod.POST, "/identidade/vinculos-sociais/*/sincronizacao")
+                        .hasAnyAuthority("SCOPE_vinculos:escrever", "ROLE_cliente")
+                        .requestMatchers(HttpMethod.DELETE, "/identidade/vinculos-sociais/*")
+                        .hasAnyAuthority("SCOPE_vinculos:escrever", "ROLE_cliente")
                         .requestMatchers(HttpMethod.POST, "/identidade/dispositivos/revogar")
                         .hasAnyAuthority("SCOPE_identidade:ler", "ROLE_cliente")
                         .requestMatchers(HttpMethod.GET, "/identidade/dispositivos/offline/politica")

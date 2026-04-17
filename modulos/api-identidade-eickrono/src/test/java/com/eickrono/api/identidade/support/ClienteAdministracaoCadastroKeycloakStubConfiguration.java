@@ -1,9 +1,15 @@
 package com.eickrono.api.identidade.support;
 
 import com.eickrono.api.identidade.aplicacao.modelo.CadastroKeycloakProvisionado;
+import com.eickrono.api.identidade.aplicacao.modelo.IdentidadeFederadaKeycloak;
 import com.eickrono.api.identidade.aplicacao.modelo.UsuarioCadastroKeycloakExistente;
 import com.eickrono.api.identidade.aplicacao.servico.ClienteAdministracaoCadastroKeycloak;
+import com.eickrono.api.identidade.aplicacao.servico.ClienteAdministracaoVinculosSociaisKeycloak;
+import com.eickrono.api.identidade.dominio.modelo.ProvedorVinculoSocial;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -16,9 +22,12 @@ import org.springframework.stereotype.Component;
 @Component
 @Primary
 @Profile("test")
-public class ClienteAdministracaoCadastroKeycloakStubConfiguration implements ClienteAdministracaoCadastroKeycloak {
+public class ClienteAdministracaoCadastroKeycloakStubConfiguration
+        implements ClienteAdministracaoCadastroKeycloak, ClienteAdministracaoVinculosSociaisKeycloak {
 
     private final Map<String, AtomicBoolean> usuarios = new ConcurrentHashMap<>();
+    private final Map<String, Map<ProvedorVinculoSocial, IdentidadeFederadaKeycloak>> identidadesFederadas =
+            new ConcurrentHashMap<>();
 
     @Override
     public CadastroKeycloakProvisionado criarUsuarioPendente(final String nomeCompleto,
@@ -66,5 +75,34 @@ public class ClienteAdministracaoCadastroKeycloakStubConfiguration implements Cl
         if (status == null) {
             throw new IllegalStateException("Usuário não encontrado para redefinição de senha no stub do Keycloak.");
         }
+    }
+
+    @Override
+    public List<IdentidadeFederadaKeycloak> listarIdentidadesFederadas(final String subjectRemoto) {
+        return new ArrayList<>(identidadesFederadas.getOrDefault(
+                Objects.requireNonNull(subjectRemoto, "subjectRemoto é obrigatório"),
+                Map.of()).values());
+    }
+
+    @Override
+    public void removerIdentidadeFederada(final String subjectRemoto, final ProvedorVinculoSocial provedor) {
+        identidadesFederadas.computeIfAbsent(
+                        Objects.requireNonNull(subjectRemoto, "subjectRemoto é obrigatório"),
+                        ignored -> new ConcurrentHashMap<>())
+                .remove(Objects.requireNonNull(provedor, "provedor é obrigatório"));
+    }
+
+    public void definirIdentidadesFederadas(final String subjectRemoto,
+                                            final List<IdentidadeFederadaKeycloak> identidades) {
+        Objects.requireNonNull(subjectRemoto, "subjectRemoto é obrigatório");
+        Map<ProvedorVinculoSocial, IdentidadeFederadaKeycloak> porProvedor = new LinkedHashMap<>();
+        for (IdentidadeFederadaKeycloak identidade : Objects.requireNonNull(identidades, "identidades são obrigatórias")) {
+            porProvedor.put(identidade.provedor(), identidade);
+        }
+        identidadesFederadas.put(subjectRemoto, new ConcurrentHashMap<>(porProvedor));
+    }
+
+    public void limparIdentidadesFederadas() {
+        identidadesFederadas.clear();
     }
 }

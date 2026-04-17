@@ -20,6 +20,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 /**
@@ -35,13 +36,23 @@ public class AtestacaoAppServico {
     private final DesafioAtestacaoAppRepositorio desafioRepositorio;
     private final AtestacaoAppProperties properties;
     private final List<ValidadorOficialAtestacaoApp> validadoresOficiais;
+    private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
+
+    @Autowired
+    public AtestacaoAppServico(final DesafioAtestacaoAppRepositorio desafioRepositorio,
+                               final AtestacaoAppProperties properties,
+                               final List<ValidadorOficialAtestacaoApp> validadoresOficiais,
+                               final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
+        this.desafioRepositorio = Objects.requireNonNull(desafioRepositorio, "desafioRepositorio é obrigatório");
+        this.properties = Objects.requireNonNull(properties, "properties é obrigatório");
+        this.validadoresOficiais = List.copyOf(Objects.requireNonNull(validadoresOficiais, "validadoresOficiais é obrigatório"));
+        this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
+    }
 
     public AtestacaoAppServico(final DesafioAtestacaoAppRepositorio desafioRepositorio,
                                final AtestacaoAppProperties properties,
                                final List<ValidadorOficialAtestacaoApp> validadoresOficiais) {
-        this.desafioRepositorio = Objects.requireNonNull(desafioRepositorio, "desafioRepositorio é obrigatório");
-        this.properties = Objects.requireNonNull(properties, "properties é obrigatório");
-        this.validadoresOficiais = List.copyOf(Objects.requireNonNull(validadoresOficiais, "validadoresOficiais é obrigatório"));
+        this(desafioRepositorio, properties, validadoresOficiais, null);
     }
 
     public DesafioAtestacaoGerado gerarDesafio(final OperacaoAtestacaoApp operacao,
@@ -74,6 +85,7 @@ public class AtestacaoAppServico {
                 agora,
                 expiraEm
         ));
+        sincronizarDesafioSeConfigurado(desafio);
 
         return new DesafioAtestacaoGerado(
                 desafio.getIdentificadorDesafio(),
@@ -185,9 +197,10 @@ public class AtestacaoAppServico {
         DesafioAtestacaoApp desafio = desafioRepositorio.findByIdentificadorDesafio(identificadorDesafio)
                 .orElseThrow(() -> new AtestacaoAppInvalidaException(
                         "desafio_nao_encontrado",
-                        "Nenhum desafio de atestação foi encontrado para o identificador informado."
+                "Nenhum desafio de atestação foi encontrado para o identificador informado."
                 ));
         desafio.marcarConsumido(OffsetDateTime.now(ZoneOffset.UTC));
+        sincronizarDesafioSeConfigurado(desafio);
     }
 
     private static String gerarDesafioBase64() {
@@ -220,6 +233,12 @@ public class AtestacaoAppServico {
         }
         if (comprovante.geradoEm() == null) {
             throw new AtestacaoAppInvalidaException("gerado_em_obrigatorio", "A data de geração do comprovante é obrigatória.");
+        }
+    }
+
+    private void sincronizarDesafioSeConfigurado(final DesafioAtestacaoApp desafio) {
+        if (sincronizacaoModeloMultiappService != null) {
+            sincronizacaoModeloMultiappService.sincronizarDesafioAtestacao(desafio);
         }
     }
 }

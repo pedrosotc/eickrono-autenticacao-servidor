@@ -1,6 +1,7 @@
 package com.eickrono.api.identidade.apresentacao.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -11,6 +12,8 @@ import com.eickrono.api.identidade.dominio.modelo.EventoOfflineDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
 import com.eickrono.api.identidade.dominio.modelo.TipoEventoOfflineDispositivo;
 import com.eickrono.api.identidade.AplicacaoApiIdentidade;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
+import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfil;
 import com.eickrono.api.identidade.support.InfraestruturaTesteIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
@@ -27,10 +30,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
@@ -65,6 +70,25 @@ class RegistroDispositivoControllerIT {
 
     @Autowired
     private EventoOfflineDispositivoRepositorio eventoOfflineDispositivoRepositorio;
+
+    @MockBean
+    private ClienteContextoPessoaPerfil clienteContextoPessoaPerfil;
+
+    @BeforeEach
+    void setUp() {
+        ContextoPessoaPerfil contexto = new ContextoPessoaPerfil(
+                123L,
+                "usuario-xyz",
+                "teste@eickrono.com",
+                "Usuario Teste",
+                null,
+                "ATIVO"
+        );
+        when(clienteContextoPessoaPerfil.buscarPorSub("usuario-xyz"))
+                .thenReturn(Optional.of(contexto));
+        when(clienteContextoPessoaPerfil.buscarPorEmail("teste@eickrono.com"))
+                .thenReturn(Optional.of(contexto));
+    }
 
     private MockMvc mockMvc() {
         return Objects.requireNonNull(mockMvc);
@@ -101,11 +125,11 @@ class RegistroDispositivoControllerIT {
 
         assertThat(confirmacao.tokenDispositivo()).isNotBlank();
 
-        // GET com token válido deve passar pelo filtro e provisionar o perfil controlado
+        // GET com token válido deve passar pelo filtro; o endpoint em si está desativado e responde 410.
         mockMvc().perform(get("/identidade/perfil")
                         .with(Objects.requireNonNull(clienteJwt()))
                         .header("X-Device-Token", confirmacao.tokenDispositivo()))
-                .andExpect(status().isOk());
+                .andExpect(status().isGone());
 
         // Sem o cabeçalho obrigatório deve retornar 428
         mockMvc().perform(get("/identidade/perfil")

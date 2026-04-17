@@ -122,6 +122,14 @@ public class RecuperacaoSenha {
         return senhaRedefinidaEm;
     }
 
+    public OffsetDateTime getCriadoEm() {
+        return criadoEm;
+    }
+
+    public OffsetDateTime getAtualizadoEm() {
+        return atualizadoEm;
+    }
+
     public boolean codigoExpirado(final OffsetDateTime agora) {
         return codigoEmailExpiraEm != null && agora != null && agora.isAfter(codigoEmailExpiraEm);
     }

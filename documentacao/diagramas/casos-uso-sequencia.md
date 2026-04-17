@@ -36,7 +36,7 @@ sequenceDiagram
     U->>App: 1. Solicita autenticação
     App->>CF: 2. Authorization request (code_challenge, state, nonce)
     CF->>ALB: 3. Encaminha requisição (WAF + mTLS Origin Pull)
-    ALB->>KC: 4. Redireciona para /auth do realm desenvolvimento
+    ALB->>KC: 4. Redireciona para /auth do realm eickrono
 
     %% Bastidores Keycloak
     KC->>SM: 5. Carrega segredos (credenciais DB, certificados)
@@ -215,7 +215,7 @@ sequenceDiagram
     participant DB as PostgreSQL (schema identidade)
 
     QA->>SW: 1. Abrir Swagger Identidade no navegador
-    QA->>KC: 2. Abrir guia Keycloak e fazer login (realm desenvolvimento)
+    QA->>KC: 2. Abrir guia Keycloak e fazer login (realm eickrono)
     QA->>KC: 3. Gerar token (via Account Console ou endpoint /token)
     QA->>SW: 4. Clicar em "Authorize" e colar `Bearer <token>`
     QA->>APII: 5. (via Swagger) Executar GET /identidade/perfil
@@ -255,7 +255,7 @@ sequenceDiagram
     autonumber
     participant QA as Pessoa testadora
     participant SW as Swagger UI Contas (http://localhost:8082/swagger-ui)
-    participant KC as Keycloak (realm desenvolvimento)
+    participant KC as Keycloak (realm eickrono)
     participant APIC as API Contas (porta 8082)
     participant DB as PostgreSQL (schema contas)
 

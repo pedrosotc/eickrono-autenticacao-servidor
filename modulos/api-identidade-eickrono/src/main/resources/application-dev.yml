@@ -18,8 +18,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/desenvolvimento
-          jwk-set-uri: http://localhost:8080/realms/desenvolvimento/protocol/openid-connect/certs
+          issuer-uri: http://localhost:8080/realms/eickrono
+          jwk-set-uri: http://localhost:8080/realms/eickrono/protocol/openid-connect/certs
 
 seguranca:
   cors:

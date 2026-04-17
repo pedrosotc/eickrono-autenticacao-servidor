@@ -12,8 +12,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://identidade.eickrono.com.br/realms/producao
-          jwk-set-uri: https://identidade.eickrono.com.br/realms/producao/protocol/openid-connect/certs
+          issuer-uri: https://oidc.eickrono.com/realms/eickrono
+          jwk-set-uri: https://oidc.eickrono.com/realms/eickrono/protocol/openid-connect/certs
 
 seguranca:
   mtls:
