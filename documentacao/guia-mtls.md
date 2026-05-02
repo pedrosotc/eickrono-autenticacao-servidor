@@ -16,11 +16,11 @@ Camadas reais do desenho:
 - `JWT interno`: autentica a chamada na camada de aplicação.
 - `X-Eickrono-Internal-Secret`: barreira adicional para rotas internas.
 
-Módulos com participação em `mTLS` neste repositório:
+Serviços com participação em `mTLS` no ecossistema atual:
 
-- `api-identidade-eickrono`: servidor e cliente `mTLS`.
-- `servidor-autorizacao-eickrono`: cliente `mTLS` no fluxo de refresh por `device token`.
-- `api-contas-eickrono`: suporte de servidor `mTLS`, mas sem uso ativo no `docker-compose` atual e sem cliente `mTLS`.
+- `eickrono-identidade-servidor`: servidor e cliente `mTLS`.
+- `eickrono-autenticacao-servidor`: cliente `mTLS` no fluxo de refresh por `device token`.
+- `eickrono-contas-servidor`: suporte de servidor `mTLS`, mas sem uso ativo no `docker-compose` atual e sem cliente `mTLS`.
 
 ## api-identidade-eickrono
 
@@ -143,7 +143,7 @@ No `docker-compose` atual:
 
 - a URL do Keycloak interno continua em HTTP;
 - a URL da API de identidade interna está em HTTPS;
-- então o certificado do `servidor-autorizacao-interno.p12` é usado para o canal até a identidade.
+- então o certificado do `servidor-autorizacao.p12` é usado para o canal até a identidade.
 
 ## api-contas-eickrono
 
@@ -188,8 +188,8 @@ Eles geram:
 
 - uma CA interna autoassinada;
 - `api-identidade-eickrono.p12`;
-- `api-thimisu-eickrono.p12`;
-- `servidor-autorizacao-interno.p12`;
+- `thimisu-backend.p12`;
+- `servidor-autorizacao.p12`;
 - `backchannel-truststore.p12`.
 
 ### Artefatos gerados
@@ -200,8 +200,8 @@ Arquivos principais:
 - `backchannel-ca.crt`
 - `backchannel-truststore.p12`
 - `api-identidade-eickrono.p12`
-- `api-thimisu-eickrono.p12`
-- `servidor-autorizacao-interno.p12`
+- `thimisu-backend.p12`
+- `servidor-autorizacao.p12`
 
 ### Execução em dev
 
@@ -235,13 +235,13 @@ MTLS_TRUSTSTORE_SENHA=senhaBackchannelHml \
 O script gera:
 
 - `api-identidade-eickrono` com `serverAuth,clientAuth`;
-- `api-thimisu-eickrono` com `serverAuth,clientAuth`;
-- `servidor-autorizacao-interno` com `clientAuth`.
+- `thimisu-backend` com `serverAuth,clientAuth`;
+- `servidor-autorizacao` com `clientAuth`.
 
 Os SANs incluem nomes úteis para container e host local, como:
 
 - `api-identidade-eickrono`
-- `api-thimisu-eickrono`
+- `thimisu-backend`
 - `servidor-autorizacao`
 - `host.docker.internal`
 - `localhost`
@@ -254,8 +254,8 @@ Em `dev` e `hml`, o `docker-compose` monta a pasta `certificados` em `/certifica
 Exemplos de uso real:
 
 - a identidade lê `file:/certificados/api-identidade-eickrono.p12`;
-- o thimisu lê `file:/certificados/api-thimisu-eickrono.p12`;
-- a SPI do Keycloak lê `/certificados/servidor-autorizacao-interno.p12`;
+- o thimisu lê `file:/certificados/thimisu-backend.p12`;
+- a SPI do Keycloak lê `/certificados/servidor-autorizacao.p12`;
 - todos confiam na CA via `/certificados/backchannel-truststore.p12`.
 
 ## Limitações e observações importantes

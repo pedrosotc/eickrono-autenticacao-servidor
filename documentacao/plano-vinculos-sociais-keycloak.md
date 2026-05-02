@@ -2,6 +2,30 @@
 
 Este documento consolida o desenho técnico decidido para a primeira entrega de vínculos sociais no ecossistema Eickrono.
 
+## Fonte canonica complementar no app
+
+Este documento continua focado em:
+
+- desenho tecnico do vinculo social;
+- contrato HTTP da API canonica;
+- papel do Keycloak como fonte de verdade.
+
+Os cenarios detalhados do app, incluindo conectividade, experiencia de login
+social, reacao da UI, cobertura automatizada atual e backlog de testes, agora
+ficam concentrados em:
+
+- [Matriz Canonica de Autenticacao, Conectividade e Testes](../../eickrono-thimisu/eickrono-thimisu-app/docs/matriz_autenticacao_social_conectividade_testes.md)
+
+O desenho UML atual do codigo, incluindo app, `api-identidade-eickrono`,
+Keycloak e `identidade-servidor`, fica em:
+
+- [UML Atual de Autenticacao, Cadastro e Redes Sociais](../../eickrono-thimisu/eickrono-thimisu-app/docs/uml_autenticacao_cadastro_social_ecossistema.md)
+
+O desenho futuro do ecossistema, com quick wins e arquitetura-alvo para fechar
+os cenarios aprovados, fica em:
+
+- [Arquitetura Alvo do Ecossistema de Autenticacao](../../eickrono-thimisu/eickrono-thimisu-app/docs/arquitetura_alvo_ecossistema_autenticacao.md)
+
 ## Decisões Fechadas
 
 - o `eickrono-autenticacao-servidor` será a API canônica de vínculos sociais;
@@ -33,6 +57,10 @@ Exemplo de abordagem incorreta:
 Essa abordagem é incorreta porque colocaria o app como origem do vínculo. No desenho aprovado, o vínculo real nasce no Keycloak e o backend apenas reconcilia o que o Keycloak já reconhece como verdadeiro.
 
 ## Fluxos
+
+Os fluxos abaixo continuam validos do ponto de vista do backend e do Keycloak.
+Para a matriz completa do comportamento no app e dos testes associados, use o
+documento canonico do app indicado acima.
 
 ## Login Social
 

@@ -25,12 +25,12 @@ Este runbook cobre:
 - o legado em `public` continua existindo até o cutover;
 - o `eickrono-autenticacao-servidor` não cria tabelas do schema `identidade`;
 - por isso, na primeira leva, colunas como `pessoa_id`, `email_id` e `telefone_id` são criadas sem FK cruzada para `identidade`;
-- as FKs cruzadas com `identidade` entram numa fase posterior, depois que o `eickrono-identidade-servidor` criar suas tabelas-alvo.
+- as FKs cruzadas com `identidade` entram numa fase posterior, depois que o `eickrono-thimisu-backend` criar suas tabelas-alvo.
 
 ## Artefatos de referência
 
 - DBML alvo: `documentacao/diagramas/modelo_api_autenticacao_multiapp_schemas.dbml`
-- proposta de cisão: `../../eickrono-identidade-servidor/docs/proposta_cisao_identidade_thimisu.md`
+- proposta de cisão: `../../eickrono-thimisu-backend/docs/proposta_cisao_identidade_thimisu.md`
 
 ## Fase 1. Criar a estrutura nova sem tocar no legado
 

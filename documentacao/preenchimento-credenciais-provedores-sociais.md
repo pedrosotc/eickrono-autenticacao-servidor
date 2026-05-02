@@ -44,6 +44,8 @@ As variáveis abaixo ainda estão com placeholder nos arquivos de ambiente:
 - `KEYCLOAK_IDP_THIMISU_LINKEDIN_CLIENT_SECRET`
 - `KEYCLOAK_IDP_THIMISU_INSTAGRAM_APP_ID`
 - `KEYCLOAK_IDP_THIMISU_INSTAGRAM_APP_SECRET`
+- `KEYCLOAK_IDP_THIMISU_X_CLIENT_ID`
+- `KEYCLOAK_IDP_THIMISU_X_CLIENT_SECRET`
 
 Hoje elas ficam principalmente em:
 
@@ -64,6 +66,8 @@ Hoje elas ficam principalmente em:
 | `KEYCLOAK_IDP_THIMISU_LINKEDIN_CLIENT_SECRET` | LinkedIn Developer Portal | Client Secret do app LinkedIn |
 | `KEYCLOAK_IDP_THIMISU_INSTAGRAM_APP_ID` | Meta for Developers | Identificador OAuth do app do Instagram usado pelo broker |
 | `KEYCLOAK_IDP_THIMISU_INSTAGRAM_APP_SECRET` | Meta for Developers | Secret desse app |
+| `KEYCLOAK_IDP_THIMISU_X_CLIENT_ID` | X Developer Portal | API Key / Client ID do app X usado pelo broker |
+| `KEYCLOAK_IDP_THIMISU_X_CLIENT_SECRET` | X Developer Portal | API Key Secret / Client Secret do app X |
 
 ## O que e obrigatorio no desenho atual
 
@@ -89,6 +93,7 @@ Isso ja esta alinhado com o fluxo documentado no app:
 | Facebook | Sim | Nao | O app atual nao usa SDK nativo do Facebook Login. O broker `facebook` do Keycloak usa callback web e escopo default `email`. |
 | LinkedIn | Sim | Nao | O fluxo atual depende do broker `linkedin-openid-connect` no Keycloak. |
 | Instagram | Sim | Nao | O alias `instagram` atual depende do broker deprecated `instagram-broker`, usa `user_profile` e nao equivale ao Meta Business Login / Graph API. |
+| X | Sim | Nao | O alias funcional do ecossistema e `x`. Internamente, o Keycloak usa o broker tecnico `twitter`, e o fluxo depende das credenciais do portal do X. |
 
 ### Resposta curta para evitar confusao
 
@@ -109,6 +114,11 @@ Entao, no caso do Google, podem coexistir tres credenciais diferentes:
 3. credencial iOS nativa.
 
 Hoje, para o login social brokerado que o app realmente executa, a obrigatoria e a `credencial web do broker`.
+
+No caso do X, a regra final e:
+
+- alias funcional usado por app, cliente e API: `x`;
+- `twitter` aparece apenas como detalhe tecnico do `providerId` dentro do Keycloak.
 
 ## Convencao de dominios dos ambientes
 
@@ -147,7 +157,7 @@ Os prefixos recomendados passam a ser:
 
 Motivos:
 
-- `id` resume bem `eickrono-identidade-servidor`;
+- `id` resume bem `eickrono-thimisu-backend`;
 - `oidc` descreve melhor a superficie publica do servidor de autorizacao do que `oauth`;
 - `keycloak` ficaria preso a tecnologia interna.
 
@@ -180,6 +190,12 @@ Os aliases configurados no projeto são:
 - `facebook`
 - `linkedin`
 - `instagram`
+- `x`
+
+Para evitar ambiguidade:
+
+- os callbacks e o `kc_idp_hint` do ecossistema usam `x`;
+- o nome `twitter` nao deve ser usado como alias funcional fora do Keycloak.
 
 ### Desenvolvimento
 
@@ -196,6 +212,13 @@ Para testes locais no navegador do proprio Mac, as callbacks ficam:
 - `http://localhost:8080/realms/eickrono/broker/facebook/endpoint`
 - `http://localhost:8080/realms/eickrono/broker/linkedin/endpoint`
 - `http://localhost:8080/realms/eickrono/broker/instagram/endpoint`
+- `http://localhost:8080/realms/eickrono/broker/x/endpoint`
+
+Observacao importante para cadastro nos provedores:
+
+- esses endpoints locais existem no Keycloak local e podem ser uteis para diagnostico no navegador do Mac;
+- para `Google Web`, `localhost` pode ser cadastrado como callback adicional no client do broker;
+- para `Apple Web`, esse `localhost` nao deve ser cadastrado no portal Apple; para Apple use apenas host publico HTTPS.
 
 Para testes publicos com tunnel e iPhone fisico, a referencia operacional atual de `dev` passa a ser:
 
@@ -204,6 +227,7 @@ Para testes publicos com tunnel e iPhone fisico, a referencia operacional atual 
 - `https://oidc-dev.eickrono.online/realms/eickrono/broker/facebook/endpoint`
 - `https://oidc-dev.eickrono.online/realms/eickrono/broker/linkedin/endpoint`
 - `https://oidc-dev.eickrono.online/realms/eickrono/broker/instagram/endpoint`
+- `https://oidc-dev.eickrono.online/realms/eickrono/broker/x/endpoint`
 
 Observacao:
 
@@ -226,6 +250,12 @@ Para execucao local pura, as callbacks ficam:
 - `http://localhost:18080/realms/eickrono/broker/linkedin/endpoint`
 - `http://localhost:18080/realms/eickrono/broker/instagram/endpoint`
 
+Observacao importante para cadastro nos provedores:
+
+- esses endpoints locais existem no Keycloak local e podem ser uteis para diagnostico controlado;
+- para `Google Web`, `localhost` pode continuar como callback adicional do client `Web application`;
+- para `Apple Web`, `localhost` nao deve entrar em `Domains and Subdomains` nem em `Return URLs`; para Apple use apenas host publico HTTPS.
+
 Para a convencao publica recomendada do ambiente `hml`, a referencia passa a ser:
 
 - `https://oidc-hml.eickrono.store/realms/eickrono/broker/google/endpoint`
@@ -233,6 +263,74 @@ Para a convencao publica recomendada do ambiente `hml`, a referencia passa a ser
 - `https://oidc-hml.eickrono.store/realms/eickrono/broker/facebook/endpoint`
 - `https://oidc-hml.eickrono.store/realms/eickrono/broker/linkedin/endpoint`
 - `https://oidc-hml.eickrono.store/realms/eickrono/broker/instagram/endpoint`
+
+## Resumo operacional de `hml` para brokers sociais
+
+Esta seção deixa explícito o conjunto mínimo de valores operacionais do `hml` no mesmo modelo já usado para Google e Apple.
+
+### Google
+
+- OAuth Web Client atual:
+  - `<google-web-client-id>.apps.googleusercontent.com`
+- Redirect URI pública de `hml`:
+  - `https://oidc-hml.eickrono.store/realms/eickrono/broker/google/endpoint`
+- Variáveis do Keycloak:
+  - `KEYCLOAK_IDP_THIMISU_GOOGLE_CLIENT_ID`
+  - `KEYCLOAK_IDP_THIMISU_GOOGLE_CLIENT_SECRET`
+
+### Apple
+
+- `Services ID` de `hml`:
+  - `com.eickrono.thimisu.oidc.hml`
+- `Team ID`:
+  - `M863Q6N87G`
+- `Key ID`:
+  - `SD47UPB393`
+- `Domain/Subdomain`:
+  - `oidc-hml.eickrono.store`
+- `Return URL`:
+  - `https://oidc-hml.eickrono.store/realms/eickrono/broker/apple/endpoint`
+- Variáveis do Keycloak:
+  - `KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_ID`
+  - `KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_SECRET_JWT`
+
+### Facebook
+
+- broker alias:
+  - `facebook`
+- `App Domains` em `hml`:
+  - `oidc-hml.eickrono.store`
+- `Valid OAuth Redirect URI` em `hml`:
+  - `https://oidc-hml.eickrono.store/realms/eickrono/broker/facebook/endpoint`
+- Variáveis do Keycloak:
+  - `KEYCLOAK_IDP_THIMISU_FACEBOOK_APP_ID`
+  - `KEYCLOAK_IDP_THIMISU_FACEBOOK_APP_SECRET`
+- valor local já catalogado para `App ID` de `hml`:
+  - `1615481193012133`
+
+Observações:
+
+- o `App Secret` não deve ser repetido neste guia; ele deve continuar em material sigiloso e no secret store do ambiente;
+- no `hml` atual da AWS, o broker `facebook` só deve ser religado depois que o secret materializado no runtime deixar de ser placeholder e o redirect público acima estiver confirmado na Meta.
+
+### LinkedIn
+
+- broker alias:
+  - `linkedin`
+- `Authorized redirect URL` em `hml`:
+  - `https://oidc-hml.eickrono.store/realms/eickrono/broker/linkedin/endpoint`
+- Variáveis do Keycloak:
+  - `KEYCLOAK_IDP_THIMISU_LINKEDIN_CLIENT_ID`
+  - `KEYCLOAK_IDP_THIMISU_LINKEDIN_CLIENT_SECRET`
+
+Observações:
+
+- até esta revisão, `client_id` e `client_secret` reais de `LinkedIn` ainda não estavam catalogados em `SEGREDOS_LOCAIS.md`;
+- quando forem obtidos, devem seguir exatamente o mesmo modelo operacional já usado para Google, Apple e Facebook:
+  - captura no portal externo;
+  - armazenamento sigiloso local;
+  - materialização no secret store do ambiente;
+  - aplicação no broker ativo do Keycloak.
 
 ### Produção
 
@@ -318,6 +416,25 @@ http://localhost:8080/realms/eickrono/broker/google/endpoint
 https://oidc-dev.eickrono.online/realms/eickrono/broker/google/endpoint
 ```
 
+   Tabela resumida para copiar:
+
+| Ambiente | Nome sugerido do client | Authorized redirect URIs |
+| --- | --- | --- |
+| `dev` | `eickrono-keycloak-dev` | `https://oidc-dev.eickrono.online/realms/eickrono/broker/google/endpoint` |
+| `dev` | `eickrono-keycloak-dev` | `https://oidc-dev.eickrono.com/realms/eickrono/broker/google/endpoint` |
+| `dev` | `eickrono-keycloak-dev` | `http://localhost:8080/realms/eickrono/broker/google/endpoint` |
+| `hml` | `eickrono-keycloak-hml` | `https://oidc-hml.eickrono.store/realms/eickrono/broker/google/endpoint` |
+| `hml` | `eickrono-keycloak-hml` | `https://oidc-hml.eickrono.com/realms/eickrono/broker/google/endpoint` |
+| `hml` | `eickrono-keycloak-hml` | `http://localhost:18080/realms/eickrono/broker/google/endpoint` |
+| `prod` | `eickrono-keycloak-prod` | `https://oidc.eickrono.com/realms/eickrono/broker/google/endpoint` |
+
+   Observacoes:
+
+   - em `dev` e `hml`, mantenha apenas as URIs que aquele ambiente realmente usa;
+   - `localhost` pode entrar como callback adicional no `Google Web`;
+   - em `prod`, a configuracao esperada hoje usa apenas o host canonico publico;
+   - `Authorized JavaScript origins` podem ficar vazios neste fluxo brokerado, porque o ponto critico aqui e a callback web do Keycloak.
+
 10. Clique em `Create`.
 11. Copie:
    - `Client ID`
@@ -330,6 +447,7 @@ https://oidc-dev.eickrono.online/realms/eickrono/broker/google/endpoint
 - Se você perder o secret, o caminho correto é gerar um novo, não tentar “revelar” o antigo.
 - Em alguns cenários, o Google pode pedir configuração de consent screen, audience e eventualmente verificação, dependendo dos escopos usados.
 - Para login simples brokerizado pelo Keycloak, o fluxo costuma ser mais leve do que integrações com APIs sensíveis.
+- Para `dev` e `hml`, o client `Web application` do Google pode acumular callbacks publicas e um `localhost` adicional, desde que cada URI autorizada seja exata.
 
 ### Credencial Google web atual do Keycloak em `dev`
 
@@ -389,7 +507,7 @@ Ou seja:
 - para o broker Google do Keycloak, o item crítico é a callback web;
 - para credencial Android nativa do seu app, o item crítico costuma ser `package name + SHA-1`.
 
-### Comando pronto para obter o SHA-1 local
+### Comandos prontos para obter o SHA-1 local por ambiente Android
 
 No app Android atual, o projeto fica em:
 
@@ -397,109 +515,63 @@ No app Android atual, o projeto fica em:
 /Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android
 ```
 
-E a `debug.keystore` padrão desta máquina fica em:
+O padrão operacional local deixou de usar uma única `~/.android/debug.keystore`.
+Agora cada flavor Android usa sua própria keystore local, referenciada em:
 
 ```text
-/Users/thiago/.android/debug.keystore
+/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android/key.properties
 ```
 
-Como o comando usa caminho absoluto para a keystore, ele pode ser executado de qualquer pasta.
-Mesmo assim, para evitar ambiguidade operacional, a referência adotada aqui passa a ser rodar a partir da pasta Android do app:
+Os arquivos locais atuais são:
+
+```text
+/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android/.signing/dev-local.jks
+/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android/.signing/hml-local.jks
+/Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android/.signing/prd-local.jks
+```
+
+Os comandos de consulta passam a ser:
 
 ```bash
 cd /Users/thiago/Desenvolvedor/flutter/eickrono-thimisu/eickrono-thimisu-app/android
-keytool -list -v -alias androiddebugkey -keystore /Users/thiago/.android/debug.keystore -storepass android -keypass android
+keytool -list -v -alias thimisu-dev -keystore .signing/dev-local.jks -storepass <devStorePassword> -keypass <devKeyPassword>
+keytool -list -v -alias thimisu-hml -keystore .signing/hml-local.jks -storepass <hmlStorePassword> -keypass <hmlKeyPassword>
+keytool -list -v -alias thimisu-prd -keystore .signing/prd-local.jks -storepass <prdStorePassword> -keypass <prdKeyPassword>
 ```
 
-Se você já estiver em outra pasta e quiser rodar sem trocar de diretório, o comando continua sendo válido:
+Os valores `<...Password>` devem ser lidos do `android/key.properties`, que fica fora do versionamento.
 
-```bash
-keytool -list -v -alias androiddebugkey -keystore /Users/thiago/.android/debug.keystore -storepass android -keypass android
-```
+### Pacotes Android e SHA-1 locais atuais
 
-### SHA-1 atual da debug keystore local
+Com a separação por flavor, a identidade Android local passa a ser esta:
 
-O fingerprint atual encontrado nessa máquina foi:
+- `dev`: package `com.eickrono.thimisu.dev`
+- `dev`: `SHA-1` `3D:C7:CC:F9:93:5D:CF:CB:B2:15:D8:80:59:A7:23:43:DD:20:4D:A3`
+- `hml`: package `com.eickrono.thimisu.hml`
+- `hml`: `SHA-1` `3E:27:D2:98:8B:55:54:32:62:5C:66:65:53:D3:E9:9B:CA:98:94:78`
+- `prd`: package `com.eickrono.thimisu`
+- `prd`: `SHA-1` `E4:0B:10:42:67:87:45:A4:8D:DB:BE:21:23:CA:A3:08:0E:2A:3E:DA`
+
+### Observações importantes sobre o novo padrão
+
+- o Google identifica Android OAuth por `package name + SHA-1`;
+- `dev`, `hml` e `prd` agora são três identidades Android locais diferentes;
+- isso permite cadastrar três clientes OAuth Android separados, um por ambiente;
+- o `android/key.properties` e o diretório `android/.signing/` devem continuar fora do versionamento;
+- se uma dessas keystores for apagada e recriada, o `SHA-1` daquele ambiente muda.
+
+### Como guardar os arquivos JSON locais do Google para Android
+
+Depois de criar cada cliente Android no Google, salve o JSON baixado apenas em diretório local ignorado pelo Git, por exemplo:
 
 ```text
-58:87:76:7C:BE:71:07:F3:11:D1:B4:71:06:E7:95:8A:71:B7:05:7D
+/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/google/thimisu/android-dev/client_secret_<google-android-dev-client-id>.json
+/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/google/thimisu/android-hml/client_secret_<google-android-hml-client-id>.json
+/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/google/thimisu/android-prd/client_secret_<google-android-prd-client-id>.json
 ```
 
-### Observações importantes sobre esse SHA-1
-
-- esse valor é da `debug.keystore` local do usuário `thiago`;
-- ele serve para ambiente de desenvolvimento, não para publicação em loja;
-- se a `debug.keystore` for apagada e recriada, o `SHA-1` muda;
-- se o projeto usar uma keystore própria de release, o `SHA-1` correto de produção será outro.
-
-### Credencial Google local atual para Android `dev/testes`
-
-Além do broker web do Keycloak, existe nesta máquina uma credencial OAuth do Google para Android `dev/testes`.
-
-O JSON anterior foi removido antes da substituição.
-O arquivo atual foi copiado para um diretório local ignorado pelo Git:
-
-```text
-/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/google/thimisu/android-dev/client_secret_<google-android-client-id>.json
-```
-
-O arquivo de origem usado nesta substituição foi:
-
-```text
-/Users/thiago/Downloads/client_secret_<google-android-client-id>.json
-```
-
-Metadados úteis já identificados desse arquivo:
-
-- tipo principal no JSON: `installed`
-- `project_id`: `thimisu`
-- `client_id`: `<google-android-client-id>`
-
-### Como esse arquivo deve ser entendido
-
-Esse arquivo é uma credencial OAuth local do Google para uso operacional em `dev/testes` do Android.
-
-Ele não deve ser confundido com:
-
-- `KEYCLOAK_IDP_THIMISU_GOOGLE_CLIENT_ID`
-- `KEYCLOAK_IDP_THIMISU_GOOGLE_CLIENT_SECRET`
-
-Essas variáveis do Keycloak representam o client web do broker Google no servidor de autorização.
-
-Ou seja:
-
-- o JSON em `.local-secrets/google/thimisu/android-dev/...` é a referência local útil para o ambiente Android de `dev/testes`;
-- as variáveis `KEYCLOAK_IDP_THIMISU_GOOGLE_*` continuam sendo a credencial do broker web do Keycloak.
-
-### Regra de segurança para esse arquivo
-
-Como esse arquivo é credencial OAuth local:
-
-- não deve ser copiado para dentro do repositório versionado;
-- não deve ser commitado;
-- o ideal é tratá-lo como segredo local de máquina ou mantê-lo em `.local-secrets/`, fora do versionamento do projeto.
-
-### Quando consultar esse arquivo
-
-Ele é útil quando você precisar relembrar rapidamente:
-
-- qual client Google Android local está sendo usado em `dev/testes`;
-- qual `client_id` local está sendo usado em `dev/testes`;
-- em qual diretório local ignorado pelo Git o JSON foi guardado.
-
-### Relação com o SHA-1
-
-Se você estiver configurando credencial Android nativa no ecossistema Google, normalmente a combinação relevante é:
-
-- package name do app;
-- `SHA-1` da keystore;
-- credencial Google correspondente ao ambiente.
-
-Neste workspace, o `SHA-1` de debug atualmente conhecido é:
-
-```text
-58:87:76:7C:BE:71:07:F3:11:D1:B4:71:06:E7:95:8A:71:B7:05:7D
-```
+Esses arquivos não substituem as variáveis `KEYCLOAK_IDP_THIMISU_GOOGLE_*`.
+Eles representam credenciais OAuth nativas do app Android, enquanto o Keycloak usa a credencial web do broker Google no servidor de autorização.
 
 ### Credencial Google local atual para iOS `dev/testes`
 
@@ -648,6 +720,27 @@ O que pode acontecer é o console pedir billing para alguma API específica habi
 
 Para este fluxo de `Sign in with Apple` web brokerado pelo Keycloak, a ordem correta comeca em `Identifiers`, nao em `Certificates` e nao em `Keys`.
 
+### Qual menu do portal Apple entra neste fluxo
+
+No `developer.apple.com/account`, a navegacao correta para este caso fica assim:
+
+| Menu do portal Apple | Entra neste fluxo? | O que fazer nele | Observacao operacional |
+| --- | --- | --- | --- |
+| `Certificates` | Nao | Nada para o broker Apple do Keycloak. | Essa area e para assinatura do app, APNs, Apple Pay e certificados relacionados. |
+| `Identifiers` | Sim | Revisar o `App ID` principal `com.eickrono.thimisu`; criar ou revisar os `Services IDs` por ambiente; configurar `Domains and Subdomains` e `Return URLs` dentro de cada `Services ID`. | E a area principal deste fluxo. `App ID` e `Services ID` moram aqui. |
+| `Devices` | Nao | Nada para este fluxo. | Isso e para cadastro de aparelhos usados em desenvolvimento/ad hoc. |
+| `Profiles` | Nao | Nada para este fluxo. | Isso e para provisionamento e assinatura do app, nao para o broker web do Keycloak. |
+| `Keys` | Sim | Criar a chave `.p8` de `Sign in with Apple` usada para assinar o JWT que entra no Keycloak. | A `Key` vem depois de `Identifiers`. |
+| `Services` | Nao | Nao usar esse menu top-level para este caso. | O que interessa aqui e `Services ID`, que fica dentro de `Identifiers`, nao dentro de `Services`. |
+
+Traducao pratica:
+
+1. entrar em `Identifiers`;
+2. revisar o `App ID` principal do iOS;
+3. criar ou revisar o `Services ID` do ambiente;
+4. ainda dentro do `Services ID`, configurar dominio e callback web;
+5. so depois entrar em `Keys` para gerar a `.p8`.
+
 Ponto importante:
 
 - `App ID` e `Services ID` nao sao duas coisas fora de `Identifiers`;
@@ -690,6 +783,47 @@ Leia assim:
 
 Se voce estiver numa tela como `Create a New Certificate`, esta na tela errada para o login Apple web do Keycloak.
 
+### Como interpretar o banner `Finish Setting up Sign in with Apple`
+
+Depois de criar ou abrir um `Services ID`, a Apple pode mostrar um banner com este checklist:
+
+1. `Enable App ID`
+2. `Create Service ID for Web Authentication`
+3. `Create Key`
+4. `Register Email Sources for Communication`
+
+Para o fluxo brokerado atual do projeto, interprete assim:
+
+- `Enable App ID`
+  - obrigatorio;
+  - significa que o `App ID` principal `com.eickrono.thimisu` precisa existir e estar com `Sign in with Apple` habilitado.
+- `Create Service ID for Web Authentication`
+  - obrigatorio;
+  - e o `Services ID` web por ambiente, por exemplo `com.eickrono.thimisu.oidc.dev`.
+- `Create Key`
+  - obrigatorio;
+  - e a chave `.p8` usada para assinar o JWT que vira o `client secret` do Keycloak;
+  - ela nao precisa existir uma por ambiente; ela e associada ao `Primary App ID`.
+- `Register Email Sources for Communication`
+  - nao e bloqueante para o fluxo atual;
+  - isso fica relacionado a cenarios de comunicacao via `Private Email Relay`, nao ao broker Apple basico do Keycloak.
+
+Se esse banner aparecer, isso nao significa erro.
+Na pratica, ele quer apenas dizer que o setup ainda nao esta completo.
+
+Conclusao operacional:
+
+1. criar ou revisar o `Services ID`;
+2. configurar `Domains and Subdomains` e `Return URLs`;
+3. clicar em `Save`;
+4. ir para `Keys`;
+5. criar a chave `.p8`;
+6. gerar o JWT;
+7. aplicar `client_id` e `client_secret` no Keycloak.
+
+Se a tela mostrar algo como `Website URLs` associado ao `Primary App ID`, isso tambem nao e erro.
+E apenas o resumo da associacao entre o `Services ID` web e o app principal.
+
 ### O que isso significa no nosso desenho
 
 No caso da Apple:
@@ -705,6 +839,35 @@ No caso da Apple:
 - o `client_id` será o identificador do `Services ID`;
 - o “secret” não é um texto estático copiado do portal;
 - o “secret” que entra no Keycloak é um JWT assinado com sua chave privada `.p8`.
+
+### Padrao correto das private keys Apple neste projeto
+
+Para `Sign in with Apple`, a Apple associa a private key ao `Primary App ID`, nao ao ambiente.
+
+Isso significa:
+
+- o `Primary App ID` continua sendo `com.eickrono.thimisu`;
+- os `Services IDs` continuam separados por ambiente:
+  - `com.eickrono.thimisu.oidc.dev`
+  - `com.eickrono.thimisu.oidc.hml`
+  - `com.eickrono.thimisu.oidc.prd`
+- as private keys `.p8` nao precisam existir uma por ambiente;
+- a Apple permite no maximo **duas** private keys por `Primary App ID`;
+- a forma correta de operar isso no projeto e tratar essas duas chaves por papel:
+  - `Principal`
+  - `Rotacao`
+
+Convencao operacional adotada:
+
+- `Thimisu Apple Principal`
+- `Thimisu Apple Rotacao OIDC`
+
+Conclusao:
+
+- separe por ambiente no `Services ID`;
+- compartilhe a key `Principal` entre `dev`, `hml` e `prod`;
+- mantenha a key `Rotacao` reservada para troca segura sem downtime;
+- nao tente manter uma terceira key exclusiva de `prd`, porque isso foge do limite operacional da Apple para este `Primary App ID`.
 
 ### Sites oficiais
 
@@ -804,43 +967,55 @@ Como preencher:
 
 - `Description`
   - e so o nome amigavel mostrado no portal.
-  - valor adotado hoje para `dev`:
-    - `Eickrono OIDC Dev`
+  - sugestao adotada para `dev`:
+    - `Thimisu DEV`
 - `Identifier`
   - e o identificador tecnico estavel do `Services ID`.
   - ele vira o `client_id` da Apple no Keycloak.
   - deve ser unico na conta Apple.
   - use formato reverse-DNS.
-  - valor adotado hoje para `dev`:
-    - `com.eickrono.oidc.dev`
+  - sugestao adotada para `dev`:
+    - `com.eickrono.thimisu.oidc.dev`
 
 Importante:
 
-- `Eickrono OIDC Dev` / `com.eickrono.oidc.dev` servem apenas para o ambiente `dev`;
+- `Thimisu DEV` / `com.eickrono.thimisu.oidc.dev` servem apenas para o ambiente `dev`;
 - esse `Services ID` nao deve ser reutilizado em `hml` nem em `prod`;
 - para cada ambiente adicional, crie um `Services ID` separado.
 
+Convencao recomendada para este projeto:
+
+- o `Services ID` da Apple deve ser por app/familia de app, nao global por empresa;
+- para o app `Thimisu`, o identificador deve incluir `thimisu` no namespace;
+- isso evita ambiguidade futura se surgirem outros apps no mesmo ecossistema e no mesmo Apple Developer Team.
+
 Se quiser separar por ambiente:
 
-- `dev`: `com.eickrono.oidc.dev`
-- `hml`: `com.eickrono.oidc.hml`
-- `prod`: `com.eickrono.oidc`
+- `dev`: `com.eickrono.thimisu.oidc.dev`
+- `hml`: `com.eickrono.thimisu.oidc.hml`
+- `prod`: `com.eickrono.thimisu.oidc.prd`
 
 No desenho atual, isso significa:
 
 - `dev`
-  - `Description`: `Eickrono OIDC Dev`
-  - `Identifier`: `com.eickrono.oidc.dev`
+  - `Description`: `Thimisu DEV`
+  - `Identifier`: `com.eickrono.thimisu.oidc.dev`
 - `hml`
   - criar outro `Services ID`
   - sugestao:
-    - `Description`: `Eickrono OIDC Hml`
-    - `Identifier`: `com.eickrono.oidc.hml`
+    - `Description`: `Thimisu HML`
+    - `Identifier`: `com.eickrono.thimisu.oidc.hml`
 - `prod`
   - criar outro `Services ID`
   - sugestao:
-    - `Description`: `Eickrono OIDC`
-    - `Identifier`: `com.eickrono.oidc`
+    - `Description`: `Thimisu`
+    - `Identifier`: `com.eickrono.thimisu.oidc.prd`
+
+Observacao operacional:
+
+- o texto mostrado para o usuario na tela da Apple vem do `Description`/nome amigavel do `Services ID`;
+- trocar apenas esse nome amigavel nao exige regenerar JWT nem atualizar o Keycloak;
+- trocar o `Identifier` exige regenerar o `JWT` e atualizar o `KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_ID`, porque esse valor vira o `client_id` tecnico do broker.
 
 6. Clique em `Continue`.
 7. Revise.
@@ -927,26 +1102,81 @@ verifique nesta ordem:
 
 ### O que entra como domain/return URL
 
-Para o `dev` atual com host publico no tunnel:
+Cada `Services ID` da Apple aceita listas em `Domains and Subdomains` e `Return URLs`.
+Entao, durante transicao de dominio, cadastre todos os hosts publicos realmente usados por aquele ambiente.
+
+Tabela resumida para copiar:
+
+| Ambiente | Services ID | Domains and Subdomains | Return URLs |
+| --- | --- | --- | --- |
+| `dev` | `com.eickrono.thimisu.oidc.dev` | `oidc-dev.eickrono.online` | `https://oidc-dev.eickrono.online/realms/eickrono/broker/apple/endpoint` |
+| `dev` | `com.eickrono.thimisu.oidc.dev` | `oidc-dev.eickrono.com` | `https://oidc-dev.eickrono.com/realms/eickrono/broker/apple/endpoint` |
+| `hml` | `com.eickrono.thimisu.oidc.hml` | `oidc-hml.eickrono.store` | `https://oidc-hml.eickrono.store/realms/eickrono/broker/apple/endpoint` |
+| `hml` | `com.eickrono.thimisu.oidc.hml` | `oidc-hml.eickrono.com` | `https://oidc-hml.eickrono.com/realms/eickrono/broker/apple/endpoint` |
+| `prod` | `com.eickrono.thimisu.oidc.prd` | `oidc.eickrono.com` | `https://oidc.eickrono.com/realms/eickrono/broker/apple/endpoint` |
+
+Observacoes:
+
+- `Primary App ID` continua unico para os tres ambientes: `com.eickrono.thimisu`;
+- em `dev` e `hml`, mantenha apenas as linhas dos hosts publicos realmente usados naquele momento;
+- `localhost` nao deve entrar aqui para Apple Web.
+
+#### `dev`
+
+Se o ambiente `dev` ainda usa o tunnel atual:
 
 ```text
 Domain/Subdomain: oidc-dev.eickrono.online
 Return URL: https://oidc-dev.eickrono.online/realms/eickrono/broker/apple/endpoint
 ```
 
-Para `hml` futuro:
+Se o ambiente `dev` tambem ja estiver atendendo pelo dominio canonico, adicione tambem:
+
+```text
+Domain/Subdomain: oidc-dev.eickrono.com
+Return URL: https://oidc-dev.eickrono.com/realms/eickrono/broker/apple/endpoint
+```
+
+Diagnostico rapido para `invalid_client` no Apple `dev`:
+
+- se o navegador ja abriu `https://appleid.apple.com/auth/authorize`, o app e o Keycloak ja conseguiram chegar ao passo web correto;
+- nesse ponto, confirme que o `Services ID` salvo na Apple e exatamente `com.eickrono.thimisu.oidc.dev`;
+- confirme que o `Primary App ID` associado continua `com.eickrono.thimisu`;
+- confirme que `oidc-dev.eickrono.online` esta listado em `Domains and Subdomains`;
+- confirme que `https://oidc-dev.eickrono.online/realms/eickrono/broker/apple/endpoint` esta listado em `Return URLs`;
+- se o dominio canonico `oidc-dev.eickrono.com` tambem estiver em uso, ele precisa entrar como linha adicional propria, junto com a `Return URL` equivalente;
+- se o Keycloak estiver redirecionando a Apple com `client_id=com.eickrono.thimisu.oidc.dev` e `redirect_uri=https://oidc-dev.eickrono.online/realms/eickrono/broker/apple/endpoint`, mas a Apple ainda retornar `invalid_client`, a pendencia esta no cadastro ou na propagacao do `Services ID` no portal da Apple, nao no Flutter.
+
+#### `hml`
+
+Se o ambiente `hml` ainda usa o host publico atual:
 
 ```text
 Domain/Subdomain: oidc-hml.eickrono.store
 Return URL: https://oidc-hml.eickrono.store/realms/eickrono/broker/apple/endpoint
 ```
 
-Para o alvo canonico final:
+Se o ambiente `hml` tambem ja estiver atendendo pelo dominio canonico, adicione tambem:
+
+```text
+Domain/Subdomain: oidc-hml.eickrono.com
+Return URL: https://oidc-hml.eickrono.com/realms/eickrono/broker/apple/endpoint
+```
+
+#### `prod`
+
+Para `prod`, o valor canonico atual e:
 
 ```text
 Domain/Subdomain: oidc.eickrono.com
 Return URL: https://oidc.eickrono.com/realms/eickrono/broker/apple/endpoint
 ```
+
+Resumo operacional:
+
+- `dev`: hoje pode precisar de `oidc-dev.eickrono.online` e `oidc-dev.eickrono.com`;
+- `hml`: hoje pode precisar de `oidc-hml.eickrono.store` e `oidc-hml.eickrono.com`;
+- `prod`: hoje usa apenas `oidc.eickrono.com`.
 
 ### Restrição prática importante da Apple
 
@@ -956,11 +1186,13 @@ Inferência operacional importante:
 
 - para testes reais, você provavelmente vai preferir usar um domínio público HTTPS, ou um túnel estável com domínio válido;
 - `localhost` puro pode ser insuficiente ou inconveniente para fechar o fluxo web da Apple em cenários reais.
+- para o cadastro do `Services ID`, trate `localhost` como valor invalido operacionalmente: use apenas `Domains and Subdomains` publicos e `Return URLs` HTTPS publicas.
 
 Ou seja:
 
 - Google, Facebook e LinkedIn tendem a ser mais tolerantes ao setup local;
 - Apple merece ser validada cedo em ambiente com URL pública.
+- no resumo operacional atual deste projeto: `Google Web` pode manter `localhost` como callback adicional em `dev` e `hml`, mas `Apple Web` nao deve cadastrar `localhost`.
 
 #### Parte 3: criar a private key
 
@@ -971,7 +1203,7 @@ Ou seja:
 
 Exemplo:
 
-- `Eickrono OIDC Apple Dev`
+- `Thimisu Apple Principal`
 
 5. Marque `Sign in with Apple`.
 6. Clique em `Configure`.
@@ -990,55 +1222,87 @@ Guarde três informações:
 
 Além disso, anote o identificador do `Services ID`, porque ele vira o `client_id`.
 
+Registro operacional atual das chaves Apple do app `Thimisu`:
+
+- key `Principal`
+  - `Nome`: `Thimisu Apple Principal`
+  - `Key ID`: `SD47UPB393`
+  - `Servicos`: `Sign in with Apple`
+- key `Rotacao`
+  - `Nome`: `Thimisu Apple Rotacao OIDC`
+  - `Key ID`: `273LPMGRY8`
+  - `Servicos`: `DeviceCheck`, `Sign in with Apple`
+
+Leitura correta dessas duas chaves:
+
+- a key `Principal` e a candidata padrao para assinar os JWTs de `dev`, `hml` e `prod`;
+- a key `Rotacao` fica reservada para rotacao/contingencia;
+- a presenca de `DeviceCheck` na key de rotacao nao substitui a configuracao do `Services ID` nem o JWT do broker Apple;
+- o aviso do portal sobre `Services` significa apenas que o `Services ID` precisa continuar com a configuracao web concluida para a equipe.
+
 #### Parte 4: guardar o arquivo `.p8` no local correto
 
-No workspace atual, o caminho operacional adotado para a chave Apple de `dev` e:
+No workspace atual, o caminho operacional adotado para a key `Principal` e:
 
 ```text
-/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/dev/AuthKey_94XD42TU39.p8
+/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/principal/AuthKey_SD47UPB393.p8
 ```
 
-Valores reais atuais de `dev`:
+Valores operacionais da key `Principal`:
 
 - `Team ID`: `M863Q6N87G`
-- `Key ID`: `94XD42TU39`
-- `Services ID`: `com.eickrono.oidc.dev`
+- `Key ID`: `SD47UPB393`
+- `uso esperado`: `dev`, `hml` e `prod`
 
-Se o navegador baixar o arquivo para `Downloads`, mova-o para o diretório local de segredos com:
+Se o navegador baixar a key `Principal` para `Downloads`, mova-o para o diretório local de segredos com:
 
 ```bash
-mkdir -p /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/dev
+mkdir -p /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/principal
 
-mv /Users/thiago/Downloads/AuthKey_94XD42TU39.p8 \
-  /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/dev/AuthKey_94XD42TU39.p8
+mv /Users/thiago/Downloads/AuthKey_SD47UPB393.p8 \
+  /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/principal/AuthKey_SD47UPB393.p8
 
-chmod 600 /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/dev/AuthKey_94XD42TU39.p8
+chmod 600 /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/principal/AuthKey_SD47UPB393.p8
 ```
 
 Observacoes:
 
 - esse arquivo nao deve ser versionado no Git;
 - a permissao `600` reduz exposicao desnecessaria do segredo;
-- para `hml` e `prod`, use diretórios separados, mantendo um `.p8` por ambiente.
+- a mesma key `Principal` pode assinar os JWTs de `dev`, `hml` e `prod`;
+- a key `Rotacao` deve ficar guardada separadamente para troca futura;
+- a Apple permite no maximo duas private keys por `Primary App ID`, entao o desenho correto e `Principal` + `Rotacao`, nao uma key por ambiente.
+
+No workspace atual, o caminho operacional adotado para a key `Rotacao` e:
+
+```text
+/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/rotacao/AuthKey_273LPMGRY8.p8
+```
+
+Valores operacionais da key `Rotacao`:
+
+- `Team ID`: `M863Q6N87G`
+- `Key ID`: `273LPMGRY8`
+- `uso esperado`: rotacao/contingencia
 
 ### Como transformar isso no secret que o Keycloak espera
 
 O projeto já tem o script:
 
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/gerar-apple-client-secret-jwt.sh`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/gerar-apple-client-secret-jwt.sh`
 
-Exemplo:
+Exemplo com a key `Principal`:
 
 ```bash
 cd /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor
 
 export APPLE_TEAM_ID="M863Q6N87G"
-export APPLE_KEY_ID="94XD42TU39"
-export APPLE_PRIVATE_KEY_P8="/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/dev/AuthKey_94XD42TU39.p8"
-export APPLE_CLIENT_ID="com.eickrono.oidc.dev"
+export APPLE_KEY_ID="SD47UPB393"
+export APPLE_PRIVATE_KEY_P8="/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/principal/AuthKey_SD47UPB393.p8"
+export APPLE_CLIENT_ID="com.eickrono.thimisu.oidc.dev"
 export OUTPUT_ENV_LINE=true
 
-sh modulos/servidor-autorizacao-eickrono/realms/gerar-apple-client-secret-jwt.sh
+sh autorizacao/realms/gerar-apple-client-secret-jwt.sh
 ```
 
 O valor gerado é o que entra em:
@@ -1048,21 +1312,68 @@ KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_ID=<services_id_identifier>
 KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_SECRET_JWT=<jwt_gerado>
 ```
 
-#### Parte 5: aplicar no ambiente `dev`
+Exemplo equivalente para gerar o JWT de `hml` com a mesma key `Principal`:
+
+```bash
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor
+
+export APPLE_TEAM_ID="M863Q6N87G"
+export APPLE_KEY_ID="SD47UPB393"
+export APPLE_PRIVATE_KEY_P8="/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/principal/AuthKey_SD47UPB393.p8"
+export APPLE_CLIENT_ID="com.eickrono.thimisu.oidc.hml"
+export OUTPUT_ENV_LINE=true
+
+sh autorizacao/realms/gerar-apple-client-secret-jwt.sh
+```
+
+Exemplo equivalente para gerar o JWT de `prod` com a mesma key `Principal`:
+
+```bash
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor
+
+export APPLE_TEAM_ID="M863Q6N87G"
+export APPLE_KEY_ID="SD47UPB393"
+export APPLE_PRIVATE_KEY_P8="/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/principal/AuthKey_SD47UPB393.p8"
+export APPLE_CLIENT_ID="com.eickrono.thimisu.oidc.prd"
+export OUTPUT_ENV_LINE=true
+
+sh autorizacao/realms/gerar-apple-client-secret-jwt.sh
+```
+
+Materializacoes locais recomendadas para o JWT gerado:
+
+- `dev`: `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/dev/keycloak-apple.env`
+- `hml`: `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/hml/keycloak-apple.env`
+- `prod`: `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/prod/keycloak-apple.env`
+
+#### Parte 5: aplicar nos ambientes do Keycloak
+
+Com a convencao por app ja adotada, os valores por ambiente ficam assim:
+
+- `dev`: `com.eickrono.thimisu.oidc.dev`
+- `hml`: `com.eickrono.thimisu.oidc.hml`
+- `prod`: `com.eickrono.thimisu.oidc.prd`
+
+Aplicacao real no workspace atual:
+
+- `dev`: atualizar `infraestrutura/dev/.env`
+- `hml`: atualizar `infraestrutura/hml/.env`
+- `prod`: materializar o segredo fora do Git, por exemplo em `.local-secrets/apple/eickrono-oidc/prod/keycloak-apple.env`
 
 Depois de gerar o JWT, aplique-o no arquivo:
 
 - `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/.env`
 
-No `dev` atual, os valores ficaram assim:
+No `dev`, os valores ficam assim:
 
 ```dotenv
-KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_ID=com.eickrono.oidc.dev
+KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_ID=com.eickrono.thimisu.oidc.dev
 KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_SECRET_JWT=<jwt_gerado_pelo_script>
 ```
 
 Observacao importante:
 
+- se o ambiente ainda estiver com o `Services ID` antigo, atualize primeiro o portal Apple e gere um novo JWT antes de trocar esse valor no `.env`;
 - se o realm `eickrono` ja existir no Keycloak em execucao, apenas recriar o container nao reimporta automaticamente as configuracoes do broker;
 - nesse caso, alem de atualizar o `.env`, aplique a mudanca no broker `apple` em runtime.
 
@@ -1084,7 +1395,8 @@ docker exec eickrono-keycloak-dev /bin/sh -lc '
     --password admin123 >/dev/null &&
   /opt/keycloak/bin/kcadm.sh update identity-provider/instances/apple \
     -r eickrono \
-    -s config.clientId=com.eickrono.oidc.dev \
+    -s config.authorizationUrl=https://appleid.apple.com/auth/authorize?response_mode=form_post \
+    -s config.clientId=com.eickrono.thimisu.oidc.dev \
     -s "config.clientSecret=<jwt_gerado_pelo_script>" >/dev/null &&
   /opt/keycloak/bin/kcadm.sh get identity-provider/instances/apple -r eickrono
 '
@@ -1094,8 +1406,15 @@ Validacao esperada:
 
 - `alias = apple`
 - `enabled = true`
-- `config.clientId = com.eickrono.oidc.dev`
+- `config.authorizationUrl = https://appleid.apple.com/auth/authorize?response_mode=form_post`
+- `config.clientId = com.eickrono.thimisu.oidc.dev`
 - `config.clientSecret` mascarado pelo Keycloak
+
+Observacao importante:
+
+- como o broker Apple atual usa `defaultScope = openid email name`, a Apple exige `response_mode=form_post` no authorize;
+- sem esse ajuste, a tela da Apple retorna `invalid_request` com a mensagem `response_mode must be form_post when name or email scope is requested`;
+- a convencao deste projeto e persistir isso diretamente no `authorizationUrl` do broker `apple`.
 
 ### Custo
 
@@ -1182,7 +1501,38 @@ Se a UI mudar, use a busca interna do dashboard por `Basic settings`.
    - `App ID`
    - `App Secret`
 
-13. Adicione a redirect URI do Keycloak em `Valid OAuth Redirect URIs`.
+13. Em `App settings` > `Basic`, preencha `App Domains` com os hosts publicos usados pelo broker `facebook` do Keycloak.
+   Para o `dev`, use:
+
+```text
+oidc-dev.eickrono.online
+```
+
+   Se o dominio canonico do `dev` tambem estiver em uso, adicione tambem:
+
+```text
+oidc-dev.eickrono.com
+```
+
+   Para `hml`:
+
+```text
+oidc-hml.eickrono.store
+```
+
+   Se o dominio canonico do `hml` tambem estiver em uso, adicione tambem:
+
+```text
+oidc-hml.eickrono.com
+```
+
+   Para `prod`:
+
+```text
+oidc.eickrono.com
+```
+
+14. Adicione a redirect URI do Keycloak em `Valid OAuth Redirect URIs`.
    Exemplo em `dev`:
 
 ```text
@@ -1194,6 +1544,8 @@ Opcionalmente, para teste local no navegador do proprio Mac:
 ```text
 http://localhost:8080/realms/eickrono/broker/facebook/endpoint
 ```
+
+15. Se a Meta retornar erro `OAuthException` com `code: 191` dizendo que o dominio da URL nao esta incluido nos dominios do app, a pendencia esta em `App Domains`, nao no Flutter nem no Keycloak. O host publico usado no `redirect_uri` precisa aparecer tambem em `App Domains`.
 
 ### O que preencher no projeto
 

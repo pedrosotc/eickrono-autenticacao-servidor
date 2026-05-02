@@ -361,7 +361,7 @@ curl -s -o /dev/null -w '%{http_code}\n' \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   http://localhost:8081/actuator/health
 
-# Se o endpoint acima exigir autenticação diferente, teste uma rota funcional da API (ex.: /identidade/perfil) para validar os escopos.
+# Se o endpoint acima exigir autenticação diferente, teste uma rota funcional da API (ex.: /identidade/vinculos-organizacionais) para validar os escopos.
 ```
 
 ## 8. Emitir token com `grant_type=client_credentials`
@@ -412,7 +412,7 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 **Comandos**
 ```bash
 # Reutiliza o ACCESS_TOKEN ou SERVICE_TOKEN obtido acima
-curl -H "Authorization: Bearer ${ACCESS_TOKEN}" http://localhost:8081/identidade/perfil
+curl -H "Authorization: Bearer ${ACCESS_TOKEN}" http://localhost:8081/identidade/vinculos-organizacionais
 
 # Para a API de contas:
 curl -H "Authorization: Bearer ${SERVICE_TOKEN}" http://localhost:8082/contas
@@ -423,7 +423,7 @@ curl -H "Authorization: Bearer ${SERVICE_TOKEN}" http://localhost:8082/contas
 # Verifica se a chamada retornou HTTP 200
 curl -s -o /dev/null -w '%{http_code}\n' \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-  http://localhost:8081/identidade/perfil
+  http://localhost:8081/identidade/vinculos-organizacionais
 ```
 
 ## 10. Adaptando para homologação (`hml`)

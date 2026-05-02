@@ -51,7 +51,7 @@ sequenceDiagram
     OTEL->>OBS: 19. Armazena métricas, logs mascarados e traces
 
     %% Chamada de API Identidade a partir do App (cliente público)
-    App->>CF: 20. Chamada GET /identidade/perfil (Bearer access token)
+    App->>CF: 20. Chamada GET /identidade/vinculos-organizacionais (Bearer access token)
     CF->>ALB: 21. Encaminha req após WAF/Rate Limit
     ALB->>APII: 22. Roteia para API Identidade
     APII->>Cache: 23. Verifica JWKS cache (Caffeine, TTL 5 min)

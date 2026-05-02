@@ -255,6 +255,12 @@ O resultado esperado e o `issuer` apontando para o dominio publico do tunnel.
 No estado transitorio deste guia, isso significa `oidc-dev.eickrono.online`.
 No alvo canonico final, a mesma validacao deve ocorrer com `oidc-dev.eickrono.com`.
 
+Sinais de falha comuns:
+
+- se esse `curl` responder `530`, o hostname publico ainda existe na Cloudflare, mas o `cloudflared tunnel run oidc-dev` nao esta conectado a uma origem valida naquele momento;
+- nesse caso, confirme que o Keycloak local responde em `http://localhost:8080/realms/eickrono/.well-known/openid-configuration`;
+- se o Keycloak local estiver saudavel e o host publico seguir em `530`, suba novamente o tunnel com `cloudflared tunnel run oidc-dev` e repita o `curl` ate voltar `200`.
+
 Para o fluxo `facebook` atual, uma validacao adicional util e:
 
 ```bash
@@ -262,6 +268,8 @@ curl -I 'https://oidc-dev.eickrono.online/realms/eickrono/protocol/openid-connec
 ```
 
 O comportamento esperado e um `302` ou `303` para `/broker/facebook/login`.
+
+Se o app Flutter estiver usando `https://oidc-dev.eickrono.online/realms/eickrono` como issuer padrao, esse `530` aparece no simulador ou no aparelho como falha de discovery OIDC antes mesmo de abrir o login social. Nesse cenario, o problema nao esta no app: ele esta no hostname publico/tunnel.
 
 ## O que precisa mudar no Google OAuth
 

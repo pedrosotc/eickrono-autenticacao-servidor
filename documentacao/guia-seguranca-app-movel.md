@@ -32,9 +32,29 @@ Nesta etapa, o `servidor de autenticacao` ja recebe e correlaciona:
 
 Tambem ja esta implementado:
 
-- modo observacao para `dev/hml`;
-- endurecimento em `prod`;
+- flexibilidade de configuracao para `dev`;
+- endurecimento automatico em `prod`;
+- correlacao de `packageName` no Android e de `bundleIdentifier`/`teamIdentifier` no iOS;
 - auditoria de eventos de risco no cadastro e no login.
+
+## Politica por ambiente
+
+Para este projeto, a regra operacional correta e:
+
+- `dev`: a validacao oficial de dispositivo pode ficar desligada;
+- `hml`: a validacao oficial de dispositivo deve ficar ligada;
+- `prod`: a validacao oficial de dispositivo deve ficar ligada.
+
+Isso vale para as duas plataformas:
+
+- Android com `Google Play Integrity`;
+- iOS com `Apple App Attest`.
+
+Observacao importante:
+
+- o codigo hoje endurece automaticamente `prod`;
+- `hml` ainda depende de configuracao e checklist operacional para respeitar a mesma exigencia;
+- a documentacao deste guia deve ser tratada como a politica desejada do ambiente, mesmo antes de eventual endurecimento automatico equivalente em `hml`.
 
 ## O que esta em jogo
 
@@ -46,6 +66,62 @@ Camadas contempladas:
 - deteccao local de `Frida/hooking/debug`;
 - deteccao local de tamper ou reempacotamento;
 - sinais de captura de tela e endurecimento local do app.
+
+## Identidade esperada por plataforma
+
+No Android, a identidade esperada mudou com os flavors do aplicativo:
+
+- `dev`: `com.eickrono.thimisu.dev`
+- `hml`: `com.eickrono.thimisu.hml`
+- `prod`: `com.eickrono.thimisu`
+
+No iOS, a identidade tecnica permaneceu estavel:
+
+- `bundleIdentifier`: `com.eickrono.thimisu`
+- `teamIdentifier`: `M863Q6N87G`
+
+Consequencia pratica para a autenticacao:
+
+- `identidade.atestacao.app.google.package-name` deve acompanhar o `packageName` do ambiente Android;
+- `identidade.atestacao.app.apple.bundle-identifier` e `identidade.atestacao.app.apple.team-identifier` nao precisam mudar enquanto o app iOS mantiver essa mesma identidade.
+
+Em especial:
+
+- a separacao recente de `dev` e `hml` no Android exige ajuste do valor esperado pelo servidor nesses ambientes;
+- essa mesma mudanca nao deveria causar problema na validacao Apple.
+
+## Configuracao minima por ambiente
+
+Os principais controles do servidor para essa politica sao:
+
+- `IDENTIDADE_ATESTACAO_APP_PERMITIR_VALIDACAO_LOCAL_SEM_PROVEDOR_OFICIAL`
+- `IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO`
+- `IDENTIDADE_ATESTACAO_APP_GOOGLE_PACKAGE_NAME`
+- `IDENTIDADE_ATESTACAO_APP_GOOGLE_SERVICE_ACCOUNT_JSON_ARQUIVO`
+- `IDENTIDADE_ATESTACAO_APP_APPLE_HABILITADO`
+- `IDENTIDADE_ATESTACAO_APP_APPLE_BUNDLE_IDENTIFIER`
+- `IDENTIDADE_ATESTACAO_APP_APPLE_TEAM_IDENTIFIER`
+
+Politica esperada:
+
+- `dev`:
+  - pode usar `IDENTIDADE_ATESTACAO_APP_PERMITIR_VALIDACAO_LOCAL_SEM_PROVEDOR_OFICIAL=true`
+  - pode manter `IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO=false`
+  - pode manter `IDENTIDADE_ATESTACAO_APP_APPLE_HABILITADO=false`
+- `hml`:
+  - deve usar `IDENTIDADE_ATESTACAO_APP_PERMITIR_VALIDACAO_LOCAL_SEM_PROVEDOR_OFICIAL=false`
+  - deve usar `IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO=true`
+  - deve usar `IDENTIDADE_ATESTACAO_APP_APPLE_HABILITADO=true`
+  - deve apontar `IDENTIDADE_ATESTACAO_APP_GOOGLE_PACKAGE_NAME=com.eickrono.thimisu.hml`
+  - deve apontar `IDENTIDADE_ATESTACAO_APP_APPLE_BUNDLE_IDENTIFIER=com.eickrono.thimisu`
+  - deve apontar `IDENTIDADE_ATESTACAO_APP_APPLE_TEAM_IDENTIFIER=M863Q6N87G`
+- `prod`:
+  - deve usar `IDENTIDADE_ATESTACAO_APP_PERMITIR_VALIDACAO_LOCAL_SEM_PROVEDOR_OFICIAL=false`
+  - deve usar `IDENTIDADE_ATESTACAO_APP_GOOGLE_HABILITADO=true`
+  - deve usar `IDENTIDADE_ATESTACAO_APP_APPLE_HABILITADO=true`
+  - deve apontar `IDENTIDADE_ATESTACAO_APP_GOOGLE_PACKAGE_NAME=com.eickrono.thimisu`
+  - deve apontar `IDENTIDADE_ATESTACAO_APP_APPLE_BUNDLE_IDENTIFIER=com.eickrono.thimisu`
+  - deve apontar `IDENTIDADE_ATESTACAO_APP_APPLE_TEAM_IDENTIFIER=M863Q6N87G`
 
 ## Regra central
 
@@ -140,6 +216,21 @@ Quando:
 - a assinatura do app nao bate;
 - ha forte indicio de tamper ou hooking;
 - a politica de risco considerar o contexto inaceitavel.
+
+## Limite conhecido da correlacao atual
+
+Hoje, a correlacao implementada no servidor usa principalmente:
+
+- `packageName` e provedor declarado no Android;
+- `bundleIdentifier`, `teamIdentifier` e provedor declarado no iOS.
+
+O app Android tambem envia `assinaturaSha256`, mas esse valor ainda nao esta fixado como hash esperado na politica atual do servidor.
+
+Isso significa:
+
+- a troca de `packageName` em `dev` e `hml` precisa ser refletida no servidor;
+- a troca de keystore Android, por si so, nao quebra a correlacao atual enquanto nao houver pin explicito da assinatura esperada;
+- para endurecer a deteccao de reempacotamento Android, ainda falta comparar `assinaturaSha256` com um valor confiavel por ambiente.
 
 ## O que nao fazer
 

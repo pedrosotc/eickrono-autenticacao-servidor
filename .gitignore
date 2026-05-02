@@ -220,7 +220,6 @@ nbdist/
 .sonarqube/
 
 # Credenciais locais fora do versionamento
-documentacao/SEGREDOS_LOCAIS.md
 .scannerwork/
 .sonarlint/
 

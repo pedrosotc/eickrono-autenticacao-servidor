@@ -35,3 +35,8 @@ Checklist técnico do `servidor de autenticação` para correlação de atestaç
 - `SegurancaAplicativoProperties` com modo observação, score máximo e allowlist de aplicações.
 - Integração da avaliação de risco nos fluxos públicos canônicos.
 - Testes unitários e integração ajustados para o novo contrato.
+
+## Documentos correlatos
+
+- biblioteca cliente compartilhada: [../../eickrono-autenticacao-cliente/docs/TODO_seguranca_app_movel.md](../../eickrono-autenticacao-cliente/docs/TODO_seguranca_app_movel.md)
+- app Thimisu: [../../eickrono-thimisu/eickrono-thimisu-app/docs/TODO_seguranca_app_movel.md](../../eickrono-thimisu/eickrono-thimisu-app/docs/TODO_seguranca_app_movel.md)

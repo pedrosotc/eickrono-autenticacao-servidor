@@ -23,7 +23,7 @@ services:
         "--hostname-strict=false",
         "--http-enabled=true",
         "--proxy-headers=xforwarded",
-        "--features=${KEYCLOAK_FEATURES:-instagram-broker}",
+        "--features=${KEYCLOAK_FEATURES:-instagram-broker:v1,token-exchange:v1,admin-fine-grained-authz:v1}",
         "--spi-theme-static-max-age=-1"
       ]
     env_file:
@@ -44,10 +44,10 @@ services:
       EICKRONO_INTERNAL_SECRET: ${EICKRONO_INTERNAL_SECRET}
       EICKRONO_KEYCLOAK_URL_BASE: http://servidor-autorizacao:8080
       EICKRONO_KEYCLOAK_REALM: eickrono
-      EICKRONO_IDENTIDADE_CLIENT_ID_INTERNO: ${EICKRONO_IDENTIDADE_CLIENT_ID_INTERNO:-servidor-autorizacao-interno}
+      EICKRONO_IDENTIDADE_CLIENT_ID_INTERNO: ${EICKRONO_IDENTIDADE_CLIENT_ID_INTERNO:-servidor-autorizacao}
       EICKRONO_IDENTIDADE_CLIENT_SECRET_INTERNO: ${EICKRONO_IDENTIDADE_CLIENT_SECRET_INTERNO:-CHANGE_ME}
       EICKRONO_INTERNO_MTLS_HABILITADO: "true"
-      EICKRONO_INTERNO_MTLS_KEYSTORE_ARQUIVO: /certificados/servidor-autorizacao-interno.p12
+      EICKRONO_INTERNO_MTLS_KEYSTORE_ARQUIVO: /certificados/servidor-autorizacao.p12
       EICKRONO_INTERNO_MTLS_KEYSTORE_SENHA: ${MTLS_KEYSTORE_SENHA}
       EICKRONO_INTERNO_MTLS_TRUSTSTORE_ARQUIVO: /certificados/backchannel-truststore.p12
       EICKRONO_INTERNO_MTLS_TRUSTSTORE_SENHA: ${MTLS_TRUSTSTORE_SENHA}
@@ -60,12 +60,12 @@ services:
       retries: 6
       start_period: 10s
     volumes:
-      - ../../modulos/servidor-autorizacao-eickrono/target/servidor-autorizacao-eickrono-1.0.0-SNAPSHOT.jar:/opt/keycloak/providers/servidor-autorizacao-eickrono.jar:ro
-      - ../../modulos/servidor-autorizacao-eickrono/realms:/opt/keycloak/import-source:ro
-      - ../../modulos/servidor-autorizacao-eickrono/temas-login-ptbr:/opt/keycloak/themes/login-ptbr:ro
-      - ../../modulos/servidor-autorizacao-eickrono/configuracoes-fapi:/opt/keycloak/providers/configuracoes-fapi:ro
-      - ../../modulos/servidor-autorizacao-eickrono/mapeamentos-atributos:/opt/keycloak/providers/mapeamentos-atributos:ro
-      - ../../modulos/servidor-autorizacao-eickrono/scripts-spi:/opt/keycloak/providers/scripts-spi:ro
+      - ../../target/eickrono-autenticacao-servidor-1.0.0-SNAPSHOT.jar:/opt/keycloak/providers/eickrono-autenticacao-servidor.jar:ro
+      - ../../autorizacao/realms:/opt/keycloak/import-source:ro
+      - ../../autorizacao/temas/login-ptbr:/opt/keycloak/themes/login-ptbr:ro
+      - ../../autorizacao/providers/configuracoes-fapi:/opt/keycloak/providers/configuracoes-fapi:ro
+      - ../../autorizacao/providers/mapeamentos-atributos:/opt/keycloak/providers/mapeamentos-atributos:ro
+      - ../../autorizacao/providers/scripts-spi:/opt/keycloak/providers/scripts-spi:ro
       - ./certificados:/certificados:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -75,7 +75,7 @@ services:
 
   api-identidade-eickrono:
     build:
-      context: ../../modulos/api-identidade-eickrono
+      context: ../../../eickrono-identidade-servidor
       dockerfile: Dockerfile
     container_name: eickrono-api-identidade-dev
     env_file:
@@ -97,7 +97,7 @@ services:
       IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID: ${IDENTIDADE_SESSAO_INTERNA_KEYCLOAK_CLIENT_ID}
       INTEGRACAO_PERFIL_JWT_INTERNO_URL_BASE: http://servidor-autorizacao:8080
       INTEGRACAO_PERFIL_JWT_INTERNO_REALM: eickrono
-      INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_ID: ${INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_ID:-autenticacao-servidor-interno}
+      INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_ID: ${INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_ID:-autenticacao-servidor}
       INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_SECRET: ${INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_SECRET:-CHANGE_ME}
       IDENTIDADE_CADASTRO_EMAIL_FORNECEDOR: ${IDENTIDADE_CADASTRO_EMAIL_FORNECEDOR:-smtp}
       IDENTIDADE_CADASTRO_EMAIL_REMETENTE: ${IDENTIDADE_CADASTRO_EMAIL_REMETENTE:-no-reply-dev@eickrono.local}
@@ -138,7 +138,7 @@ services:
 
   api-contas-eickrono:
     build:
-      context: ../../modulos/api-contas-eickrono
+      context: ../../../eickrono-contas-servidor
       dockerfile: Dockerfile
     container_name: eickrono-api-contas-dev
     env_file:

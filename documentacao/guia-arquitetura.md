@@ -41,6 +41,11 @@ Para o app móvel:
 
 ## Fluxos públicos canônicos
 
+Para o retrato do comportamento **efetivamente implementado hoje**, incluindo
+divergências já observadas entre fluxo atual e fluxo alvo, ver também:
+
+- `fluxogramas_fluxos_publicos_estado_atual.md`
+
 ### Cadastro
 
 1. o app envia o cadastro para a autenticação;

@@ -1,6 +1,6 @@
 # Guia de rotas de testes para Swagger
 
-Este roteiro organiza a ordem sugerida de chamadas e fornece exemplos de payloads para validar todos os serviços expostos pelos módulos `api-identidade-eickrono` e `api-contas-eickrono` via Swagger ou cURL.
+Este roteiro organiza a ordem sugerida de chamadas e fornece exemplos de payloads para validar os serviços expostos por `eickrono-identidade-servidor` e `eickrono-contas-servidor` via Swagger ou cURL.
 
 ## Pré-requisitos rápidos
 - Ambiente `dev` ativo (`cd infraestrutura/dev && docker compose up --build -d`).
@@ -46,7 +46,7 @@ curl -X POST http://localhost:8080/realms/eickrono/protocol/openid-connect/token
 #### O que cada escopo/role representa
 
 - `openid` — escopo padrão do OpenID Connect que habilita emissão de tokens compatíveis com as bibliotecas OIDC. Sem ele, alguns clientes rejeitam o token.
-- `identidade:ler` — libera o `GET /identidade/perfil`, usado para consultar dados básicos do usuário autenticado.
+- `vinculos:ler` — libera leituras autenticadas como `GET /identidade/vinculos-organizacionais`.
 - `vinculos:ler` — permite listar vínculos sociais (`GET /identidade/vinculos-sociais`).
 - `vinculos:escrever` — requerido para criar vínculos (`POST /identidade/vinculos-sociais`).
 - `contas:ler` — autoriza a leitura de contas (`GET /contas`, `GET /contas/{id}`).
@@ -57,9 +57,9 @@ Todos esses nomes são customizados pelas nossas APIs e não vêm prontos no Key
 
 #### Como identificar escopos/roles diretamente no código
 
-1. Verifique as classes `SegurancaConfiguracao` de cada módulo (`modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/configuracao/SegurancaConfiguracao.java` e `modulos/api-contas-eickrono/src/main/java/com/eickrono/api/contas/configuracao/SegurancaConfiguracao.java`). Elas listam os `requestMatchers` e os `@PreAuthorize` globais; procure por strings começando com `SCOPE_` ou `ROLE_`.
+1. Verifique as classes `SegurancaConfiguracao` de cada serviço em `../eickrono-identidade-servidor` e `../eickrono-contas-servidor`. Elas listam os `requestMatchers` e os `@PreAuthorize` globais; procure por strings começando com `SCOPE_` ou `ROLE_`.
 2. Procure anotações `@PreAuthorize` nos controllers (`ContasController`, `TransacoesController` etc.). Os parâmetros usados ali (ex.: `hasAuthority('SCOPE_transacoes:ler')`) indicam escopos que precisam existir no Keycloak.
-3. Analise filtros adicionais como `DeviceTokenFilter` (`modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/configuracao/DeviceTokenFilter.java`): ele exige que o token tenha `ROLE_cliente`, por isso a realm role `cliente` é obrigatória.
+3. Analise filtros adicionais como `DeviceTokenFilter` em `../eickrono-identidade-servidor`: ele exige que o token tenha `ROLE_cliente`, por isso a realm role `cliente` é obrigatória.
 4. Reúna os nomes encontrados nessas verificações; o conjunto resultante é a lista de escopos/roles que você deve criar/atribuir no Keycloak.
 
 Para o código atual, a análise rende exatamente os itens abaixo:
@@ -209,7 +209,7 @@ PY
 > - `X-Device-Token: <tokenDispositivo>`
 > (o `DeviceTokenFilter` libera apenas usuários com `ROLE_cliente` e token ativo).
 
-1. **GET** `http://localhost:8081/identidade/perfil`
+1. **GET** `http://localhost:8081/identidade/vinculos-organizacionais`
    - Esperado: `200 OK` com `PerfilDto` (nome, email, perfis, papeis).
 
 2. **GET** `http://localhost:8081/identidade/vinculos-sociais`

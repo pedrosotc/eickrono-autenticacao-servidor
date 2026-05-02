@@ -53,7 +53,7 @@ sequenceDiagram
     KC->>OTEL: 14. Exporta métricas/traces
 
     %% Uso do token na API Identidade
-    App->>CF: 15. GET /identidade/perfil (Bearer access token)
+    App->>CF: 15. GET /identidade/vinculos-organizacionais (Bearer access token)
     CF->>ALB: 16. Reenvia após rate-limit/WAF
     ALB->>APII: 17. Roteia para API Identidade
     APII->>KC: 18. Valida assinatura token (JWKS cache > fallback JWKS endpoint)
@@ -218,7 +218,7 @@ sequenceDiagram
     QA->>KC: 2. Abrir guia Keycloak e fazer login (realm eickrono)
     QA->>KC: 3. Gerar token (via Account Console ou endpoint /token)
     QA->>SW: 4. Clicar em "Authorize" e colar `Bearer <token>`
-    QA->>APII: 5. (via Swagger) Executar GET /identidade/perfil
+    QA->>APII: 5. (via Swagger) Executar GET /identidade/vinculos-organizacionais
     APII->>KC: 6. Buscar JWKS (preenche cache se necessário)
     APII->>DB: 7. Consultar dados de perfil
     APII-->>QA: 8. Retornar JSON do perfil

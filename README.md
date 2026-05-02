@@ -1,6 +1,71 @@
 # Eickrono Autenticação
 
-Monorepo da plataforma de identidade, credenciais e sessão da Eickrono. Este repositório é a borda pública canônica para os fluxos sensíveis do app móvel: cadastro, confirmação de e-mail, login, recuperação de senha, refresh e emissão do `X-Device-Token`.
+Projeto do ecossistema de autenticação da Eickrono que concentra:
+
+- o runtime do servidor de autorização baseado em Keycloak customizado;
+- os artefatos de runtime do Keycloak organizados em `autorizacao/`;
+- a orquestração local via `docker compose`;
+- certificados, scripts e documentação operacional da stack.
+
+A decisão canônica de nomes dos serviços está em
+`documentacao/decisao_nomenclatura_repositorios_servicos.md`.
+
+Hoje a divisão correta é:
+
+- `eickrono-autenticacao-servidor`: servidor de autorização Keycloak customizado + infraestrutura operacional da stack;
+- `eickrono-identidade-servidor`: API pública de identidade/autenticação usada pelo app;
+- `eickrono-contas-servidor`: API de contas.
+
+## Documentação canônica
+
+A documentação principal permanece em `documentacao/`, mas o índice canônico do
+projeto agora fica neste `README.md`.
+
+### Diretriz vigente para o app móvel
+
+- cadastro, confirmação de e-mail, login e recuperação de senha entram pela autenticação;
+- o `identidade-servidor` não é mais a borda pública de senha ou código;
+- o `thimisu` recebe apenas provisionamento interno depois que a autenticação conclui as etapas sensíveis;
+- o `X-Device-Token` canônico nasce no próprio login público da autenticação;
+- qualquer explicação antiga centrada em navegador, `OIDC` interativo no app ou autenticação pública via `thimisu` deve ser considerada legada.
+
+### Guias principais
+
+- `documentacao/guia-arquitetura.md`: papel de cada serviço, contratos canônicos e segurança do fluxo
+- `documentacao/guia-seguranca-app-movel.md`: sinais locais do app, atestação e decisão de risco no backend
+- `documentacao/guia-desenvolvimento.md`: ambiente local, `MailHog`, Docker e rotina de desenvolvimento
+- `documentacao/guia-mtls.md`: malha `mTLS` do backchannel e geração de certificados
+- `documentacao/guia-operacao-producao.md`: runtime, operação e observabilidade
+- `documentacao/padrao-codigos-erro-correlacao-observabilidade.md`: padrão canônico de `error_code`, `flow_id`, logs mascarados, traces e auditoria
+- `documentacao/guia-cloudflare-tunnel-google-keycloak-dev.md`: exposição temporária do Keycloak local para Google OAuth brokerado
+- `documentacao/plano-padronizacao-realm-unico.md`: alvo arquitetural para padronizar o realm `OIDC`
+- `documentacao/matriz_migracao_autenticacao_identidade_thimisu_backend.md`: transição consolidada entre autenticação, identidade e `thimisu-backend`
+- `documentacao/analise_fronteiras_funcionais_autenticacao_identidade_thimisu_backend.md`: verificação objetiva das fronteiras funcionais
+- `documentacao/runbook_migracao_multiapp_schemas.md`: ordem prática da migração do legado em `public` para o modelo por schemas
+- `documentacao/backlog_cross_service_autenticacao_oidc_dispositivo.md`: backlog priorizado da coordenação entre app, autenticação, Keycloak e identidade-servidor
+
+## Orquestração canônica
+
+Os comandos operacionais de build, teste e subida da stack agora ficam
+centralizados neste repositório:
+
+- `make package-servicos`
+- `make test-servicos`
+- `make test-servicos-completo` (`Docker` acessível, porque a identidade usa `Testcontainers`)
+- `make compose-config`
+- `make up-dev`
+- `make up-hml`
+
+## Consulta de versão em runtime
+
+Para conferência operacional do que está rodando:
+
+- servidor de autorização/Keycloak customizado:
+  - `GET /realms/{realm}/eickrono-runtime/estado`
+  - resposta com `servico`, `status`, `versao` e `buildTime`
+
+Esse endpoint é atendido pelo provider customizado deste projeto e devolve a
+versão do artefato Java empacotado no runtime do Keycloak.
 
 ## Arquitetura canônica
 
@@ -14,17 +79,28 @@ Monorepo da plataforma de identidade, credenciais e sessão da Eickrono. Este re
 
 ## Responsabilidades deste repositório
 
-- expor os endpoints públicos de identidade para o app;
-- armazenar e validar credenciais;
-- enviar e validar códigos de e-mail;
-- aplicar rate limit, timeout, antifraude, lockout e auditoria;
-- emitir e renovar sessão;
-- decidir confiança do dispositivo e emitir o `X-Device-Token` já no login;
-- chamar o `eickrono-identidade-servidor` por backchannel para provisionar perfil de negócio depois da confirmação de e-mail.
+- empacotar o provider/JAR do servidor de autorização;
+- versionar `autorizacao/realms`, `autorizacao/temas` e `autorizacao/providers`;
+- sustentar o refresh com validação de `device token` por backchannel;
+- fornecer a infraestrutura local de `docker compose`, `MailHog` e certificados;
+- documentar a operação da stack de autenticação.
+
+Os endpoints públicos usados pelo app ficam no projeto irmão
+`eickrono-identidade-servidor`.
+
+## Papel na arquitetura canônica
+
+No fluxo móvel atual:
+
+- a borda pública do app é o `eickrono-identidade-servidor`;
+- este repositório sustenta a parte de Keycloak/RH-SSO do ecossistema;
+- o `identidade-servidor` não recebe senha do app;
+- login, recuperação de senha e demais fluxos sensíveis continuam centralizados na API pública de identidade;
+- o provider daqui consulta a identidade por `mTLS` no refresh protegido por `device token`.
 
 ## Backchannel para o servidor de identidade
 
-O fluxo canônico de cadastro agora parte da autenticação para o `eickrono-identidade-servidor`:
+O fluxo canônico de cadastro agora parte da autenticação para o `eickrono-thimisu-backend`:
 
 1. o app cria um cadastro pendente na autenticação;
 2. a autenticação envia o código de confirmação por e-mail;
@@ -76,24 +152,32 @@ No desenho canônico atual:
 
 Os containers Java locais não recompilam código automaticamente. A imagem da API de identidade copia o `jar` já empacotado em `target/`, então alteração em Java sem novo `package` deixa o ambiente rodando código antigo.
 
-Quando mudar a API de identidade:
+Quando mudar qualquer um dos três projetos da stack:
 
-1. `mvn -q -pl modulos/api-identidade-eickrono -am package -DskipTests`
-2. `cd infraestrutura/dev && docker compose up -d --build api-identidade-eickrono`
+1. `make package-servicos`
+2. `make up-dev`
 
-Quando mudar customizações do Keycloak em `modulos/servidor-autorizacao-eickrono`:
+Se precisar agir isoladamente em um projeto:
 
-1. `mvn -q -pl modulos/servidor-autorizacao-eickrono -am package -DskipTests`
-2. `cd infraestrutura/dev && docker compose up -d servidor-autorizacao`
+- identidade: `cd ../eickrono-identidade-servidor && mvn -q package -DskipTests`
+- contas: `cd ../eickrono-contas-servidor && mvn -q package -DskipTests`
+- autenticação/autorização: `mvn -q package -DskipTests`
 
 Se o problema observado no app divergir do código-fonte atual, a primeira hipótese operacional deve ser container desatualizado.
 
 ## Ambientes locais
 
-Em `dev` e `hml`, o envio de e-mails usa `MailHog`:
+Em `dev` e `hml`, o `docker compose` inclui `MailHog` para testes locais de e-mail:
 
 - `dev`: SMTP `localhost:1025`, UI `http://localhost:8025`
 - `hml`: SMTP `localhost:11025`, UI `http://localhost:18025`
+
+No `dev`, se o `.env` ja estiver apontando para um SMTP real, ainda e possivel
+forcar o uso do MailHog sem alterar essas credenciais:
+
+1. `cd infraestrutura/dev`
+2. `docker compose -f docker-compose.yml -f docker-compose.email-fake.yml up -d --build smtp-teste api-identidade-eickrono`
+3. abrir `http://localhost:8025`
 
 O `docker compose` local usa PostgreSQL compartilhado já existente no Docker:
 
@@ -121,10 +205,25 @@ Proteção:
 
 ## Leitura recomendada
 
-- `documentacao/README.md`
 - `documentacao/guia-arquitetura.md`
+- `documentacao/fluxogramas_fluxos_publicos_estado_atual.md`
+- `documentacao/fluxogramas_fluxos_publicos_regra_funcional_em_fechamento.md`
+- `documentacao/especificacao_schema_db01_db02_db03_fluxos_publicos.md`
+- `documentacao/especificacao_avatar_social_e_avatar_preferido_multiapp.md`
+- `documentacao/padrao-codigos-erro-correlacao-observabilidade.md`
+- `documentacao/matriz_migracao_autenticacao_identidade_thimisu_backend.md`
+- `documentacao/analise_fronteiras_funcionais_autenticacao_identidade_thimisu_backend.md`
+- `documentacao/plano_migrations_v30_v36_db01_db02_db03_local_primeiro.md`
+- `documentacao/mapeamento_tdd_componentes_migracoes_fluxos_publicos.md`
+- `documentacao/runbook_migracao_multiapp_schemas.md`
+- `documentacao/backlog_cross_service_autenticacao_oidc_dispositivo.md`
 - `documentacao/guia-seguranca-app-movel.md`
 - `documentacao/guia-desenvolvimento.md`
 - `documentacao/guia-mtls.md`
+- `documentacao/guia-operacao-producao.md`
+- `documentacao/checklist-seguranca-fapi.md`
+- `documentacao/guia-cloudflare-tunnel-google-keycloak-dev.md`
+- `documentacao/plano-padronizacao-realm-unico.md`
+- `infraestrutura/prod/pipeline/README.md`
 
 > Toda a documentação, comentários e identificadores permanecem em português do Brasil, conforme diretriz organizacional.

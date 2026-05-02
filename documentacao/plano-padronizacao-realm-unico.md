@@ -21,6 +21,7 @@ Exemplos correntes:
 
 - `http://localhost:8080/realms/eickrono/...`
 - `http://localhost:18080/realms/eickrono/...`
+- `https://oidc-hml.eickrono.store/realms/eickrono/...`
 - `https://oidc.eickrono.com/realms/eickrono/...`
 
 O alvo desejado e simplificar o desenho para que o host separe o ambiente e o realm permaneça estavel:
@@ -28,6 +29,11 @@ O alvo desejado e simplificar o desenho para que o host separe o ambiente e o re
 - `https://oidc-dev.eickrono.com/realms/eickrono/...`
 - `https://oidc-hml.eickrono.com/realms/eickrono/...`
 - `https://oidc.eickrono.com/realms/eickrono/...`
+
+Observacao importante:
+
+- no `hml` ativo hoje na AWS, o host publico aplicado continua `https://oidc-hml.eickrono.store/realms/eickrono/...`;
+- `https://oidc-hml.eickrono.com/realms/eickrono/...` permanece como alvo futuro de consolidacao.
 
 ## O que e `issuer`
 
@@ -59,9 +65,9 @@ O runtime ja foi padronizado para o realm unico `eickrono`.
 
 Os exports continuam separados por ambiente apenas no nome do arquivo:
 
-- `modulos/servidor-autorizacao-eickrono/realms/desenvolvimento-realm.json`
-- `modulos/servidor-autorizacao-eickrono/realms/homologacao-realm.json`
-- `modulos/servidor-autorizacao-eickrono/realms/producao-realm.json`
+- `../autorizacao/realms/desenvolvimento-realm.json`
+- `../autorizacao/realms/homologacao-realm.json`
+- `../autorizacao/realms/producao-realm.json`
 
 Cada ambiente importa apenas o seu arquivo de export, mas todos com o mesmo nome logico de realm.
 
@@ -69,6 +75,14 @@ Cada ambiente importa apenas o seu arquivo de export, mas todos com o mesmo nome
 
 ### Hosts
 
+- superficie do produto Thimisu:
+  - `thimisu-dev.eickrono.com`
+  - `thimisu-hml.eickrono.com`
+  - `thimisu.eickrono.com`
+- backend de dominio do Thimisu:
+  - `thimisu-backend-dev.eickrono.com`
+  - `thimisu-backend-hml.eickrono.com`
+  - `thimisu-backend.eickrono.com`
 - API identidade:
   - `id-dev.eickrono.com`
   - `id-hml.eickrono.com`
@@ -89,6 +103,11 @@ Enquanto o dominio principal ainda nao estiver pronto para receber `dev` e `hml`
   - `id-hml.eickrono.store`
   - `oidc-hml.eickrono.store`
 
+Para o backend de dominio do Thimisu, a convencao canonica ja esta aprovada,
+mas a publicacao DNS transitoria ainda pode ficar em aberto por ambiente.
+Enquanto isso, o app usa `CONFIG_THIMISU_BASE_URL` para apontar o host correto
+sem cristalizar um dominio errado nos assets.
+
 Esses hosts transitorios existem para reduzir risco operacional durante Cloudflare Tunnel, DNS e configuracao inicial dos brokers.
 Eles nao mudam o alvo canônico final, que continua concentrado em `eickrono.com`.
 
@@ -108,6 +127,7 @@ Observacao:
 
 - `issuer` OIDC nao deve reutilizar o host da API de identidade;
 - no desenho atual, `prod` usa `https://oidc.eickrono.com/realms/eickrono` como autoridade OIDC canonica;
+- no `hml` ativo hoje, o `issuer` efetivo e `https://oidc-hml.eickrono.store/realms/eickrono`;
 - a API de identidade pode continuar exposta em outro host sem alterar o `iss` dos tokens.
 
 ### Redirect URIs alvo dos brokers
@@ -118,6 +138,13 @@ Observacao:
 
 O mesmo padrao vale para `apple`, `facebook`, `linkedin` e `instagram`.
 
+Enquanto o `hml` ainda estiver em `eickrono.store`, os callbacks publicos reais que precisam existir nos consoles externos sao:
+
+- `https://oidc-hml.eickrono.store/realms/eickrono/broker/google/endpoint`
+- `https://oidc-hml.eickrono.store/realms/eickrono/broker/apple/endpoint`
+- `https://oidc-hml.eickrono.store/realms/eickrono/broker/facebook/endpoint`
+- `https://oidc-hml.eickrono.store/realms/eickrono/broker/linkedin/endpoint`
+
 ## Impacto tecnico
 
 ### 1. Realm exports
@@ -126,9 +153,9 @@ Precisam ser padronizados os nomes internos dos realms exportados.
 
 Arquivos impactados:
 
-- `modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`
-- `modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`
-- `modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`
+- `../autorizacao/realms/desenvolvimento-realm.json`
+- `../autorizacao/realms/homologacao-realm.json`
+- `../autorizacao/realms/producao-realm.json`
 
 Pontos de atencao:
 
@@ -142,13 +169,14 @@ Pontos de atencao:
 Arquivos impactados:
 
 - `eickrono-thimisu/eickrono-thimisu-app/assets/config/app_config.dev.json`
-- `eickrono-thimisu/eickrono-thimisu-app/assets/config/app_config.staging.json`
+- `eickrono-thimisu/eickrono-thimisu-app/assets/config/app_config.hml.json`
 - `eickrono-thimisu/eickrono-thimisu-app/assets/config/app_config.prod.json`
 
 Pontos de atencao:
 
 - `auth.oidc.issuer`
 - `servicos.identidade.baseUrl`
+- `servicos.thimisu.baseUrl`
 - qualquer referencia antiga a host/realm divergente
 
 ### 3. APIs Spring Boot
@@ -165,7 +193,7 @@ Pontos que precisam ser revisados:
 
 Todos os provedores sociais configurados no Keycloak passam a exigir callbacks com o novo realm unico:
 
-- `.../realms/eickrono/broker/<alias>/endpoint`
+- `.../autorizacao/realms/eickrono/broker/<alias>/endpoint`
 
 ### 5. Scripts e documentacao operacional
 
@@ -204,5 +232,12 @@ Ela precisa ser tratada como mudanca coordenada de contrato OIDC.
 Status atual desta tarefa:
 
 - aprovada conceitualmente;
-- ainda nao implementada no runtime;
+- primeiro corte de runtime ja aplicado:
+  - `api-identidade-eickrono` e `api-contas-eickrono` em `hml` agora usam `https://oidc-hml.eickrono.store/realms/eickrono`;
+  - o `thimisu-backend` em `hml` e `prd` agora usa `realm=eickrono` com `issuer` OIDC separado do host da API;
+  - o app em `prod` agora aponta `servicos.identidade.baseUrl` para `https://id.eickrono.com/`;
+- o app agora aceita sobrescritas independentes de bootstrap para `CONFIG_IDENTIDADE_BASE_URL`, `CONFIG_THIMISU_BASE_URL` e `CONFIG_OIDC_ISSUER`;
+- a convencao canonica do backend publico do dominio ficou aprovada como `thimisu-backend-*`;
+- a leitura do que ja pode migrar e do que ainda continua alias legado ficou consolidada em `matriz_migracao_autenticacao_identidade_thimisu_backend.md`;
+- `hml` do app continua local por padrao ate o DNS/runtime desse backend ser publicado no ambiente;
 - documentada como alvo arquitetural.

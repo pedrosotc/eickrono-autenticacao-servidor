@@ -41,3 +41,49 @@ Este guia descreve processos para operar o ecossistema **Eickrono Autenticação
 - **Políticas de acesso Cloudflare:** whitelist de IPs e autenticação de operadores.  
 - **Logging mascarado:** garantir que dados sensíveis permaneçam protegidos; mascaramento implementado nas APIs e no Keycloak.  
 - **Reviews periódicos:** executar o `checklist-seguranca-fapi.md` durante janelas de manutenção e antes de releases.
+
+## Handoff atual do Apple broker
+
+O fluxo atual de `Sign in with Apple` do app `Thimisu` em produção depende da materialização destes segredos no runtime do Keycloak:
+
+- `KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_ID=com.eickrono.thimisu.oidc.prd`
+- `KEYCLOAK_IDP_THIMISU_APPLE_CLIENT_SECRET_JWT=<jwt_gerado_localmente_com_a_key_principal>`
+
+Fonte operacional local:
+
+- [prod keycloak-apple.env](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/.local-secrets/apple/eickrono-oidc/prod/keycloak-apple.env:1)
+
+Pontos de controle depois do deploy:
+
+- o Keycloak de produção precisa receber esses valores antes do `render-realms.sh` materializar o realm;
+- o realm esperado é `eickrono`;
+- o broker `apple` deve responder com `config.clientId = com.eickrono.thimisu.oidc.prd`;
+- qualquer rotação futura do JWT deve reaproveitar a mesma key `Principal`, mudando apenas o token materializado na infraestrutura.
+
+### Validação administrativa pós-deploy
+
+Depois de o segredo ser materializado e o Keycloak ser reiniciado, execute dentro do runtime do Keycloak:
+
+```bash
+/opt/keycloak/bin/kcadm.sh config credentials \
+  --config /tmp/kcadm-prod.config \
+  --server http://localhost:8080 \
+  --realm master \
+  --user "$KEYCLOAK_ADMIN" \
+  --password "$KEYCLOAK_ADMIN_PASSWORD"
+
+/opt/keycloak/bin/kcadm.sh get realms \
+  --config /tmp/kcadm-prod.config
+
+/opt/keycloak/bin/kcadm.sh get identity-provider/instances/apple \
+  -r eickrono \
+  --config /tmp/kcadm-prod.config
+```
+
+Validar manualmente:
+
+- `eickrono` aparece na lista de realms;
+- o broker retornado tem `alias = apple`;
+- `enabled = true`;
+- `config.clientId = com.eickrono.thimisu.oidc.prd`;
+- `config.clientSecret` está mascarado.

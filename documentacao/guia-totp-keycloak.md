@@ -6,7 +6,7 @@ Status: proposta teórica inicial em 2026-04-04.
 
 Descrever como a Eickrono deve introduzir TOTP no ecossistema atual sem quebrar a arquitetura vigente:
 
-- o `api-identidade-eickrono` continua sendo a borda do aplicativo móvel;
+- o `eickrono-identidade-servidor` continua sendo a borda do aplicativo móvel;
 - o Keycloak continua sendo a autoridade de credencial;
 - o aplicativo não passa a depender de telas web do domínio de autenticação como fluxo principal;
 - a integração interna segue o padrão já adotado de `mTLS` + JWT de serviço + timeout curto.
@@ -14,10 +14,10 @@ Descrever como a Eickrono deve introduzir TOTP no ecossistema atual sem quebrar 
 ## Resumo executivo
 
 - O Keycloak já está parcialmente preparado para TOTP: a ação obrigatória `CONFIGURE_TOTP` já está habilitada nos domínios versionados.
-- Isso ainda não basta para o aplicativo móvel atual, porque o login público passa pelo `api-identidade-eickrono`, que autentica no Keycloak via `grant_type=password` e hoje envia apenas `username` e `password`.
+- Isso ainda não basta para o aplicativo móvel atual, porque o login público passa pelo `eickrono-identidade-servidor`, que autentica no Keycloak via `grant_type=password` e hoje envia apenas `username` e `password`.
 - Se um usuário com TOTP habilitado tentar logar hoje, a tendência é o fluxo falhar como se fossem credenciais inválidas, porque o backend atual não envia `otp`/`totp` nem distingue "senha errada" de "TOTP faltando".
 - O TOTP deve entrar somente depois de a conta estar liberada, isto é, após verificação de e-mail e, quando a política do produto exigir, após verificação de telefone.
-- A melhor direção para a Eickrono é manter o segredo TOTP e a validação final dentro do Keycloak, mas expor o provisionamento e a orquestração ao aplicativo via `api-identidade-eickrono`.
+- A melhor direção para a Eickrono é manter o segredo TOTP e a validação final dentro do Keycloak, mas expor o provisionamento e a orquestração ao aplicativo via `eickrono-identidade-servidor`.
 - Para interoperabilidade real com Google Authenticator, Microsoft Authenticator e o app Senhas da Apple, a política deve ficar em `TOTP + SHA1 + 6 dígitos + período de 30s + reusableCode=false`.
 - O backend deve devolver ao aplicativo os dados de provisionamento em formato canônico (`otpauth://...` + segredo Base32), para que ele possa mostrar código QR, copiar a chave manual e, opcionalmente, tentar abrir um autenticador instalado no mesmo aparelho. No iOS, o aplicativo também pode derivar a variante `apple-otpauth://...` para integração com o app Senhas.
 - Código QR e chave manual devem ser o fluxo canônico. "Abrir aplicativo autenticador" deve ser apenas conveniência, não contrato principal.
@@ -27,7 +27,7 @@ Descrever como a Eickrono deve introduzir TOTP no ecossistema atual sem quebrar 
 
 ### Keycloak
 
-O módulo [`modulos/servidor-autorizacao-eickrono`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono) já customiza o Keycloak com SPI própria para:
+O projeto [`eickrono-autenticacao-servidor`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/README.md) já customiza o Keycloak com SPI própria para:
 
 - derivação de senha no fluxo de navegador;
 - derivação de senha no registro;
@@ -36,9 +36,9 @@ O módulo [`modulos/servidor-autorizacao-eickrono`](/Users/thiago/Desenvolvedor/
 
 Os domínios versionados já têm `CONFIGURE_TOTP` habilitado em:
 
-- [`modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json)
-- [`modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json)
-- [`modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/eickrono-realm.json)
+- [`desenvolvimento-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/desenvolvimento-realm.json)
+- [`homologacao-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/homologacao-realm.json)
+- [`producao-realm.json`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/producao-realm.json)
 
 Ao mesmo tempo, o fluxo de navegador versionado da Eickrono hoje contém apenas o formulário customizado de usuário/senha, sem o subfluxo condicional de 2FA que existe no fluxo de navegador padrão do Keycloak.
 
@@ -46,8 +46,8 @@ Ao mesmo tempo, o fluxo de navegador versionado da Eickrono hoje contém apenas 
 
 O login móvel atual passa por:
 
-- [`modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/apresentacao/api/FluxoPublicoController.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/apresentacao/api/FluxoPublicoController.java)
-- [`modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/aplicacao/servico/AutenticacaoSessaoInternaServico.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/aplicacao/servico/AutenticacaoSessaoInternaServico.java)
+- [`FluxoPublicoController.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/src/main/java/com/eickrono/api/identidade/apresentacao/api/FluxoPublicoController.java)
+- [`AutenticacaoSessaoInternaServico.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/src/main/java/com/eickrono/api/identidade/aplicacao/servico/AutenticacaoSessaoInternaServico.java)
 
 Hoje esse serviço monta uma chamada de token com:
 
@@ -344,7 +344,7 @@ Assim a API de identidade pode mapear corretamente para respostas do aplicativo 
 
 ### No servidor de autorização
 
-Criar no módulo [`modulos/servidor-autorizacao-eickrono`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono):
+Criar no projeto [`eickrono-autenticacao-servidor`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/README.md):
 
 - um endpoint interno de provisionamento TOTP;
 - um endpoint interno de confirmação TOTP;
@@ -397,7 +397,7 @@ Se a demanda imediata é só obrigatoriedade de TOTP por sistema, a opção mín
 
 ### Na API de identidade
 
-Evoluir [`modulos/api-identidade-eickrono`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono) para:
+Evoluir [`eickrono-identidade-servidor`](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/README.md) para:
 
 - expor endpoints autenticados de ativação/desativação de TOTP;
 - orquestrar o provisionamento com o servidor de autorização;

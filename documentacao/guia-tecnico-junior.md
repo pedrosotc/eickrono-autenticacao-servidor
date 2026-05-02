@@ -2,13 +2,14 @@
 
 Este documento introduz a arquitetura e o funcionamento da plataforma de autenticação da Eickrono para quem está iniciando na equipe. O objetivo é explicar o que cada parte do sistema faz, como os componentes se comunicam e quais termos técnicos você verá com frequência. Sempre que precisar de mais detalhes, consulte os guias especializados na pasta `documentacao/`.
 
-## Visão geral do monorepo
+## Visão geral do repositório
 
-- **Linguagem e build**: Java 21 com Maven multi-módulo.
+- **Linguagem e build**: Java 21 com Maven.
 - **Componentes principais**:
-  - `modulos/servidor-autorizacao-eickrono`: customizações do Keycloak/RH-SSO (temas, realms, SPIs).
-  - `modulos/api-identidade-eickrono`: API de identidade (perfil, vínculos sociais) que valida tokens JWT.
-  - `modulos/api-contas-eickrono`: API de contas e transações, com escopos específicos e auditoria.
+  - `src/`: código Java do provider e das extensões do Keycloak.
+  - `autorizacao/`: artefatos de runtime do Keycloak (realms, tema, políticas e scripts).
+  - `../eickrono-identidade-servidor`: API de identidade (perfil, vínculos sociais) que valida tokens JWT.
+  - `../eickrono-contas-servidor`: API de contas e transações, com escopos específicos e auditoria.
   - `infraestrutura/`: scripts para ambientes locais (dev/hml) e pastas guia para produção (AWS + Cloudflare).
 - **Documentação**: guias de arquitetura, desenvolvimento, operação e checklist FAPI em `documentacao/`.
 
@@ -79,7 +80,7 @@ O desenho canônico atual não usa uma tela dedicada de registro de dispositivo 
 2. Execute `mvn verify` na raiz para baixar dependências e rodar testes.
 3. Inicie o ambiente local com `docker compose up` em `infraestrutura/dev` (Keycloak + PostgreSQL + APIs).
 4. Acesse `http://localhost:8081/actuator/health` e `http://localhost:8082/actuator/health` para validar as APIs.
-5. Use os realms em `modulos/servidor-autorizacao-eickrono/realms` para importar as configurações do Keycloak local.
+5. Use os realms em `autorizacao/realms` para importar as configurações do Keycloak local.
 
 ## Boas práticas do time
 
@@ -116,7 +117,7 @@ O desenho canônico atual não usa uma tela dedicada de registro de dispositivo 
 - **Secrets Manager**: armazena segredos (senhas, certificados) com rotação e controle de acesso.
 - **SPI (Service Provider Interface)**: ponto de extensão do Keycloak usado para adicionar comportamentos personalizados.
 - **state**: valor gerado pelo cliente para garantir que a resposta de autorização corresponde à requisição original.
-- **Temas**: customizações de layout/aparência do Keycloak (login, páginas de erro) armazenadas em `modulos/servidor-autorizacao-eickrono/temas-login-ptbr`.
+- **Temas**: customizações de layout/aparência do Keycloak (login, páginas de erro) armazenadas em `autorizacao/temas/login-ptbr`.
 - **CloudWatch**: serviço de monitoramento da AWS que recebe logs e métricas do ambiente.
 - **MFA (Multi-Factor Authentication)**: autenticação com múltiplos fatores (senha + token, biometria ou WebAuthn).
 - **Realm**: contexto lógico do Keycloak que agrupa usuários, clientes, escopos e configurações. Neste repositório o nome padronizado é `eickrono`, com separação de ambiente feita pelo host e pela implantação.

@@ -1,6 +1,6 @@
 # Guia de depuração com Eclipse
 
-Este guia mostra como preparar os ambientes Docker (desenvolvimento e homologação) e configurar o Eclipse para depurar os módulos Java do monorepo **Eickrono Autenticação**. O passo a passo assume nível júnior e cobre desde o build até o uso dos endpoints Swagger para validação manual.
+Este guia mostra como preparar os ambientes Docker (desenvolvimento e homologação) e configurar o Eclipse para depurar os projetos Java do ecossistema **Eickrono Autenticação**. O passo a passo assume nível júnior e cobre desde o build até o uso dos endpoints Swagger para validação manual.
 
 ## 1. Pré-requisitos locais
 
@@ -8,17 +8,18 @@ Este guia mostra como preparar os ambientes Docker (desenvolvimento e homologaç
 2. Docker Desktop ou Docker Engine + Docker Compose Plugin (`docker compose version`).
 3. Eclipse IDE for Enterprise Java Developers 2023‑12 ou superior (com suporte a Maven e Remote Java Application).
 
-> Dica: ao importar o monorepo no Eclipse, use `File > Import... > Existing Maven Projects`, apontando para a raiz `eickrono-autenticacao-servidor`. Isso cria projetos separados para cada módulo, facilitando o vínculo nas configurações de depuração.
+> Dica: importe `eickrono-identidade-servidor`, `eickrono-contas-servidor` e `eickrono-autenticacao-servidor` como projetos Maven separados. O próprio `eickrono-autenticacao-servidor` agora contém o provider do Keycloak, os realms e também a infraestrutura operacional local.
 
 ## 2. Build dos módulos antes de subir os containers
 
 Os Dockerfiles das APIs esperam que os artefatos `.jar` já tenham sido construídos. Rode uma vez (após cada mudança de código) o comando abaixo na raiz do repositório:
 
 ```bash
-mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am clean package -DskipTests
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor && mvn clean package -DskipTests
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-contas-servidor && mvn clean package -DskipTests
 ```
 
-Os artefatos serão gerados em `modulos/<nome>/target/`, prontos para serem copiados pelas imagens Docker.
+Os artefatos serão gerados em `target/`, prontos para serem copiados ou montados pelas imagens Docker.
 
 > Se houver atualização de dependências Java (por exemplo, mudança de versão do JDK ou adição de bibliotecas nativas), repita o `clean package` para garantir que os JARs reflitam a nova configuração e atualize os Dockerfiles conforme descrito na seção 8.
 
@@ -70,7 +71,7 @@ Os containers reutilizam o mesmo par de portas de depuração. Evite subir os am
 
 ### Checklist antes de anexar o depurador
 
-1. Construa os artefatos atualizados (`mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am package -DskipTests`). O Dockerfile copia o JAR de `target`, portanto ele precisa estar fresco.
+1. Construa os artefatos atualizados nos repositórios standalone. O Dockerfile/compose usa os JARs em `target`, então eles precisam estar frescos.
 2. Suba ou reinicie o serviço no Docker para aplicar o `JAVA_OPTS` com o agente de debug:
    ```bash
    cd infraestrutura/dev        # ou infraestrutura/hml
@@ -91,7 +92,7 @@ Os containers reutilizam o mesmo par de portas de depuração. Evite subir os am
 3. Em `Remote Java Application`, clique em `New`.
 4. Preencha:
    - **Name:** escolha algo como `API Identidade (Docker)` ou `API Contas (Docker)`.
-   - **Project:** selecione `api-identidade-eickrono` ou `api-contas-eickrono`.
+   - **Project:** selecione `eickrono-identidade-servidor` ou `eickrono-contas-servidor`.
    - **Connection Type:** `Standard (Socket Attach)`.
    - **Host:** `localhost`.
    - **Port:** `5005` para Identidade, `5006` para Contas (ou o valor configurado nos `.env`).
@@ -139,7 +140,7 @@ Observações:
 
 - Os endpoints OpenAPI JSON estão disponíveis em `/v3/api-docs`.
 - Em homologação (`hml`), o Swagger exige autenticação Basic: clique em “Authorize” (ícone do cadeado) e informe usuário/senha acima.
-- Para alterar usuário ou senha de homologação, edite as chaves `documentacao.swagger.usuario` e `documentacao.swagger.senha` em `modulos/api-identidade-eickrono/src/main/resources/application-hml.yml` e `modulos/api-contas-eickrono/src/main/resources/application-hml.yml`, rode `mvn package` e reconstrua os containers (`docker compose build` / `up -d`).
+- Para alterar usuário ou senha de homologação, edite as chaves `documentacao.swagger.usuario` e `documentacao.swagger.senha` em `../eickrono-identidade-servidor/src/main/resources/application-hml.yml` e `../eickrono-contas-servidor/src/main/resources/application-hml.yml`, rode `mvn package` e reconstrua os containers (`docker compose build` / `up -d`).
 - Tanto em dev quanto em hml, os endpoints protegidos requerem um JWT válido: após se autenticar, clique em “Authorize”, selecione `bearer-jwt` e informe `Bearer <token>`. Você pode obter tokens via Keycloak (ex.: fluxo Authorization Code pelo app/BFF ou `curl` no `token` endpoint com cliente confidencial configurado).
 - Para facilitar testes locais, adicione tokens recentes na aba `Authorize`. Se mudar o token durante a sessão, clique em “Logout” no modal antes de colar o novo valor.
 
@@ -148,9 +149,9 @@ Observações:
 Para evitar erros de “módulo não encontrado” ou diretório incorreto, execute os comandos sempre a partir da raiz do repositório:
 
 ```bash
-cd /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor
-mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am clean package
-cd infraestrutura/dev
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor && mvn clean package
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-contas-servidor && mvn clean package
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev
 docker compose build api-identidade-eickrono api-contas-eickrono
 docker compose up -d api-identidade-eickrono api-contas-eickrono
 ```
@@ -181,8 +182,8 @@ curl -X POST http://localhost:8080/realms/eickrono/protocol/openid-connect/token
 
 ## 7. Fluxo resumido para o dia a dia
 
-1. `mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am package -DskipTests`
-2. `cd infraestrutura/dev` (ou `hml`) e `docker compose up --build -d`
+1. Empacote `eickrono-identidade-servidor` e `eickrono-contas-servidor` com `mvn package -DskipTests`
+2. `cd /Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev` (ou `hml`) e `docker compose up --build -d`
 3. Criar/abrir a configuração de depuração remota no Eclipse e conectar.
 4. Usar o Swagger correspondente para exercitar as rotas e validar os breakpoints.
 5. Finalizado o debug, `docker compose down -v` e feche a sessão no Eclipse.
@@ -195,11 +196,12 @@ Seguindo estes passos, você terá o ambiente completo pronto para depurar, vali
 
 1. Ajuste a versão no `pom.xml` raíz (propriedade `java.version`) e nos módulos se houver override.
 2. Atualize os Dockerfiles que usam uma imagem base Temurin:
-   - Em `modulos/api-identidade-eickrono/Dockerfile` e `modulos/api-contas-eickrono/Dockerfile`, substitua `eclipse-temurin:21-jre-alpine` pela tag correspondente (ex.: `22-jre-alpine`).
+   - Em `../eickrono-identidade-servidor/Dockerfile` e `../eickrono-contas-servidor/Dockerfile`, substitua `eclipse-temurin:21-jre-alpine` pela tag correspondente (ex.: `22-jre-alpine`).
    - Se o Keycloak exigir uma versão específica, valide nas notas oficiais antes de alterar o Docker Compose.
 3. Refaça o build local:
    ```bash
-   mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am clean package
+   cd /Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor && mvn clean package
+   cd /Users/thiago/Desenvolvedor/flutter/eickrono-contas-servidor && mvn clean package
    ```
 4. Recrie as imagens Docker com cache limpo (dentro da pasta `infraestrutura/<ambiente>`):
    ```bash
@@ -222,7 +224,8 @@ Use estes comandos para renovar o ambiente sem depender da GUI do Docker Desktop
 # (executar dentro de infraestrutura/dev ou infraestrutura/hml)
 
 # Atualiza os JARs
-mvn -pl modulos/api-identidade-eickrono,modulos/api-contas-eickrono -am package -DskipTests
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor && mvn package -DskipTests
+cd /Users/thiago/Desenvolvedor/flutter/eickrono-contas-servidor && mvn package -DskipTests
 
 # Reconstrói as imagens (após mudanças no Dockerfile ou em dependências)
 docker compose build api-identidade-eickrono api-contas-eickrono

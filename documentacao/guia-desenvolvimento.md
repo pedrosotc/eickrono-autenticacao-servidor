@@ -1,6 +1,6 @@
 # Guia de Desenvolvimento
 
-Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário para contribuir com o monorepo **Eickrono Autenticação**.
+Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário para contribuir com a stack **Eickrono Autenticação**.
 
 ## Requisitos locais
 
@@ -19,23 +19,51 @@ Este guia orienta a preparação do ambiente local e o fluxo de trabalho diário
 4. Execute `docker compose up` em `infraestrutura/dev` para subir Keycloak, PostgreSQL e as APIs.  
 5. Acesse `http://localhost:8081/actuator/health` e `http://localhost:8082/actuator/health` para verificar se as APIs estão saudáveis.
 
+Estrutura prática do repositório:
+
+- `src/`: código Java do provider do Keycloak
+- `autorizacao/`: realms, tema e artefatos externos montados no container
+- `infraestrutura/`: `docker compose`, certificados e variáveis por ambiente
+- `documentacao/`: guias operacionais e arquiteturais
+
+Atalho operacional canônico:
+
+- `make package-servicos`
+- `make compose-config`
+- `make up-dev`
+
 ### Regra operacional importante do `docker compose`
 
 No ambiente local, os serviços Java rodam a partir de artefatos já empacotados:
 
-- `api-identidade-eickrono` usa a imagem construída com o `jar` em `modulos/api-identidade-eickrono/target/`;
-- `servidor-autorizacao-eickrono` é montado dentro do Keycloak a partir do `jar` em `modulos/servidor-autorizacao-eickrono/target/`.
+- `eickrono-identidade-servidor` fornece o `jar` da API de identidade;
+- `eickrono-contas-servidor` fornece o `jar` da API de contas;
+- `eickrono-autenticacao-servidor` fornece o `jar` montado dentro do Keycloak.
 
 Por isso, alteração de código sem novo `package` e sem recriar o serviço deixa o container executando a versão antiga.
 
 Comandos canônicos:
 
+- empacotar os três projetos da stack:
+  - `make package-servicos`
+- testar a bateria representativa dos três projetos:
+  - `make test-servicos`
+- testar a suíte completa dos três serviços:
+  - `make test-servicos-completo`
+  - exige `Docker` acessível, porque a identidade sobe infraestrutura via `Testcontainers`
+- validar os `docker compose` locais:
+  - `make compose-config`
+- subir a stack `dev`:
+  - `make up-dev`
+
+Se precisar agir isoladamente em um serviço:
+
 - API identidade:
-  - `mvn -q -pl modulos/api-identidade-eickrono -am package -DskipTests`
-  - `cd infraestrutura/dev && docker compose up -d --build api-identidade-eickrono`
-- customização do servidor de autorização:
-  - `mvn -q -pl modulos/servidor-autorizacao-eickrono -am package -DskipTests`
-  - `cd infraestrutura/dev && docker compose up -d servidor-autorizacao`
+  - `cd ../eickrono-identidade-servidor && mvn -q package -DskipTests`
+- API contas:
+  - `cd ../eickrono-contas-servidor && mvn -q package -DskipTests`
+- autenticação/autorização:
+  - `mvn -q package -DskipTests`
 
 Se um comportamento visto no app não bater com o código atual, valide primeiro se o container local foi realmente recriado.
 
@@ -50,7 +78,7 @@ Observações importantes do fluxo canônico:
 - se o backend exigir nova validação de contato, o app deve reutilizar a tela já existente de verificação;
 - em `docker compose`, a própria API de identidade precisa apontar o Keycloak interno para `http://servidor-autorizacao:8080`, não para `localhost`;
 - a derivação da senha efetiva no servidor de autorização usa apenas `pepper + createdTimestamp` do usuário no Keycloak, e não mais `data_nascimento`.
-- em `dev` e `hml`, o cadastro nativo agora aponta para um SMTP local de teste (`MailHog`) dentro do `docker compose`.
+- em `dev` e `hml`, o `docker compose` já inclui um SMTP local de teste (`MailHog`), mas o `dev` pode ser sobrescrito para SMTP real via `.env`.
 - quando `IDENTIDADE_CADASTRO_EMAIL_FORNECEDOR=smtp`, o envio passa a usar `JavaMailSender` com as propriedades `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` e derivados.
 - os `docker-compose` locais agora sobem `MailHog` para capturar esses e-mails:
   - `dev`: UI em `http://localhost:8025`
@@ -58,13 +86,13 @@ Observações importantes do fluxo canônico:
 
 ## Como ver códigos de e-mail no MailHog
 
-Quando cadastro ou recuperação de senha disparam envio de e-mail, o `eickrono-autenticacao-servidor` entrega a mensagem para um SMTP fake local (`MailHog`), não para uma caixa real.
+Quando cadastro ou recuperação de senha disparam envio de e-mail, o `eickrono-autenticacao-servidor` pode entregar a mensagem para um SMTP fake local (`MailHog`) ou para um SMTP real, dependendo da composição usada no `dev`.
 
 Fluxo prático em `dev`:
 
-1. suba o ambiente local do auth:
+1. suba o ambiente local do auth com o override fake:
    - `cd infraestrutura/dev`
-   - `docker compose up -d`
+   - `docker compose -f docker-compose.yml -f docker-compose.email-fake.yml up -d`
 2. confirme que o `MailHog` está ativo:
    - `docker ps | rg eickrono-mailhog-dev`
 3. execute o fluxo do app até a tela de verificação do código;
@@ -93,8 +121,9 @@ O backend já suporta SMTP real. O que prendia o ambiente local ao MailHog era a
 
 Agora:
 
-- se você não definir nada, o ambiente continua usando o MailHog local;
-- se você preencher `SPRING_MAIL_*` e `IDENTIDADE_CADASTRO_EMAIL_*` no `.env`, a API passa a usar esse SMTP real sem depender do MailHog.
+- se você não sobrescrever nada e o `.env` não trouxer SMTP real, o ambiente usa o MailHog local;
+- se você preencher `SPRING_MAIL_*` e `IDENTIDADE_CADASTRO_EMAIL_*` no `.env`, a API passa a usar esse SMTP real sem depender do MailHog;
+- se o `.env` já estiver com SMTP real, você ainda pode forçar o MailHog temporariamente com `docker compose -f docker-compose.yml -f docker-compose.email-fake.yml ...`.
 
 Exemplo local:
 
@@ -106,20 +135,48 @@ Exemplo local:
    - `docker compose down`
    - `docker compose up -d`
 
+## Como forcar MailHog no dev sem mexer no `.env` real
+
+Quando o `infraestrutura/dev/.env` ja estiver apontando para um SMTP real, use o override
+[`docker-compose.email-fake.yml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/docker-compose.email-fake.yml)
+para redirecionar apenas a API de identidade ao `smtp-teste`.
+
+Comandos canonicos:
+
+1. subir ou recriar a API com SMTP fake:
+   - `cd infraestrutura/dev`
+   - `docker compose -f docker-compose.yml -f docker-compose.email-fake.yml up -d --build smtp-teste api-identidade-eickrono`
+2. validar a configuracao efetiva:
+   - `docker compose -f docker-compose.yml -f docker-compose.email-fake.yml config | rg 'SPRING_MAIL_HOST|SPRING_MAIL_PORT|SPRING_MAIL_USERNAME|IDENTIDADE_CADASTRO_EMAIL_REMETENTE'`
+3. abrir a UI do MailHog:
+   - `http://localhost:8025`
+4. quando quiser voltar ao SMTP real definido no `.env`:
+   - `docker compose up -d --build api-identidade-eickrono`
+
+Observacoes:
+
+- esse override nao altera nem apaga as credenciais reais do `.env`;
+- ele sobrescreve apenas o container `api-identidade-eickrono`;
+- `smtp-teste` continua sendo o mesmo MailHog ja previsto no `docker-compose.yml`;
+- se quiser personalizar remetente fake, use variaveis opcionais como `IDENTIDADE_CADASTRO_EMAIL_FAKE_REMETENTE` no shell antes do `docker compose`.
+
 Observações:
 
 - não extraímos credenciais automaticamente de apps locais como Outlook, Gmail ou Mail do macOS;
 - para segurança e previsibilidade, o servidor deve receber essas credenciais explicitamente por variável de ambiente;
 - para Gmail pessoal, o fluxo mais comum é usar `smtp.gmail.com:587` com `STARTTLS` e uma senha de app;
 - para Outlook/Microsoft, o host costuma ser `smtp-mail.outlook.com:587` com autenticação e `STARTTLS`.
+- para iCloud Mail, o host oficial é `smtp.mail.me.com`, porta `587`, autenticação obrigatória, `STARTTLS/TLS`, usuário como endereço completo e senha de app da Apple Account.
+- se você usar um domínio customizado no iCloud+ como `info@eickrono.com`, o remetente pode continuar sendo o endereço customizado, mas o login SMTP deve usar o endereço primário `@icloud.com` da conta Apple que hospeda esse domínio.
+- no caso de `eickrono.com`, o DNS atual confirma esse cenário: MX em `mx01.mail.icloud.com` e `mx02.mail.icloud.com`, SPF com `include:icloud.com` e DKIM delegada para `icloudmailadmin.com`.
 - ao reenviar, o sistema gera um código novo e invalida o anterior;
 - portanto, sempre use o código do e-mail mais recente no `MailHog`;
 - se nenhum e-mail aparecer, verifique primeiro se a API de identidade e o `MailHog` estão rodando no `docker compose`.
 
 Referências do comportamento no código:
 
-- envio SMTP do código: `modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/aplicacao/servico/CanalEnvioCodigoCadastroEmailSmtp.java`
-- geração e reenvio do código: `modulos/api-identidade-eickrono/src/main/java/com/eickrono/api/identidade/aplicacao/servico/CadastroContaInternaServico.java`
+- envio SMTP do código: `../eickrono-identidade-servidor/src/main/java/com/eickrono/api/identidade/aplicacao/servico/CanalEnvioCodigoCadastroEmailSmtp.java`
+- geração e reenvio do código: `../eickrono-identidade-servidor/src/main/java/com/eickrono/api/identidade/aplicacao/servico/CadastroContaInternaServico.java`
 
 ## PostgreSQL compartilhado em dev
 
@@ -204,17 +261,17 @@ Proteção por ambiente:
 ## Testes e qualidade
 
 - `mvn verify`: executa testes, Checkstyle, SpotBugs e validações do Spring Boot.  
-- `mvn -pl modulos/api-identidade-eickrono spring-boot:run`: inicia apenas a API de identidade.  
-- `mvn -pl modulos/api-contas-eickrono spring-boot:run`: inicia a API de contas.  
+- `cd ../eickrono-identidade-servidor && mvn spring-boot:run`: inicia apenas a API de identidade.
+- `cd ../eickrono-contas-servidor && mvn spring-boot:run`: inicia a API de contas.
 - Testcontainers é utilizado para testes de integração com PostgreSQL real; não é necessário subir um PostgreSQL manualmente para a suíte de testes, mas o Docker local precisa estar saudável.
 
 ### PostgreSQL real nos testes
 
-- os módulos `api-identidade-eickrono` e `api-contas-eickrono` não usam mais H2 nos perfis de teste;
+- os projetos `eickrono-identidade-servidor` e `eickrono-contas-servidor` não usam mais H2 nos perfis de teste;
 - os testes Spring Boot/integração sobem PostgreSQL real com Testcontainers;
 - a falha histórica de `permission denied ... docker.sock` e `Could not find a valid Docker environment` não era problema de schema, mas de compatibilidade entre a stack antiga de Testcontainers e a API atual do Docker Desktop local;
 - os testes **não** reutilizam host/porta do `docker compose`; o container de teste continua sendo criado pelo Testcontainers.
-- o que eles reaproveitam, quando disponível, são informações de ambiente já conhecidas do monorepo:
+- o que eles reaproveitam, quando disponível, são informações de ambiente já conhecidas da stack local:
   - `POSTGRES_USER`
   - `POSTGRES_PASSWORD`
   - `POSTGRES_DB`
@@ -223,7 +280,7 @@ Proteção por ambiente:
   - `EICKRONO_TEST_POSTGRES_DB_IDENTIDADE`
   - `EICKRONO_TEST_POSTGRES_DB_CONTAS`
 
-### Diferença entre `.env` do monorepo e Testcontainers
+### Diferença entre `.env` da stack local e Testcontainers
 
 As variáveis de [`infraestrutura/dev/.env`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/.env) e [`infraestrutura/hml/.env`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/hml/.env) descrevem o ambiente da aplicação.
 
@@ -338,9 +395,8 @@ Interpretação:
 
 ```bash
 rg -n "testcontainers.version|<artifactId>testcontainers|postgresql</artifactId>|h2</artifactId>" \
-  pom.xml \
-  modulos/api-identidade-eickrono/pom.xml \
-  modulos/api-contas-eickrono/pom.xml
+  ../eickrono-identidade-servidor/pom.xml \
+  ../eickrono-contas-servidor/pom.xml
 ```
 
 Estado final esperado:
@@ -361,30 +417,29 @@ A correção escolhida foi:
 
 Arquivos centrais dessa decisão:
 
-- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/pom.xml)
-- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/pom.xml)
-- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-contas-eickrono/pom.xml)
-- [`InfraestruturaTesteIdentidade.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/test/java/com/eickrono/api/identidade/support/InfraestruturaTesteIdentidade.java)
-- [`InfraestruturaTesteContas.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-contas-eickrono/src/test/java/com/eickrono/api/contas/support/InfraestruturaTesteContas.java)
+- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/pom.xml)
+- [`pom.xml`](/Users/thiago/Desenvolvedor/flutter/eickrono-contas-servidor/pom.xml)
+- [`InfraestruturaTesteIdentidade.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/src/test/java/com/eickrono/api/identidade/support/InfraestruturaTesteIdentidade.java)
+- [`InfraestruturaTesteContas.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-contas-servidor/src/test/java/com/eickrono/api/contas/support/InfraestruturaTesteContas.java)
 
 #### Como repetir a validação final
 
 1. Compilar os testes da identidade:
 
 ```bash
-mvn -U -pl modulos/api-identidade-eickrono -am test-compile -DskipITs
+cd ../eickrono-identidade-servidor && mvn -U test-compile -DskipITs
 ```
 
 2. Compilar os testes de contas:
 
 ```bash
-mvn -U -pl modulos/api-contas-eickrono -am test-compile -DskipITs
+cd ../eickrono-contas-servidor && mvn -U test-compile -DskipITs
 ```
 
 3. Rodar os testes relevantes da identidade com PostgreSQL real:
 
 ```bash
-mvn -U -pl modulos/api-identidade-eickrono -am \
+cd ../eickrono-identidade-servidor && mvn -U \
   -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,CanalEnvioCodigoSmsTest \
   test
 ```
@@ -392,7 +447,7 @@ mvn -U -pl modulos/api-identidade-eickrono -am \
 4. Rodar os testes relevantes de contas com PostgreSQL real:
 
 ```bash
-mvn -U -pl modulos/api-contas-eickrono -am \
+cd ../eickrono-contas-servidor && mvn -U \
   -Dtest=AplicacaoApiContasTest,ApiContasDeviceTokenContractTest \
   test
 ```
@@ -400,7 +455,7 @@ mvn -U -pl modulos/api-contas-eickrono -am \
 5. Rodar os testes relevantes da política offline da identidade:
 
 ```bash
-mvn -U -pl modulos/api-identidade-eickrono -am \
+cd ../eickrono-identidade-servidor && mvn -U \
   -Dtest=AplicacaoApiIdentidadeTest,RegistroDispositivoControllerIT,RegistroDispositivoServiceTest,OfflineDispositivoServiceTest \
   test
 ```
@@ -408,7 +463,7 @@ mvn -U -pl modulos/api-identidade-eickrono -am \
 6. Rodar os testes do servidor de autorização que bloqueiam refresh por device token:
 
 ```bash
-mvn -U -pl modulos/servidor-autorizacao-eickrono -am test
+cd .. && mvn -U test
 ```
 
 #### Sinais esperados de sucesso
@@ -479,7 +534,7 @@ Em alguns testes, especialmente com `Mockito`, `Spring Data` e `ArgumentCaptor`,
 - `Missing non-null annotation ...`
 - imports aparentemente não usados após refatorações
 
-Esses alertas nem sempre indicam erro real de compilação. O caso mais comum no monorepo é o analisador de nulidade do JDT não conseguir inferir corretamente contratos de:
+Esses alertas nem sempre indicam erro real de compilação. O caso mais comum na stack local é o analisador de nulidade do JDT não conseguir inferir corretamente contratos de:
 
 - `captor.capture()`
 - `captor.getValue()`
@@ -536,7 +591,7 @@ Quando surgir esse tipo de alerta, siga esta ordem:
    - `Java: Clean Java Language Server Workspace`
    - `Developer: Reload Window`
 
-### Regra deste monorepo
+### Regra desta stack
 
 - não usar `@SuppressWarnings("null")` como solução padrão
 - não espalhar `@NonNull` artificialmente só para satisfazer a IDE
@@ -564,8 +619,8 @@ Esses casos não são, por si só, erro de compilação. O problema é o analisa
 
 No teste de onboarding do dispositivo, a configuração interna foi extraída para uma classe própria:
 
-- [`RegistroDispositivoControllerIT.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/test/java/com/eickrono/api/identidade/api/RegistroDispositivoControllerIT.java)
-- [`RegistroDispositivoControllerITConfiguration.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/api-identidade-eickrono/src/test/java/com/eickrono/api/identidade/api/RegistroDispositivoControllerITConfiguration.java)
+- [`RegistroDispositivoControllerIT.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/src/test/java/com/eickrono/api/identidade/apresentacao/api/RegistroDispositivoControllerIT.java)
+- [`RegistroDispositivoControllerITConfiguration.java`](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/src/test/java/com/eickrono/api/identidade/apresentacao/api/RegistroDispositivoControllerITConfiguration.java)
 
 Esse padrão é o preferido quando a IDE acusa que `@TestConfiguration` ou métodos `@Bean` "nunca são usados".
 
@@ -574,4 +629,4 @@ Esse padrão é o preferido quando a IDE acusa que `@TestConfiguration` ou méto
 - Utilize perfis `application-dev.yml`, `application-hml.yml` e `application-prod.yml` para configurações específicas por ambiente.  
 - O Swagger (springdoc) fica acessível apenas em dev/hml, protegido por Basic Auth e whitelist em homologação.  
 - Certificados mTLS autoassinados podem ser regenerados com o script `infraestrutura/dev/certificados/gerar_certificados.sh`.  
-- Para Keycloak, utilize os realms exportados em `modulos/servidor-autorizacao-eickrono/realms`.
+- Para Keycloak, utilize os realms exportados em `autorizacao/realms/`.

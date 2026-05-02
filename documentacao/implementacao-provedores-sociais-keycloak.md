@@ -9,7 +9,7 @@ A decisão funcional já estava fechada:
 - o `eickrono-autenticacao-servidor` é a API canônica de vínculos sociais;
 - o Keycloak é a fonte de verdade do vínculo;
 - o fluxo de vínculo nasce no broker OIDC do Keycloak;
-- a arquitetura precisa nascer genérica para `Google`, `Apple`, `Facebook`, `LinkedIn` e `Instagram`.
+- a arquitetura precisa nascer genérica para `Google`, `Apple`, `Facebook`, `LinkedIn`, `Instagram` e `X`.
 
 Com isso definido, a parte seguinte era preparar o servidor de autorização para reconhecer esses provedores de identidade de forma versionada nos realm exports.
 
@@ -25,15 +25,15 @@ O objetivo era deixar o Keycloak preparado para:
 
 Os principais arquivos modificados nesta etapa foram:
 
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/desenvolvimento-realm.json`
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/homologacao-realm.json`
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/producao-realm.json`
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/render-realms.sh`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/desenvolvimento-realm.json`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/homologacao-realm.json`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/producao-realm.json`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/render-realms.sh`
 - `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/docker-compose.yml`
 - `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/hml/docker-compose.yml`
 - `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/dev/.env`
 - `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/hml/.env`
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/README.md`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/README.md`
 - `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/infraestrutura/prod/README.md`
 
 ## Alteração 1: inclusão dos brokers nos realm exports
@@ -46,15 +46,21 @@ Isso foi feito em:
 - `homologacao-realm.json`
 - `producao-realm.json`
 
-Cada realm agora carrega os cinco provedores abaixo:
+Cada realm agora carrega os seis provedores abaixo:
 
 - `google`
 - `apple`
 - `facebook`
 - `linkedin`
 - `instagram`
+- `x`
 
 Esses aliases foram escolhidos para casar com a modelagem já discutida para o app e para o backend de vínculos sociais.
+
+Para o caso do X, a regra final do ecossistema ficou assim:
+
+- alias funcional usado por app, cliente e servidor de identidade: `x`;
+- detalhe técnico interno do broker do Keycloak: `providerId = twitter`.
 
 ### Provider IDs usados
 
@@ -65,9 +71,43 @@ Os `providerId` configurados ficaram assim:
 - `facebook` para Facebook
 - `linkedin-openid-connect` para LinkedIn
 - `instagram` para Instagram
+- `twitter` para o broker técnico do X
 
 Esses `providerId` não foram escolhidos por suposição.
 Eles foram confirmados a partir da própria distribuição do Keycloak 26.5.5 e testados no Admin API local.
+
+Isso não muda o alias funcional do ecossistema:
+
+- `alias = x`
+- `providerId = twitter`
+
+Ou seja, `twitter` não deve aparecer como alias público do app, do cliente compartilhado ou da API de identidade.
+
+## Alteração complementar: descoberta de provedores sociais em runtime
+
+Além do versionamento dos realm exports, o servidor de autorização passou a expor um endpoint público para o app descobrir quais brokers sociais estão realmente disponíveis no ambiente:
+
+```text
+/realms/<realm>/eickrono-runtime/provedores-sociais
+```
+
+Esse endpoint:
+
+- lê os identity providers do realm em execução;
+- normaliza a resposta para os aliases canônicos do ecossistema:
+  - `google`
+  - `apple`
+  - `facebook`
+  - `linkedin`
+  - `instagram`
+  - `x`
+- só marca um provedor como habilitado quando ele está:
+  - presente no realm;
+  - com `enabled = true`;
+  - sem `hideOnLogin`;
+  - e com credenciais reais, não placeholders.
+
+Com isso, o app pode mostrar no login social apenas o que realmente funciona no Keycloak do ambiente atual.
 
 ### Por que Apple usa `oidc`
 
@@ -139,6 +179,8 @@ As variáveis esperadas ficaram assim:
 - `KEYCLOAK_IDP_THIMISU_LINKEDIN_CLIENT_SECRET`
 - `KEYCLOAK_IDP_THIMISU_INSTAGRAM_APP_ID`
 - `KEYCLOAK_IDP_THIMISU_INSTAGRAM_APP_SECRET`
+- `KEYCLOAK_IDP_THIMISU_X_CLIENT_ID`
+- `KEYCLOAK_IDP_THIMISU_X_CLIENT_SECRET`
 
 ## Alteração 3: criação do wrapper `render-realms.sh`
 
@@ -152,7 +194,7 @@ Além disso, existia um risco importante:
 
 Por isso foi criado:
 
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/render-realms.sh`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/render-realms.sh`
 
 ### O que esse script faz
 
@@ -261,7 +303,7 @@ Foi documentado:
 
 Arquivo:
 
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/README.md`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/README.md`
 
 ### No README da pasta de produção
 
@@ -293,7 +335,7 @@ Apple ficou como broker OIDC genérico:
 - alias: `apple`
 - `providerId`: `oidc`
 - `issuer`: `https://appleid.apple.com`
-- `authorizationUrl`: `https://appleid.apple.com/auth/authorize`
+- `authorizationUrl`: `https://appleid.apple.com/auth/authorize?response_mode=form_post`
 - `tokenUrl`: `https://appleid.apple.com/auth/token`
 - `jwksUrl`: `https://appleid.apple.com/auth/keys`
 - `disableUserInfo=true`
@@ -303,6 +345,12 @@ Apple ficou como broker OIDC genérico:
 
 O `clientSecret` da Apple aqui não é um segredo simples de painel como em outros provedores.
 Ele precisa ser um JWT assinado conforme as regras da Apple.
+
+Observacao importante:
+
+- como o broker Apple atual pede `scope=openid email name`, a Apple exige `response_mode=form_post` no authorize;
+- no Keycloak deste projeto, a forma operacional adotada e persistir esse parametro diretamente no `authorizationUrl` do broker `apple`;
+- sem isso, a Apple responde com `invalid_request` informando que `response_mode must be form_post when name or email scope is requested`.
 
 ## Facebook
 
@@ -487,7 +535,7 @@ O que continua pendente:
 Para destravar o preenchimento operacional das credenciais, foram adicionados dois artefatos complementares:
 
 - `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/documentacao/preenchimento-credenciais-provedores-sociais.md`
-- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/modulos/servidor-autorizacao-eickrono/realms/gerar-apple-client-secret-jwt.sh`
+- `/Users/thiago/Desenvolvedor/flutter/eickrono-autenticacao-servidor/autorizacao/realms/gerar-apple-client-secret-jwt.sh`
 
 O primeiro explica o que cada `KEYCLOAK_IDP_<APP>_*` representa, quais callbacks o Keycloak espera por ambiente e por que esses valores não podem ser descobertos só pelo repositório.
 
