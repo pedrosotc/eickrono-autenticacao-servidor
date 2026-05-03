@@ -70,9 +70,10 @@ Se um comportamento visto no app não bater com o código atual, valide primeiro
 Observações importantes do fluxo canônico:
 
 - a API de identidade é a borda pública do app para cadastro, confirmação de e-mail, login e recuperação de senha;
-- o `identidade-servidor` não deve mais receber senha, código de recuperação ou tentativa de login vindos do app;
-- depois da confirmação de e-mail, a autenticação provisiona o perfil no `identidade-servidor` por backchannel;
-- esse provisionamento interno precisa ser idempotente por `cadastroId`;
+- o servidor de autorização continua sendo a autoridade de credencial, sessão, refresh e políticas de segurança;
+- depois da confirmação de e-mail, a autenticação conclui a conta central e aciona a identidade por comunicação interna entre servidores para criar ou atualizar a `Pessoa` canônica;
+- depois disso, a autenticação aciona o backend do produto para criar ou atualizar o perfil daquele sistema;
+- esses provisionamentos internos precisam ser idempotentes por `cadastroId`;
 - o login público já emite o `X-Device-Token` quando o backend aprova o aparelho;
 - o app não usa mais tela dedicada de registro de dispositivo no fluxo principal;
 - se o backend exigir nova validação de contato, o app deve reutilizar a tela já existente de verificação;
@@ -188,14 +189,20 @@ Credenciais de acesso manual:
 - **Porta:** `5432`
 - **Usuário:** `adm`
 - **Senha:** `AdmDev2026!`
-- **JDBC URL do autorização:** `jdbc:postgresql://localhost:5432/eickrono_dev`
+- **JDBC URL do autorização:** `jdbc:postgresql://localhost:5432/eickrono_autorizacao`
+- **JDBC URL da identidade:** `jdbc:postgresql://localhost:5432/eickrono_identidade`
+- **JDBC URL de contas:** `jdbc:postgresql://localhost:5432/eickrono_contas`
 - **JDBC URL do thimisu:** `jdbc:postgresql://localhost:5432/eickrono_thimisu`
 
 Observações:
 
 - essas credenciais servem apenas para desenvolvimento local;
 - o usuário `adm` foi criado como `SUPERUSER` para facilitar inspeção e administração do banco;
-- as aplicações continuam usando seus próprios usuários técnicos configurados em `infraestrutura/dev/.env`.
+- as aplicações continuam usando seus próprios usuários técnicos configurados em `infraestrutura/dev/.env`;
+- no `docker compose` local, a separação por serviço usa:
+  - `KEYCLOAK_POSTGRES_*`
+  - `IDENTIDADE_POSTGRES_*`
+  - `CONTAS_POSTGRES_*`
 
 ## Homologação local no mesmo PostgreSQL
 
@@ -229,6 +236,10 @@ Observações do `hml` local:
 - o `api-contas-eickrono` continua fora dessa malha no `docker-compose` atual;
 - localmente, as APIs de identidade e contas usam `ddl-auto=update` para complementar tabelas ainda não cobertas pelas migrations atuais;
 - o objetivo desse perfil local é testar o fluxo real de login sem dividir estado com o `dev`.
+- no `docker compose` de `hml`, a separação por serviço usa:
+  - `KEYCLOAK_POSTGRES_*`
+  - `IDENTIDADE_POSTGRES_*`
+  - `CONTAS_POSTGRES_*`
 - detalhes de portas, stores e geração de certificados estão em `guia-mtls.md`.
 
 ## Swagger
@@ -271,10 +282,11 @@ Proteção por ambiente:
 - os testes Spring Boot/integração sobem PostgreSQL real com Testcontainers;
 - a falha histórica de `permission denied ... docker.sock` e `Could not find a valid Docker environment` não era problema de schema, mas de compatibilidade entre a stack antiga de Testcontainers e a API atual do Docker Desktop local;
 - os testes **não** reutilizam host/porta do `docker compose`; o container de teste continua sendo criado pelo Testcontainers.
-- o que eles reaproveitam, quando disponível, são informações de ambiente já conhecidas da stack local:
-  - `POSTGRES_USER`
-  - `POSTGRES_PASSWORD`
-  - `POSTGRES_DB`
+- o `docker compose` de `dev/hml` agora usa variáveis separadas por serviço:
+  - `KEYCLOAK_POSTGRES_*`
+  - `IDENTIDADE_POSTGRES_*`
+  - `CONTAS_POSTGRES_*`
+- os testes de integração podem reaproveitar defaults genéricos do ambiente quando eles existirem fora do `docker compose`, mas não dependem mais dessas chaves da stack local.
 - também existem overrides específicos para os testes:
   - `EICKRONO_TEST_POSTGRES_IMAGE`
   - `EICKRONO_TEST_POSTGRES_DB_IDENTIDADE`
@@ -320,8 +332,8 @@ Já os testes de integração fazem outra coisa:
 
 Em outras palavras:
 
-- `POSTGRES_PORT` do `docker compose` **não** é usado pelos testes;
-- `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` **podem** ser usados como defaults dos containers de teste;
+- as portas de banco definidas no `docker compose` **não** são usadas pelos testes;
+- usuário, senha e nome de banco do ambiente local **podem** ser reaproveitados como defaults pelos containers de teste, quando fornecidos fora do `docker compose`;
 - o OIDC dos testes da identidade continua simulado em memória e não depende do `OIDC_ISSUER_URI` do ambiente `dev/hml`.
 
 ### Diagnóstico reproduzível do Docker/Testcontainers
@@ -520,7 +532,7 @@ Essas variáveis precisam existir no container do Keycloak e na API de Identidad
 #### O que esta correção não faz
 
 - não usa o PostgreSQL já criado pelo `docker compose` de `dev`/`hml`;
-- não reaproveita `POSTGRES_PORT` fixo;
+- não reaproveita porta fixa do `docker compose`;
 - não elimina a necessidade de Docker local acessível;
 - não substitui Testcontainers por conexão em banco compartilhado.
 

@@ -10,6 +10,7 @@ opcoes:
   --cluster <nome>             cluster ECS (default: eickrono-hml)
   --region <aws-region>        regiao AWS (default: sa-east-1)
   --ecs-service <nome>         nome do service ECS; default = family do task definition
+  --db-overrides-file <arq>    carrega overrides de banco a partir de arquivo shell
   --render-output <arquivo>    persiste o task definition renderizado no caminho informado
   --no-wait                    nao aguarda service stable
   --dry-run                    nao executa comandos AWS; apenas imprime o plano
@@ -27,6 +28,7 @@ service_key=""
 image=""
 ecs_service=""
 render_output=""
+db_overrides_file=""
 dry_run="false"
 wait_for_stable="true"
 
@@ -50,6 +52,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --ecs-service)
       ecs_service="${2:-}"
+      shift 2
+      ;;
+    --db-overrides-file)
+      db_overrides_file="${2:-}"
       shift 2
       ;;
     --render-output)
@@ -80,6 +86,42 @@ if [ -z "$service_key" ] || [ -z "$image" ]; then
   usage >&2
   exit 2
 fi
+
+if [ -n "$db_overrides_file" ]; then
+  if [ ! -f "$db_overrides_file" ]; then
+    echo "arquivo de overrides de banco nao encontrado: ${db_overrides_file}" >&2
+    exit 2
+  fi
+  set -a
+  # shellcheck disable=SC1090
+  source "$db_overrides_file"
+  set +a
+fi
+
+hml_shared_db_host="${HML_SHARED_DB_HOST:-eickrono-hml-postgres.cdu8yi4qkl16.sa-east-1.rds.amazonaws.com}"
+hml_shared_db_port="${HML_SHARED_DB_PORT:-5432}"
+hml_shared_db_password_secret_arn="${HML_SHARED_DB_PASSWORD_SECRET_ARN:-arn:aws:secretsmanager:sa-east-1:531708494702:secret:rds!db-7df15f56-c831-40b7-be42-ebd935108b06-22Dwvf:password::}"
+
+auth_kc_db_host="${AUTH_KC_DB_HOST:-$hml_shared_db_host}"
+auth_kc_db_port="${AUTH_KC_DB_PORT:-$hml_shared_db_port}"
+auth_kc_db_name="${AUTH_KC_DB_NAME:-keycloak_hml}"
+auth_kc_db_username="${AUTH_KC_DB_USERNAME:-eickrono_admin}"
+auth_kc_db_password_secret_arn="${AUTH_KC_DB_PASSWORD_SECRET_ARN:-$hml_shared_db_password_secret_arn}"
+
+identidade_db_host="${IDENTIDADE_DB_HOST:-$hml_shared_db_host}"
+identidade_db_port="${IDENTIDADE_DB_PORT:-$hml_shared_db_port}"
+identidade_db_name="${IDENTIDADE_DB_NAME:-eickrono_identidade_hml}"
+identidade_db_username="${IDENTIDADE_DB_USERNAME:-eickrono_admin}"
+identidade_db_password_secret_arn="${IDENTIDADE_DB_PASSWORD_SECRET_ARN:-$hml_shared_db_password_secret_arn}"
+
+thimisu_db_host="${THIMISU_DB_HOST:-$hml_shared_db_host}"
+thimisu_db_port="${THIMISU_DB_PORT:-$hml_shared_db_port}"
+thimisu_db_name="${THIMISU_DB_NAME:-eickrono_thimisu_hml}"
+thimisu_db_username="${THIMISU_DB_USERNAME:-eickrono_admin}"
+thimisu_db_password_secret_arn="${THIMISU_DB_PASSWORD_SECRET_ARN:-$hml_shared_db_password_secret_arn}"
+
+identidade_db_url="jdbc:postgresql://${identidade_db_host}:${identidade_db_port}/${identidade_db_name}"
+thimisu_db_url="jdbc:postgresql://${thimisu_db_host}:${thimisu_db_port}/${thimisu_db_name}"
 
 case "$service_key" in
   auth)
@@ -114,7 +156,19 @@ else
   rendered_task="$(mktemp)"
 fi
 
-jq --arg image "$image" --arg container "$container_name" '
+jq \
+  --arg image "$image" \
+  --arg container "$container_name" \
+  --arg auth_kc_db_host "$auth_kc_db_host" \
+  --arg auth_kc_db_name "$auth_kc_db_name" \
+  --arg auth_kc_db_username "$auth_kc_db_username" \
+  --arg auth_kc_db_password_secret_arn "$auth_kc_db_password_secret_arn" \
+  --arg identidade_db_url "$identidade_db_url" \
+  --arg identidade_db_username "$identidade_db_username" \
+  --arg identidade_db_password_secret_arn "$identidade_db_password_secret_arn" \
+  --arg thimisu_db_url "$thimisu_db_url" \
+  --arg thimisu_db_username "$thimisu_db_username" \
+  --arg thimisu_db_password_secret_arn "$thimisu_db_password_secret_arn" '
   .containerDefinitions |= map(
     if .name == $container then
       .image = $image
@@ -122,6 +176,40 @@ jq --arg image "$image" --arg container "$container_name" '
       .
     end
   )
+  | .containerDefinitions |= map(
+      .environment |= map(
+        if .value == "__AUTH_KC_DB_HOST__" then
+          .value = $auth_kc_db_host
+        elif .value == "__AUTH_KC_DB_NAME__" then
+          .value = $auth_kc_db_name
+        elif .value == "__AUTH_KC_DB_USERNAME__" then
+          .value = $auth_kc_db_username
+        elif .value == "__IDENTIDADE_DB_URL__" then
+          .value = $identidade_db_url
+        elif .value == "__IDENTIDADE_DB_USERNAME__" then
+          .value = $identidade_db_username
+        elif .value == "__THIMISU_DB_URL__" then
+          .value = $thimisu_db_url
+        elif .value == "__THIMISU_DB_USERNAME__" then
+          .value = $thimisu_db_username
+        else
+          .
+        end
+      )
+    )
+  | .containerDefinitions |= map(
+      .secrets |= map(
+        if .valueFrom == "__AUTH_KC_DB_PASSWORD_SECRET_ARN__" then
+          .valueFrom = $auth_kc_db_password_secret_arn
+        elif .valueFrom == "__IDENTIDADE_DB_PASSWORD_SECRET_ARN__" then
+          .valueFrom = $identidade_db_password_secret_arn
+        elif .valueFrom == "__THIMISU_DB_PASSWORD_SECRET_ARN__" then
+          .valueFrom = $thimisu_db_password_secret_arn
+        else
+          .
+        end
+      )
+    )
 ' "$template" >"$rendered_task"
 
 cleanup() {
@@ -156,7 +244,18 @@ echo "ECS_SERVICE=${ecs_service}"
 echo "IMAGE=${image}"
 echo "TASK_DEFINITION_TEMPLATE=${template}"
 echo "TASK_DEFINITION_RENDERED=${rendered_task}"
+echo "DB_OVERRIDES_FILE=${db_overrides_file:-<none>}"
 echo "WAIT_FOR_STABLE=${wait_for_stable}"
+echo "AUTH_KC_DB_HOST=${auth_kc_db_host}"
+echo "AUTH_KC_DB_NAME=${auth_kc_db_name}"
+echo "AUTH_KC_DB_USERNAME=${auth_kc_db_username}"
+echo "AUTH_KC_DB_PASSWORD_SECRET_ARN=${auth_kc_db_password_secret_arn}"
+echo "IDENTIDADE_DB_URL=${identidade_db_url}"
+echo "IDENTIDADE_DB_USERNAME=${identidade_db_username}"
+echo "IDENTIDADE_DB_PASSWORD_SECRET_ARN=${identidade_db_password_secret_arn}"
+echo "THIMISU_DB_URL=${thimisu_db_url}"
+echo "THIMISU_DB_USERNAME=${thimisu_db_username}"
+echo "THIMISU_DB_PASSWORD_SECRET_ARN=${thimisu_db_password_secret_arn}"
 
 if [ "$dry_run" = "true" ]; then
   jq -r '.containerDefinitions[0].image' "$rendered_task" | sed 's/^/RENDERED_IMAGE=/'

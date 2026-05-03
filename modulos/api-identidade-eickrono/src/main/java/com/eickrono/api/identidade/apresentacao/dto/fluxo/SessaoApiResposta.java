@@ -1,5 +1,8 @@
 package com.eickrono.api.identidade.apresentacao.dto.fluxo;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+// Mantém statusUsuario apenas como compatibilidade de JSON; internamente o contrato já trata statusPerfilSistema.
 public record SessaoApiResposta(
         boolean autenticado,
         String tipoToken,
@@ -8,7 +11,7 @@ public record SessaoApiResposta(
         long expiresIn,
         String tokenDispositivo,
         java.time.OffsetDateTime tokenDispositivoExpiraEm,
-        String statusUsuario,
+        @JsonProperty("statusUsuario") String statusPerfilSistema,
         boolean primeiraSessao,
         boolean podeOferecerBiometria,
         boolean podeOferecerVinculacaoSocial

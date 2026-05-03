@@ -8,7 +8,8 @@ No estado atual do código, o `mTLS` é usado para proteger o `backchannel` entr
 
 Para a arquitetura canônica do app móvel, a direção mais importante desse `backchannel` passa a ser:
 
-- `autenticação -> thimisu` para provisionamento de perfil depois da confirmação de e-mail.
+- `autenticação -> identidade` para criar ou atualizar a `Pessoa` canônica;
+- `autenticação -> backend do produto` para criar ou atualizar o perfil daquele sistema.
 
 Camadas reais do desenho:
 
@@ -90,7 +91,11 @@ Isso significa que o serviço:
 
 No auth, o uso real do cliente `mTLS` hoje está no `backchannel` para resolver contexto de pessoa no serviço de perfil.
 
-Na arquitetura canônica, esse mesmo mecanismo também é a base para o provisionamento `autenticação -> thimisu` depois da confirmação de e-mail do cadastro.
+Na arquitetura canônica, esse mesmo mecanismo também é a base para o
+provisionamento interno que a autenticação faz em duas etapas:
+
+1. para a identidade, ao criar ou atualizar a `Pessoa` canônica;
+2. para o backend do produto, ao criar ou atualizar o perfil daquele sistema.
 
 A chamada segue este desenho:
 

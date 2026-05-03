@@ -14,7 +14,9 @@ import com.eickrono.api.identidade.aplicacao.excecao.FluxoPublicoException;
 import com.eickrono.api.identidade.aplicacao.modelo.CadastroInternoRealizado;
 import com.eickrono.api.identidade.aplicacao.modelo.CadastroKeycloakProvisionado;
 import com.eickrono.api.identidade.aplicacao.modelo.ConfirmacaoEmailCadastroInternoRealizada;
-import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
+import com.eickrono.api.identidade.aplicacao.modelo.ConfirmacaoEmailCadastroPublicoRealizada;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfilSistema;
+import com.eickrono.api.identidade.aplicacao.modelo.PessoaCanonicaConfirmada;
 import com.eickrono.api.identidade.dominio.modelo.CanalValidacaoTelefoneCadastro;
 import com.eickrono.api.identidade.dominio.modelo.CadastroConta;
 import com.eickrono.api.identidade.dominio.modelo.StatusCadastroConta;
@@ -34,10 +36,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class CadastroContaInternaServicoTest {
@@ -61,10 +66,19 @@ class CadastroContaInternaServicoTest {
     private CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail;
 
     @Mock
-    private ClienteContextoPessoaPerfil clienteContextoPessoaPerfil;
+    private ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema;
 
     @Mock
-    private ProvisionadorPerfilDominioServico provisionadorPerfilDominioServico;
+    private ProvisionadorPerfilSistemaServico provisionadorPerfilSistemaServico;
+
+    @Mock
+    private ConfirmadorPessoaCadastroServico confirmadorPessoaCadastroServico;
+
+    @Mock
+    private DisponibilidadeUsuarioSistemaService disponibilidadeUsuarioSistemaService;
+
+    @Mock
+    private RegistradorPendenciaIntegracaoProdutoService registradorPendenciaIntegracaoProdutoService;
 
     @Captor
     private ArgumentCaptor<CadastroConta> cadastroCaptor;
@@ -96,13 +110,17 @@ class CadastroContaInternaServicoTest {
         );
         servicoPublico = new CadastroContaInternaServico(
                 cadastroContaRepositorio,
-                clienteContextoPessoaPerfil,
+                clienteContextoPessoaPerfilSistema,
                 clienteAdministracaoCadastroKeycloak,
-                provisionadorPerfilDominioServico,
+                provisionadorPerfilSistemaServico,
+                confirmadorPessoaCadastroServico,
+                disponibilidadeUsuarioSistemaService,
+                provisionamentoIdentidadeService,
                 canalEnvioCodigoCadastroEmail,
                 canalNotificacaoTentativaCadastroEmail,
                 dispositivoProperties,
-                clock
+                clock,
+                registradorPendenciaIntegracaoProdutoService
         );
     }
 
@@ -194,6 +212,7 @@ class CadastroContaInternaServicoTest {
         verify(provisionamentoIdentidadeService).confirmarEmailCadastro(
                 eq("sub-ana"),
                 eq("ana@eickrono.com"),
+                eq("Ana Souza"),
                 any()
         );
     }
@@ -241,8 +260,11 @@ class CadastroContaInternaServicoTest {
     @Test
     @DisplayName("deve rejeitar o cadastro publico quando o usuário já estiver indisponível")
     void deveRejeitarCadastroPublicoComUsuarioIndisponivel() {
-        when(cadastroContaRepositorio.findByUsuarioIgnoreCase("ana.souza")).thenReturn(Optional.empty());
-        when(provisionadorPerfilDominioServico.usuarioDisponivel("ana.souza")).thenReturn(false);
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(false);
 
         assertThatThrownBy(() -> servicoPublico.cadastrarPublico(
                 TipoPessoaCadastro.FISICA,
@@ -256,7 +278,7 @@ class CadastroContaInternaServicoTest {
                 "+5511999999999",
                 CanalValidacaoTelefoneCadastro.SMS,
                 "SenhaForte@123",
-                "app-flutter-publico",
+                "eickrono-thimisu-app",
                 "127.0.0.1",
                 "JUnit"
         ))
@@ -270,23 +292,195 @@ class CadastroContaInternaServicoTest {
     @Test
     @DisplayName("deve informar a disponibilidade pública do usuário quando ele estiver livre")
     void deveInformarDisponibilidadePublicaDoUsuario() {
-        when(cadastroContaRepositorio.findByUsuarioIgnoreCase("ana.souza")).thenReturn(Optional.empty());
-        when(provisionadorPerfilDominioServico.usuarioDisponivel("ana.souza")).thenReturn(true);
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(true);
 
-        boolean disponivel = servicoPublico.usuarioDisponivelPublico(" Ana.Souza ");
+        boolean disponivel = servicoPublico.identificadorPublicoSistemaDisponivelPublico(" Ana.Souza ");
 
         assertThat(disponivel).isTrue();
-        verify(provisionadorPerfilDominioServico).usuarioDisponivel("ana.souza");
+        verify(disponibilidadeUsuarioSistemaService)
+                .identificadorPublicoSistemaDisponivel("ana.souza", "eickrono-thimisu-app");
+    }
+
+    @Test
+    @DisplayName("deve informar a disponibilidade pública do usuário por sistema explícito")
+    void deveInformarDisponibilidadePublicaDoUsuarioPorSistema() {
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(true);
+
+        boolean disponivel = servicoPublico.identificadorPublicoSistemaDisponivelPublico(
+                " Ana.Souza ",
+                "eickrono-thimisu-app"
+        );
+
+        assertThat(disponivel).isTrue();
+        verify(disponibilidadeUsuarioSistemaService)
+                .identificadorPublicoSistemaDisponivel("ana.souza", "eickrono-thimisu-app");
+    }
+
+    @Test
+    @DisplayName("deve confirmar pessoa canonica antes de provisionar o perfil do sistema no fluxo publico")
+    void deveConfirmarPessoaCanonicaAntesDeProvisionarPerfilNoFluxoPublico() {
+        AtomicReference<CadastroConta> salvo = new AtomicReference<>();
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(true);
+        when(cadastroContaRepositorio.findByEmailPrincipal("ana@eickrono.com")).thenReturn(Optional.empty());
+        when(clienteContextoPessoaPerfilSistema.buscarPorEmail("ana@eickrono.com")).thenReturn(Optional.empty());
+        when(clienteAdministracaoCadastroKeycloak.criarUsuarioPendente(
+                "Ana Souza", "ana@eickrono.com", "SenhaForte@123"))
+                .thenReturn(new CadastroKeycloakProvisionado("sub-ana", "ana@eickrono.com", "Ana Souza"));
+        when(cadastroContaRepositorio.save(any(CadastroConta.class))).thenAnswer(invocation -> {
+            CadastroConta cadastro = invocation.getArgument(0);
+            salvo.set(cadastro);
+            return cadastro;
+        });
+        when(confirmadorPessoaCadastroServico.confirmarEmailCadastro(
+                eq("sub-ana"),
+                eq("ana@eickrono.com"),
+                eq("Ana Souza"),
+                any()
+        ))
+                .thenReturn(new PessoaCanonicaConfirmada(77L, "sub-ana", "ana@eickrono.com"));
+        when(provisionadorPerfilSistemaServico.provisionarCadastroConfirmado(any(CadastroConta.class), eq(77L)))
+                .thenReturn(new com.eickrono.api.identidade.aplicacao.modelo.ProvisionamentoPerfilSistemaRealizado(
+                        "usuario-001",
+                        "LIBERADO"
+                ));
+
+        CadastroInternoRealizado cadastro = servicoPublico.cadastrarPublico(
+                TipoPessoaCadastro.FISICA,
+                "Ana Souza",
+                null,
+                "ana.souza",
+                null,
+                null,
+                null,
+                "ana@eickrono.com",
+                "+5511999999999",
+                CanalValidacaoTelefoneCadastro.SMS,
+                "SenhaForte@123",
+                "eickrono-thimisu-app",
+                "127.0.0.1",
+                "JUnit"
+        );
+        verify(canalEnvioCodigoCadastroEmail).enviar(any(CadastroConta.class), codigoCaptor.capture());
+        when(cadastroContaRepositorio.findByCadastroId(cadastro.cadastroId())).thenReturn(Optional.of(salvo.get()));
+
+        ConfirmacaoEmailCadastroPublicoRealizada confirmacao = servicoPublico.confirmarEmailPublico(
+                cadastro.cadastroId(),
+                codigoCaptor.getValue()
+        );
+
+        assertThat(confirmacao.perfilSistemaId()).isEqualTo("usuario-001");
+        assertThat(confirmacao.proximoPasso()).isEqualTo("LOGIN");
+        assertThat(salvo.get().getPessoaIdPerfil()).isEqualTo(77L);
+        InOrder inOrder = org.mockito.Mockito.inOrder(
+                confirmadorPessoaCadastroServico,
+                provisionadorPerfilSistemaServico
+        );
+        inOrder.verify(confirmadorPessoaCadastroServico).confirmarEmailCadastro(
+                eq("sub-ana"),
+                eq("ana@eickrono.com"),
+                eq("Ana Souza"),
+                any()
+        );
+        inOrder.verify(provisionadorPerfilSistemaServico).provisionarCadastroConfirmado(salvo.get(), 77L);
+    }
+
+    @Test
+    @DisplayName("deve registrar pendencia e concluir a parte central quando o provisionamento do produto falhar com erro toleravel")
+    void deveRegistrarPendenciaQuandoProvisionamentoDoProdutoFalharComErroToleravel() {
+        AtomicReference<CadastroConta> salvo = new AtomicReference<>();
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(true);
+        when(cadastroContaRepositorio.findByEmailPrincipal("ana@eickrono.com")).thenReturn(Optional.empty());
+        when(clienteContextoPessoaPerfilSistema.buscarPorEmail("ana@eickrono.com")).thenReturn(Optional.empty());
+        when(clienteAdministracaoCadastroKeycloak.criarUsuarioPendente(
+                "Ana Souza",
+                "ana@eickrono.com",
+                "SenhaForte@123"
+        )).thenReturn(new CadastroKeycloakProvisionado("sub-ana", "ana@eickrono.com", "Ana Souza"));
+        when(cadastroContaRepositorio.save(any(CadastroConta.class))).thenAnswer(invocation -> {
+            CadastroConta cadastro = invocation.getArgument(0);
+            salvo.set(cadastro);
+            return cadastro;
+        });
+        when(confirmadorPessoaCadastroServico.confirmarEmailCadastro(
+                eq("sub-ana"),
+                eq("ana@eickrono.com"),
+                eq("Ana Souza"),
+                any()
+        ))
+                .thenReturn(new PessoaCanonicaConfirmada(77L, "sub-ana", "ana@eickrono.com"));
+        when(provisionadorPerfilSistemaServico.provisionarCadastroConfirmado(any(CadastroConta.class), eq(77L)))
+                .thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "produto indisponivel"));
+
+        CadastroInternoRealizado cadastro = servicoPublico.cadastrarPublico(
+                TipoPessoaCadastro.FISICA,
+                "Ana Souza",
+                null,
+                "ana.souza",
+                null,
+                null,
+                null,
+                "ana@eickrono.com",
+                "+5511999999999",
+                CanalValidacaoTelefoneCadastro.SMS,
+                "SenhaForte@123",
+                "eickrono-thimisu-app",
+                "127.0.0.1",
+                "JUnit"
+        );
+        verify(canalEnvioCodigoCadastroEmail).enviar(any(CadastroConta.class), codigoCaptor.capture());
+        when(cadastroContaRepositorio.findByCadastroId(cadastro.cadastroId())).thenReturn(Optional.of(salvo.get()));
+
+        ConfirmacaoEmailCadastroPublicoRealizada confirmacao = servicoPublico.confirmarEmailPublico(
+                cadastro.cadastroId(),
+                codigoCaptor.getValue()
+        );
+
+        assertThat(confirmacao.perfilSistemaId()).isEmpty();
+        assertThat(confirmacao.statusPerfilSistema()).isEqualTo("PENDENTE_LIBERACAO_PRODUTO");
+        assertThat(confirmacao.podeAutenticar()).isTrue();
+        assertThat(confirmacao.proximoPasso()).isEqualTo("LOGIN");
+        assertThat(salvo.get().getPessoaIdPerfil()).isEqualTo(77L);
+        assertThat(salvo.get().getPerfilSistemaId()).isNull();
+        verify(registradorPendenciaIntegracaoProdutoService).registrarProvisionamentoPerfilSistema(
+                salvo.get(),
+                77L,
+                "PROVISIONAMENTO_PERFIL_SISTEMA_HTTP_502",
+                "produto indisponivel"
+        );
+        verify(clienteAdministracaoCadastroKeycloak).confirmarEmailEAtivarUsuario(
+                eq("sub-ana"),
+                eq("Ana Souza"),
+                isNull()
+        );
     }
 
     @Test
     @DisplayName("deve responder genericamente e avisar por e-mail quando já existir conta ativa para o e-mail")
     void deveAvisarPorEmailQuandoJaExistirContaAtivaNoEndereco() {
-        when(cadastroContaRepositorio.findByUsuarioIgnoreCase("ana.souza")).thenReturn(Optional.empty());
-        when(provisionadorPerfilDominioServico.usuarioDisponivel("ana.souza")).thenReturn(true);
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(true);
         when(cadastroContaRepositorio.findByEmailPrincipal("ana@eickrono.com")).thenReturn(Optional.empty());
-        when(clienteContextoPessoaPerfil.buscarPorEmail("ana@eickrono.com"))
-                .thenReturn(Optional.of(new ContextoPessoaPerfil(
+        when(clienteContextoPessoaPerfilSistema.buscarPorEmail("ana@eickrono.com"))
+                .thenReturn(Optional.of(new ContextoPessoaPerfilSistema(
                         10L,
                         "sub-ana",
                         "ana@eickrono.com",
@@ -307,7 +501,7 @@ class CadastroContaInternaServicoTest {
                 "+5511999999999",
                 CanalValidacaoTelefoneCadastro.SMS,
                 "SenhaForte@123",
-                "app-flutter-publico",
+                "eickrono-thimisu-app",
                 "127.0.0.1",
                 "JUnit"
         ))
@@ -319,13 +513,53 @@ class CadastroContaInternaServicoTest {
     }
 
     @Test
+    @DisplayName("deve tolerar indisponibilidade do contexto do produto durante a validacao de duplicidade por email")
+    void deveTolerarIndisponibilidadeDoContextoDoProdutoNaDuplicidadeDeEmail() {
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(true);
+        when(cadastroContaRepositorio.findByEmailPrincipal("ana@eickrono.com")).thenReturn(Optional.empty());
+        when(clienteContextoPessoaPerfilSistema.buscarPorEmail("ana@eickrono.com"))
+                .thenThrow(new IllegalStateException("produto indisponivel"));
+        when(clienteAdministracaoCadastroKeycloak.criarUsuarioPendente(
+                "Ana Souza", "ana@eickrono.com", "SenhaForte@123"))
+                .thenReturn(new CadastroKeycloakProvisionado("sub-ana", "ana@eickrono.com", "Ana Souza"));
+        when(cadastroContaRepositorio.save(any(CadastroConta.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CadastroInternoRealizado cadastro = servicoPublico.cadastrarPublico(
+                TipoPessoaCadastro.FISICA,
+                "Ana Souza",
+                null,
+                "ana.souza",
+                null,
+                null,
+                null,
+                "ana@eickrono.com",
+                "+5511999999999",
+                CanalValidacaoTelefoneCadastro.SMS,
+                "SenhaForte@123",
+                "eickrono-thimisu-app",
+                "127.0.0.1",
+                "JUnit"
+        );
+
+        assertThat(cadastro.emailPrincipal()).isEqualTo("ana@eickrono.com");
+        verify(clienteAdministracaoCadastroKeycloak).criarUsuarioPendente("Ana Souza", "ana@eickrono.com", "SenhaForte@123");
+    }
+
+    @Test
     @DisplayName("deve cancelar cadastro pendente publico removendo o usuário pendente do Keycloak")
     void deveCancelarCadastroPendentePublico() {
         AtomicReference<CadastroConta> salvo = new AtomicReference<>();
-        when(cadastroContaRepositorio.findByUsuarioIgnoreCase("ana.souza")).thenReturn(Optional.empty());
-        when(provisionadorPerfilDominioServico.usuarioDisponivel("ana.souza")).thenReturn(true);
+        when(disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                "ana.souza",
+                "eickrono-thimisu-app"
+        ))
+                .thenReturn(true);
         when(cadastroContaRepositorio.findByEmailPrincipal("ana@eickrono.com")).thenReturn(Optional.empty());
-        when(clienteContextoPessoaPerfil.buscarPorEmail("ana@eickrono.com")).thenReturn(Optional.empty());
+        when(clienteContextoPessoaPerfilSistema.buscarPorEmail("ana@eickrono.com")).thenReturn(Optional.empty());
         when(clienteAdministracaoCadastroKeycloak.criarUsuarioPendente(
                 "Ana Souza", "ana@eickrono.com", "SenhaForte@123"))
                 .thenReturn(new CadastroKeycloakProvisionado("sub-ana", "ana@eickrono.com", "Ana Souza"));
@@ -347,7 +581,7 @@ class CadastroContaInternaServicoTest {
                 "+5511999999999",
                 CanalValidacaoTelefoneCadastro.SMS,
                 "SenhaForte@123",
-                "app-flutter-publico",
+                "eickrono-thimisu-app",
                 "127.0.0.1",
                 "JUnit"
         );
@@ -378,7 +612,7 @@ class CadastroContaInternaServicoTest {
                 "hash",
                 OffsetDateTime.parse("2026-03-16T09:00:00Z"),
                 OffsetDateTime.parse("2026-03-16T18:00:00Z"),
-                "app-flutter-publico",
+                "eickrono-thimisu-app",
                 "127.0.0.1",
                 "JUnit",
                 OffsetDateTime.parse("2026-03-16T09:00:00Z"),

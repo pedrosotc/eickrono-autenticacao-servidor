@@ -24,9 +24,9 @@
       ],
       "environment": [
         { "name": "KC_DB", "value": "postgres" },
-        { "name": "KC_DB_URL_HOST", "value": "eickrono-hml-postgres.cdu8yi4qkl16.sa-east-1.rds.amazonaws.com" },
-        { "name": "KC_DB_URL_DATABASE", "value": "keycloak_hml" },
-        { "name": "KC_DB_USERNAME", "value": "eickrono_admin" },
+        { "name": "KC_DB_URL_HOST", "value": "__AUTH_KC_DB_HOST__" },
+        { "name": "KC_DB_URL_DATABASE", "value": "__AUTH_KC_DB_NAME__" },
+        { "name": "KC_DB_USERNAME", "value": "__AUTH_KC_DB_USERNAME__" },
         { "name": "KC_HOSTNAME", "value": "https://oidc-hml.eickrono.store" },
         { "name": "KC_PROXY_HEADERS", "value": "xforwarded" },
         { "name": "KEYCLOAK_ADMIN", "value": "admin" },
@@ -42,7 +42,7 @@
         { "name": "EICKRONO_INTERNO_MTLS_TRUSTSTORE_ARQUIVO", "value": "/certificados/backchannel-truststore.p12" }
       ],
       "secrets": [
-        { "name": "KC_DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:rds!db-7df15f56-c831-40b7-be42-ebd935108b06-22Dwvf:password::" },
+        { "name": "KC_DB_PASSWORD", "valueFrom": "__AUTH_KC_DB_PASSWORD_SECRET_ARN__" },
         { "name": "KEYCLOAK_ADMIN_PASSWORD", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:/eickrono/hml/shared/keycloak-admin-password-sZBgPa" },
         { "name": "EICKRONO_PASSWORD_PEPPER", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:/eickrono/hml/shared/eickrono-password-pepper-MjMlBO" },
         { "name": "EICKRONO_INTERNAL_SECRET", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:/eickrono/hml/shared/eickrono-internal-secret-rbAreo" },

@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class SincronizacaoModeloMultiappService {
 
     private static final String CLIENTE_PADRAO_CODIGO = "eickrono-thimisu-app";
+    private static final String SISTEMA_PUBLICO_LEGADO = "app-flutter-publico";
     private static final String CLIENTE_PADRAO_NOME = "Eickrono Thimisu App";
     private static final String CLIENTE_PADRAO_TIPO = "APP_MOVEL";
     private static final String STATUS_USUARIO_ATIVO = "ATIVO";
@@ -42,7 +43,9 @@ public class SincronizacaoModeloMultiappService {
 
     public void sincronizarCadastro(final CadastroConta cadastroConta) {
         Objects.requireNonNull(cadastroConta, "cadastroConta é obrigatório");
-        Long clienteEcossistemaId = assegurarClientePadrao(cadastroConta.getAtualizadoEm());
+        String codigoClienteEcossistema = resolverCodigoClienteEcossistema(cadastroConta.getSistemaSolicitante());
+        String identificadorPublicoCliente = normalizarIdentificadorPublicoCliente(cadastroConta.getUsuario());
+        Long clienteEcossistemaId = assegurarClienteEcossistema(codigoClienteEcossistema, cadastroConta.getAtualizadoEm());
         Long sistemaOrigemId = assegurarSistemaOrigem(cadastroConta.getSistemaSolicitante(), cadastroConta.getAtualizadoEm());
         UUID pessoaId = gerarPessoaId(cadastroConta.getSubjectRemoto());
         UUID usuarioId = null;
@@ -51,9 +54,11 @@ public class SincronizacaoModeloMultiappService {
             usuarioId = assegurarUsuarioAtivo(
                     cadastroConta.getSubjectRemoto(),
                     cadastroConta.getEmailPrincipal(),
+                    identificadorPublicoCliente,
                     cadastroConta.getCriadoEm(),
                     cadastroConta.getAtualizadoEm(),
                     clienteEcossistemaId,
+                    codigoClienteEcossistema,
                     cadastroConta.getEmailConfirmadoEm()
             );
         }
@@ -67,6 +72,7 @@ public class SincronizacaoModeloMultiappService {
                 .addValue("emailId", gerarEmailId(cadastroConta.getEmailPrincipal()))
                 .addValue("telefoneId", gerarTelefoneId(cadastroConta.getTelefonePrincipal()).orElse(null))
                 .addValue("statusProcesso", mapearStatusCadastro(cadastroConta))
+                .addValue("identificadorPublicoCliente", identificadorPublicoCliente)
                 .addValue("codigoEmailHash", cadastroConta.getCodigoEmailHash())
                 .addValue("codigoEmailGeradoEm", cadastroConta.getCodigoEmailGeradoEm())
                 .addValue("codigoEmailExpiraEm", cadastroConta.getCodigoEmailExpiraEm())
@@ -89,6 +95,7 @@ public class SincronizacaoModeloMultiappService {
                     email_id,
                     telefone_id,
                     status_processo,
+                    identificador_publico_cliente,
                     codigo_email_hash,
                     codigo_email_gerado_em,
                     codigo_email_expira_em,
@@ -110,6 +117,7 @@ public class SincronizacaoModeloMultiappService {
                     :emailId,
                     :telefoneId,
                     :statusProcesso,
+                    :identificadorPublicoCliente,
                     :codigoEmailHash,
                     :codigoEmailGeradoEm,
                     :codigoEmailExpiraEm,
@@ -130,6 +138,10 @@ public class SincronizacaoModeloMultiappService {
                     email_id = EXCLUDED.email_id,
                     telefone_id = EXCLUDED.telefone_id,
                     status_processo = EXCLUDED.status_processo,
+                    identificador_publico_cliente = COALESCE(
+                        EXCLUDED.identificador_publico_cliente,
+                        autenticacao.cadastros_conta.identificador_publico_cliente
+                    ),
                     codigo_email_hash = EXCLUDED.codigo_email_hash,
                     codigo_email_gerado_em = EXCLUDED.codigo_email_gerado_em,
                     codigo_email_expira_em = EXCLUDED.codigo_email_expira_em,
@@ -141,6 +153,11 @@ public class SincronizacaoModeloMultiappService {
                     user_agent_solicitante = EXCLUDED.user_agent_solicitante,
                     atualizado_em = EXCLUDED.atualizado_em
                 """, params);
+    }
+
+    public long assegurarClienteEcossistemaParaSistemaSolicitante(final String sistemaSolicitante,
+                                                                  final OffsetDateTime momento) {
+        return assegurarClienteEcossistema(sistemaSolicitante, momento);
     }
 
     public void removerCadastro(final UUID cadastroId) {
@@ -161,15 +178,17 @@ public class SincronizacaoModeloMultiappService {
 
     public void sincronizarRecuperacaoSenha(final RecuperacaoSenha recuperacaoSenha) {
         Objects.requireNonNull(recuperacaoSenha, "recuperacaoSenha é obrigatória");
-        Long clienteEcossistemaId = assegurarClientePadrao(recuperacaoSenha.getAtualizadoEm());
+        Long clienteEcossistemaId = assegurarClienteEcossistema(CLIENTE_PADRAO_CODIGO, recuperacaoSenha.getAtualizadoEm());
         UUID usuarioId = null;
         if (recuperacaoSenha.possuiDestinoReal()) {
             usuarioId = assegurarUsuarioAtivo(
                     recuperacaoSenha.getSubjectRemoto(),
                     recuperacaoSenha.getEmailPrincipal(),
+                    null,
                     recuperacaoSenha.getCriadoEm(),
                     recuperacaoSenha.getAtualizadoEm(),
                     clienteEcossistemaId,
+                    CLIENTE_PADRAO_CODIGO,
                     recuperacaoSenha.getSenhaRedefinidaEm()
             );
         }
@@ -241,14 +260,16 @@ public class SincronizacaoModeloMultiappService {
 
     public void sincronizarRegistroDispositivo(final RegistroDispositivo registro) {
         Objects.requireNonNull(registro, "registro é obrigatório");
-        Long clienteEcossistemaId = assegurarClientePadrao(registro.getCriadoEm());
+        Long clienteEcossistemaId = assegurarClienteEcossistema(CLIENTE_PADRAO_CODIGO, registro.getCriadoEm());
         UUID usuarioId = registro.getUsuarioSub()
                 .map(sub -> assegurarUsuarioAtivo(
                         sub,
                         registro.getEmail(),
+                        null,
                         registro.getCriadoEm(),
                         registro.getConfirmadoEm().orElse(registro.getCriadoEm()),
                         clienteEcossistemaId,
+                        CLIENTE_PADRAO_CODIGO,
                         registro.getConfirmadoEm().orElse(null)))
                 .orElse(null);
         UUID pessoaId = registro.getUsuarioSub().map(this::gerarPessoaId).orElse(null);
@@ -341,13 +362,15 @@ public class SincronizacaoModeloMultiappService {
         if (dispositivo.getId() == null) {
             return;
         }
-        Long clienteEcossistemaId = assegurarClientePadrao(dispositivo.getAtualizadoEm());
+        Long clienteEcossistemaId = assegurarClienteEcossistema(CLIENTE_PADRAO_CODIGO, dispositivo.getAtualizadoEm());
         UUID usuarioId = assegurarUsuarioAtivo(
                 dispositivo.getUsuarioSub(),
+                null,
                 null,
                 dispositivo.getCriadoEm(),
                 dispositivo.getAtualizadoEm(),
                 clienteEcossistemaId,
+                CLIENTE_PADRAO_CODIGO,
                 dispositivo.getUltimoTokenEmitidoEm().orElse(null)
         );
 
@@ -408,13 +431,15 @@ public class SincronizacaoModeloMultiappService {
             return;
         }
         String usuarioSub = token.getUsuarioSub();
-        Long clienteEcossistemaId = assegurarClientePadrao(token.getEmitidoEm());
+        Long clienteEcossistemaId = assegurarClienteEcossistema(CLIENTE_PADRAO_CODIGO, token.getEmitidoEm());
         assegurarUsuarioAtivo(
                 usuarioSub,
                 token.getRegistro().getEmail(),
+                null,
                 token.getEmitidoEm(),
                 token.getEmitidoEm(),
                 clienteEcossistemaId,
+                CLIENTE_PADRAO_CODIGO,
                 token.getEmitidoEm()
         );
 
@@ -466,7 +491,7 @@ public class SincronizacaoModeloMultiappService {
 
     public void sincronizarDesafioAtestacao(final DesafioAtestacaoApp desafio) {
         Objects.requireNonNull(desafio, "desafio é obrigatório");
-        Long clienteEcossistemaId = assegurarClientePadrao(desafio.getCriadoEm());
+        Long clienteEcossistemaId = assegurarClienteEcossistema(CLIENTE_PADRAO_CODIGO, desafio.getCriadoEm());
         UUID usuarioId = null;
         UUID pessoaId = null;
         UUID vinculoClienteId = null;
@@ -475,13 +500,15 @@ public class SincronizacaoModeloMultiappService {
             usuarioId = assegurarUsuarioAtivo(
                     desafio.getUsuarioSub(),
                     null,
+                    null,
                     desafio.getCriadoEm(),
                     desafio.getConsumidoEm() != null ? desafio.getConsumidoEm() : desafio.getCriadoEm(),
                     clienteEcossistemaId,
+                    CLIENTE_PADRAO_CODIGO,
                     null
             );
             pessoaId = gerarPessoaId(desafio.getUsuarioSub());
-            vinculoClienteId = gerarVinculoClienteId(desafio.getUsuarioSub());
+            vinculoClienteId = gerarVinculoClienteId(desafio.getUsuarioSub(), CLIENTE_PADRAO_CODIGO);
         }
 
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -635,9 +662,11 @@ public class SincronizacaoModeloMultiappService {
 
     private UUID assegurarUsuarioAtivo(final String subRemoto,
                                        final String emailPrincipal,
+                                       final String identificadorPublicoCliente,
                                        final OffsetDateTime criadoEm,
                                        final OffsetDateTime atualizadoEm,
                                        final Long clienteEcossistemaId,
+                                       final String codigoClienteEcossistema,
                                        final OffsetDateTime ultimoAcessoEm) {
         if (subRemoto == null || subRemoto.isBlank()) {
             return null;
@@ -683,7 +712,16 @@ public class SincronizacaoModeloMultiappService {
                     atualizado_em = EXCLUDED.atualizado_em
                 """, paramsUsuario);
 
-        assegurarVinculoUsuario(usuarioId, clienteEcossistemaId, criadoEm, atualizadoEm, ultimoAcessoEm, subRemoto);
+        assegurarVinculoUsuario(
+                usuarioId,
+                clienteEcossistemaId,
+                codigoClienteEcossistema,
+                normalizarIdentificadorPublicoCliente(identificadorPublicoCliente),
+                criadoEm,
+                atualizadoEm,
+                ultimoAcessoEm,
+                subRemoto
+        );
         if (emailPrincipal != null && !emailPrincipal.isBlank()) {
             assegurarFormaAcessoEmail(usuarioId, emailPrincipal, criadoEm, atualizadoEm);
         }
@@ -692,16 +730,18 @@ public class SincronizacaoModeloMultiappService {
 
     private void assegurarVinculoUsuario(final UUID usuarioId,
                                          final Long clienteEcossistemaId,
+                                         final String codigoClienteEcossistema,
+                                         final String identificadorPublicoCliente,
                                          final OffsetDateTime criadoEm,
                                          final OffsetDateTime atualizadoEm,
                                          final OffsetDateTime ultimoAcessoEm,
                                          final String subRemoto) {
         MapSqlParameterSource paramsVinculo = new MapSqlParameterSource()
-                .addValue("id", gerarVinculoClienteId(subRemoto))
+                .addValue("id", gerarVinculoClienteId(subRemoto, codigoClienteEcossistema))
                 .addValue("usuarioId", usuarioId)
                 .addValue("clienteEcossistemaId", clienteEcossistemaId)
                 .addValue("statusVinculo", STATUS_VINCULO_ATIVO)
-                .addValue("identificadorPublicoCliente", null)
+                .addValue("identificadorPublicoCliente", identificadorPublicoCliente)
                 .addValue("ultimoAcessoEm", ultimoAcessoEm)
                 .addValue("vinculadoEm", criadoEm)
                 .addValue("atualizadoEm", atualizadoEm)
@@ -735,12 +775,24 @@ public class SincronizacaoModeloMultiappService {
                 )
                 ON CONFLICT (usuario_id, cliente_ecossistema_id) DO UPDATE
                 SET status_vinculo = EXCLUDED.status_vinculo,
+                    identificador_publico_cliente = COALESCE(
+                        EXCLUDED.identificador_publico_cliente,
+                        autenticacao.usuarios_clientes_ecossistema.identificador_publico_cliente
+                    ),
                     ultimo_acesso_em = COALESCE(EXCLUDED.ultimo_acesso_em,
                                                 autenticacao.usuarios_clientes_ecossistema.ultimo_acesso_em),
                     atualizado_em = EXCLUDED.atualizado_em,
                     revogado_em = NULL,
                     motivo_revogacao = NULL
                 """, paramsVinculo);
+    }
+
+    private String normalizarIdentificadorPublicoCliente(final String identificadorPublicoCliente) {
+        if (identificadorPublicoCliente == null) {
+            return null;
+        }
+        String normalizado = identificadorPublicoCliente.trim().toLowerCase(Locale.ROOT);
+        return normalizado.isBlank() ? null : normalizado;
     }
 
     private void assegurarFormaAcessoEmail(final UUID usuarioId,
@@ -794,12 +846,13 @@ public class SincronizacaoModeloMultiappService {
                 """, paramsForma);
     }
 
-    private Long assegurarClientePadrao(final OffsetDateTime momento) {
+    private Long assegurarClienteEcossistema(final String codigoClienteEcossistema, final OffsetDateTime momento) {
         OffsetDateTime instante = Objects.requireNonNullElseGet(momento, OffsetDateTime::now);
+        String codigoCliente = resolverCodigoClienteEcossistema(codigoClienteEcossistema);
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("codigo", CLIENTE_PADRAO_CODIGO)
-                .addValue("nome", CLIENTE_PADRAO_NOME)
-                .addValue("tipo", CLIENTE_PADRAO_TIPO)
+                .addValue("codigo", codigoCliente)
+                .addValue("nome", resolverNomeClienteEcossistema(codigoCliente))
+                .addValue("tipo", resolverTipoClienteEcossistema(codigoCliente))
                 .addValue("agora", instante);
         jdbcTemplate.update("""
                 INSERT INTO catalogo.clientes_ecossistema (
@@ -830,7 +883,7 @@ public class SincronizacaoModeloMultiappService {
                 SELECT id
                 FROM catalogo.clientes_ecossistema
                 WHERE codigo = :codigo
-                """, params).orElseThrow(() -> new IllegalStateException("Cliente padrão do ecossistema não encontrado."));
+                """, params).orElseThrow(() -> new IllegalStateException("Cliente do ecossistema não encontrado."));
     }
 
     private Long assegurarSistemaOrigem(final String identificadorSistema, final OffsetDateTime momento) {
@@ -932,8 +985,31 @@ public class SincronizacaoModeloMultiappService {
         return Optional.of(gerarUuidDeterministico("identidade.telefone:" + telefone.trim()));
     }
 
-    private UUID gerarVinculoClienteId(final String subRemoto) {
-        return gerarUuidDeterministico("autenticacao.vinculo_cliente:" + subRemoto + ":" + CLIENTE_PADRAO_CODIGO);
+    private String resolverCodigoClienteEcossistema(final String identificadorSistema) {
+        if (identificadorSistema == null || identificadorSistema.isBlank()) {
+            return CLIENTE_PADRAO_CODIGO;
+        }
+        String codigoNormalizado = identificadorSistema.trim();
+        if (SISTEMA_PUBLICO_LEGADO.equalsIgnoreCase(codigoNormalizado)
+                || CLIENTE_PADRAO_CODIGO.equalsIgnoreCase(codigoNormalizado)) {
+            return CLIENTE_PADRAO_CODIGO;
+        }
+        return codigoNormalizado;
+    }
+
+    private String resolverNomeClienteEcossistema(final String codigoClienteEcossistema) {
+        if (CLIENTE_PADRAO_CODIGO.equalsIgnoreCase(codigoClienteEcossistema)) {
+            return CLIENTE_PADRAO_NOME;
+        }
+        return codigoClienteEcossistema;
+    }
+
+    private String resolverTipoClienteEcossistema(final String codigoClienteEcossistema) {
+        return CLIENTE_PADRAO_TIPO;
+    }
+
+    private UUID gerarVinculoClienteId(final String subRemoto, final String codigoClienteEcossistema) {
+        return gerarUuidDeterministico("autenticacao.vinculo_cliente:" + subRemoto + ":" + codigoClienteEcossistema);
     }
 
     private UUID gerarFormaAcessoId(final String tipo, final String provedor, final String identificadorExterno) {

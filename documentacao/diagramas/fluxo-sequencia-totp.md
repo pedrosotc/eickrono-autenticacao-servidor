@@ -1,5 +1,13 @@
 # Diagrama de sequência – TOTP no aplicativo e no Keycloak
 
+> Status deste documento: **canônico no seu escopo**.
+>
+> Este documento descreve a jornada funcional e tecnica do TOTP na superficie
+> publicada.
+>
+> Ele nao detalha ownership interno de `Pessoa`, `PerfilSistema` ou separacao
+> entre servicos alem do necessario para o fluxo de segundo fator.
+
 Este documento descreve o fluxo teórico completo do TOTP na implementação única discutida para a Eickrono.
 
 Premissa principal de UX:

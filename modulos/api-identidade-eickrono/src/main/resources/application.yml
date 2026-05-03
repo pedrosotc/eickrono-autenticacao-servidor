@@ -173,6 +173,15 @@ integracao:
     clientes-permitidos:
       - ${INTEGRACAO_INTERNA_CLIENTE_THIMISU:identidade-servidor-interno}
       - ${INTEGRACAO_INTERNA_CLIENTE_AUTORIZACAO:servidor-autorizacao-interno}
+  identidade:
+    url-base: ${INTEGRACAO_IDENTIDADE_URL_BASE:http://localhost:8081}
+    timeout: ${INTEGRACAO_IDENTIDADE_TIMEOUT:PT5S}
+    jwt-interno:
+      url-base: ${INTEGRACAO_IDENTIDADE_JWT_INTERNO_URL_BASE:http://localhost:8080}
+      realm: ${INTEGRACAO_IDENTIDADE_JWT_INTERNO_REALM:eickrono}
+      client-id: ${INTEGRACAO_IDENTIDADE_JWT_INTERNO_CLIENT_ID:servidor-autorizacao-interno}
+      client-secret: ${INTEGRACAO_IDENTIDADE_JWT_INTERNO_CLIENT_SECRET:CHANGE_ME}
+      timeout: ${INTEGRACAO_IDENTIDADE_JWT_INTERNO_TIMEOUT:PT5S}
   perfil:
     url-base: ${INTEGRACAO_PERFIL_URL_BASE:http://localhost:8082}
     timeout: ${INTEGRACAO_PERFIL_TIMEOUT:PT5S}
@@ -182,3 +191,15 @@ integracao:
       client-id: ${INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_ID:autenticacao-servidor-interno}
       client-secret: ${INTEGRACAO_PERFIL_JWT_INTERNO_CLIENT_SECRET:CHANGE_ME}
       timeout: ${INTEGRACAO_PERFIL_JWT_INTERNO_TIMEOUT:PT5S}
+
+eickrono:
+  integracao-produto:
+    scheduler:
+      habilitado: true
+      intervalo-ciclo: PT1M
+      tempo-entre-tentativas-segundos: 300
+      quantidade-maxima-tentativas: 10
+      quantidade-maxima-itens-por-ciclo: 50
+      timeout-sondagem-millis: 3000
+      timeout-entrega-millis: 10000
+      timeout-recuperacao-processamento-segundos: 900

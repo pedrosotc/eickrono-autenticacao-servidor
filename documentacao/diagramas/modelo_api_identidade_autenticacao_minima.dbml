@@ -5,23 +5,29 @@
 // ----------------------------------------------------------------------------------------------------
 // Este arquivo descreve o menor conjunto de tabelas que realmente precisa existir no servico de
 // autenticacao quando:
-// - o cadastro canonico de pessoa/contato vive no b.dbml do lado de perfil/dominio
+// - a `Pessoa` canonica e os contatos vivem no modelo de identidade
 // - a conta OIDC, credenciais e sessoes vivem no Keycloak
 //
 // Consequencia direta:
-// - a autenticacao NAO replica pessoas, emails, telefones, perfis ou papeis
-// - ela armazena apenas IDs externos e os estados operacionais que sao propriamente dela
+// - a autenticacao NAO e dona da `Pessoa` canonica
+// - ela guarda a conta central, o vinculo por sistema e os estados operacionais
+//   que sao propriamente dela
 //
 // Referencias externas usadas neste desenho:
-// - b.dbml: identidade.pessoas.id
-// - b.dbml: contato.emails.id
-// - b.dbml: contato.pessoa_telefone.id
+// - modelo_api_identidade_alvo.dbml: pessoas.id
+// - modelo_api_identidade_alvo.dbml: pessoas_emails.id
+// - modelo_api_identidade_alvo.dbml: pessoas_telefones.id
 // - Keycloak: USER_ENTITY.ID
+//
+// STATUS DE LEITURA:
+// - este arquivo representa um ALVO de minima persistencia para a autenticacao;
+// - alguns nomes de campos ainda carregam legado de transicao e nao devem ser
+//   lidos como nomenclatura final obrigatoria.
 // ====================================================================================================
 
 Project eickrono_api_identidade_autenticacao_minima {
     database_type: "PostgreSQL"
-    Note: "Modelo minimo do servico de autenticacao. O lado de autenticacao guarda apenas processos de cadastro, onboarding de dispositivo, device token, atestacao de app e auditoria; pessoa e contato permanecem como fonte de verdade no b.dbml, enquanto conta OIDC e sessao permanecem no Keycloak."
+    Note: "Modelo minimo do servico de autenticacao. O lado de autenticacao guarda apenas conta central, processos de cadastro, onboarding de dispositivo, device token, atestacao de app e auditoria; `Pessoa` e contatos permanecem como fonte de verdade no modelo de identidade, enquanto conta OIDC e sessao permanecem no Keycloak."
 }
 
 // ====================================================================================================

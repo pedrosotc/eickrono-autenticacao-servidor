@@ -6,9 +6,10 @@ public record ConfirmacaoEmailCadastroPublicoRealizada(
         UUID cadastroId,
         String subjectRemoto,
         String emailPrincipal,
-        String usuarioId,
-        String statusUsuario,
+        String perfilSistemaId,
+        String statusPerfilSistema,
         boolean emailConfirmado,
-        boolean podeAutenticar
+        boolean podeAutenticar,
+        String proximoPasso
 ) {
 }

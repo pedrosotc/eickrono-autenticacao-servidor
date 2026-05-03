@@ -5,8 +5,9 @@ import com.eickrono.api.identidade.aplicacao.modelo.CadastroInternoRealizado;
 import com.eickrono.api.identidade.aplicacao.modelo.CadastroKeycloakProvisionado;
 import com.eickrono.api.identidade.aplicacao.modelo.ConfirmacaoEmailCadastroInternoRealizada;
 import com.eickrono.api.identidade.aplicacao.modelo.ConfirmacaoEmailCadastroPublicoRealizada;
-import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
-import com.eickrono.api.identidade.aplicacao.modelo.ProvisionamentoPerfilRealizado;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfilSistema;
+import com.eickrono.api.identidade.aplicacao.modelo.PessoaCanonicaConfirmada;
+import com.eickrono.api.identidade.aplicacao.modelo.ProvisionamentoPerfilSistemaRealizado;
 import com.eickrono.api.identidade.dominio.modelo.CadastroConta;
 import com.eickrono.api.identidade.dominio.modelo.CanalValidacaoTelefoneCadastro;
 import com.eickrono.api.identidade.dominio.modelo.SexoPessoaCadastro;
@@ -45,39 +46,53 @@ public class CadastroContaInternaServico {
     private static final String HMAC_ALG = "HmacSHA256";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Logger LOGGER = LoggerFactory.getLogger(CadastroContaInternaServico.class);
+    private static final String SISTEMA_PUBLICO_PADRAO = "eickrono-thimisu-app";
+    private static final String STATUS_PENDENTE_LIBERACAO_PRODUTO = "PENDENTE_LIBERACAO_PRODUTO";
+    private static final String PROXIMO_PASSO_LOGIN = "LOGIN";
 
     private final CadastroContaRepositorio cadastroContaRepositorio;
-    private final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil;
+    private final ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema;
     private final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak;
-    private final ProvisionadorPerfilDominioServico provisionadorPerfilDominioServico;
+    private final ProvisionadorPerfilSistemaServico provisionadorPerfilSistemaServico;
+    private final ConfirmadorPessoaCadastroServico confirmadorPessoaCadastroServico;
+    private final DisponibilidadeUsuarioSistemaService disponibilidadeUsuarioSistemaService;
     private final CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail;
     private final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail;
     private final DispositivoProperties dispositivoProperties;
     private final Clock clock;
     private final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService;
+    private final RegistradorPendenciaIntegracaoProdutoService registradorPendenciaIntegracaoProdutoService;
     private ProvisionamentoIdentidadeService provisionamentoIdentidadeServiceCompat;
     private final HexFormat hexFormat = HexFormat.of();
 
     @Autowired
     public CadastroContaInternaServico(final CadastroContaRepositorio cadastroContaRepositorio,
-                                       final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil,
+                                       final ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema,
                                        final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak,
-                                       final ProvisionadorPerfilDominioServico provisionadorPerfilDominioServico,
+                                       final ProvisionadorPerfilSistemaServico provisionadorPerfilSistemaServico,
+                                       final ConfirmadorPessoaCadastroServico confirmadorPessoaCadastroServico,
+                                       final DisponibilidadeUsuarioSistemaService disponibilidadeUsuarioSistemaService,
+                                       final ProvisionamentoIdentidadeService provisionamentoIdentidadeService,
                                        final CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail,
                                        final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail,
                                        final DispositivoProperties dispositivoProperties,
                                        final Clock clock,
-                                       final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService) {
+                                       final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService,
+                                       final RegistradorPendenciaIntegracaoProdutoService registradorPendenciaIntegracaoProdutoService) {
         this(
                 cadastroContaRepositorio,
-                clienteContextoPessoaPerfil,
+                clienteContextoPessoaPerfilSistema,
                 clienteAdministracaoCadastroKeycloak,
-                provisionadorPerfilDominioServico,
+                provisionadorPerfilSistemaServico,
+                confirmadorPessoaCadastroServico,
+                disponibilidadeUsuarioSistemaService,
+                provisionamentoIdentidadeService,
                 canalEnvioCodigoCadastroEmail,
                 canalNotificacaoTentativaCadastroEmail,
                 dispositivoProperties,
                 clock,
                 sincronizacaoModeloMultiappService,
+                registradorPendenciaIntegracaoProdutoService,
                 true
         );
     }
@@ -91,65 +106,113 @@ public class CadastroContaInternaServico {
                                        final Clock clock) {
         this(
                 cadastroContaRepositorio,
-                new ClienteContextoPessoaPerfilLegado(
+                new ClienteContextoPessoaPerfilSistemaLegado(
                         Objects.requireNonNull(formaAcessoRepositorio, "formaAcessoRepositorio é obrigatório"),
                         Objects.requireNonNull(provisionamentoIdentidadeService, "provisionamentoIdentidadeService é obrigatório")),
                 clienteAdministracaoCadastroKeycloak,
                 null,
+                null,
+                null,
+                provisionamentoIdentidadeService,
                 canalEnvioCodigoCadastroEmail,
                 email -> {
                 },
                 dispositivoProperties,
                 clock,
                 null,
+                null,
                 false
         );
-        this.provisionamentoIdentidadeServiceCompat = provisionamentoIdentidadeService;
     }
 
     public CadastroContaInternaServico(final CadastroContaRepositorio cadastroContaRepositorio,
-                                       final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil,
+                                       final ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema,
                                        final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak,
-                                       final ProvisionadorPerfilDominioServico provisionadorPerfilDominioServico,
+                                       final ProvisionadorPerfilSistemaServico provisionadorPerfilSistemaServico,
+                                       final ConfirmadorPessoaCadastroServico confirmadorPessoaCadastroServico,
+                                       final DisponibilidadeUsuarioSistemaService disponibilidadeUsuarioSistemaService,
+                                       final ProvisionamentoIdentidadeService provisionamentoIdentidadeService,
                                        final CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail,
                                        final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail,
                                        final DispositivoProperties dispositivoProperties,
                                        final Clock clock) {
         this(
                 cadastroContaRepositorio,
-                clienteContextoPessoaPerfil,
+                clienteContextoPessoaPerfilSistema,
                 clienteAdministracaoCadastroKeycloak,
-                provisionadorPerfilDominioServico,
+                provisionadorPerfilSistemaServico,
+                confirmadorPessoaCadastroServico,
+                disponibilidadeUsuarioSistemaService,
+                provisionamentoIdentidadeService,
                 canalEnvioCodigoCadastroEmail,
                 canalNotificacaoTentativaCadastroEmail,
                 dispositivoProperties,
                 clock,
                 null,
+                null,
+                true
+        );
+    }
+
+    public CadastroContaInternaServico(final CadastroContaRepositorio cadastroContaRepositorio,
+                                       final ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema,
+                                       final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak,
+                                       final ProvisionadorPerfilSistemaServico provisionadorPerfilSistemaServico,
+                                       final ConfirmadorPessoaCadastroServico confirmadorPessoaCadastroServico,
+                                       final DisponibilidadeUsuarioSistemaService disponibilidadeUsuarioSistemaService,
+                                       final ProvisionamentoIdentidadeService provisionamentoIdentidadeService,
+                                       final CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail,
+                                       final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail,
+                                       final DispositivoProperties dispositivoProperties,
+                                       final Clock clock,
+                                       final RegistradorPendenciaIntegracaoProdutoService registradorPendenciaIntegracaoProdutoService) {
+        this(
+                cadastroContaRepositorio,
+                clienteContextoPessoaPerfilSistema,
+                clienteAdministracaoCadastroKeycloak,
+                provisionadorPerfilSistemaServico,
+                confirmadorPessoaCadastroServico,
+                disponibilidadeUsuarioSistemaService,
+                provisionamentoIdentidadeService,
+                canalEnvioCodigoCadastroEmail,
+                canalNotificacaoTentativaCadastroEmail,
+                dispositivoProperties,
+                clock,
+                null,
+                registradorPendenciaIntegracaoProdutoService,
                 true
         );
     }
 
     private CadastroContaInternaServico(final CadastroContaRepositorio cadastroContaRepositorio,
-                                        final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil,
+                                        final ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema,
                                         final ClienteAdministracaoCadastroKeycloak clienteAdministracaoCadastroKeycloak,
-                                        final ProvisionadorPerfilDominioServico provisionadorPerfilDominioServico,
+                                        final ProvisionadorPerfilSistemaServico provisionadorPerfilSistemaServico,
+                                        final ConfirmadorPessoaCadastroServico confirmadorPessoaCadastroServico,
+                                        final DisponibilidadeUsuarioSistemaService disponibilidadeUsuarioSistemaService,
+                                        final ProvisionamentoIdentidadeService provisionamentoIdentidadeServiceCompat,
                                         final CanalEnvioCodigoCadastroEmail canalEnvioCodigoCadastroEmail,
                                         final CanalNotificacaoTentativaCadastroEmail canalNotificacaoTentativaCadastroEmail,
                                         final DispositivoProperties dispositivoProperties,
                                         final Clock clock,
                                         final SincronizacaoModeloMultiappService sincronizacaoModeloMultiappService,
+                                        final RegistradorPendenciaIntegracaoProdutoService registradorPendenciaIntegracaoProdutoService,
                                         final boolean exigirProvisionadorPerfil) {
         this.cadastroContaRepositorio = Objects.requireNonNull(cadastroContaRepositorio, "cadastroContaRepositorio é obrigatório");
-        this.clienteContextoPessoaPerfil = Objects.requireNonNull(
-                clienteContextoPessoaPerfil, "clienteContextoPessoaPerfil é obrigatório");
+        this.clienteContextoPessoaPerfilSistema = Objects.requireNonNull(
+                clienteContextoPessoaPerfilSistema, "clienteContextoPessoaPerfilSistema é obrigatório");
         this.clienteAdministracaoCadastroKeycloak = Objects.requireNonNull(
                 clienteAdministracaoCadastroKeycloak, "clienteAdministracaoCadastroKeycloak é obrigatório");
         if (exigirProvisionadorPerfil) {
-            this.provisionadorPerfilDominioServico = Objects.requireNonNull(
-                    provisionadorPerfilDominioServico, "provisionadorPerfilDominioServico é obrigatório");
+            this.provisionadorPerfilSistemaServico = Objects.requireNonNull(
+                    provisionadorPerfilSistemaServico, "provisionadorPerfilSistemaServico é obrigatório");
+            this.confirmadorPessoaCadastroServico = Objects.requireNonNull(
+                    confirmadorPessoaCadastroServico, "confirmadorPessoaCadastroServico é obrigatório");
         } else {
-            this.provisionadorPerfilDominioServico = provisionadorPerfilDominioServico;
+            this.provisionadorPerfilSistemaServico = provisionadorPerfilSistemaServico;
+            this.confirmadorPessoaCadastroServico = confirmadorPessoaCadastroServico;
         }
+        this.disponibilidadeUsuarioSistemaService = disponibilidadeUsuarioSistemaService;
         this.canalEnvioCodigoCadastroEmail = Objects.requireNonNull(
                 canalEnvioCodigoCadastroEmail, "canalEnvioCodigoCadastroEmail é obrigatório");
         this.canalNotificacaoTentativaCadastroEmail = Objects.requireNonNull(
@@ -157,7 +220,8 @@ public class CadastroContaInternaServico {
         this.dispositivoProperties = Objects.requireNonNull(dispositivoProperties, "dispositivoProperties é obrigatório");
         this.clock = Objects.requireNonNull(clock, "clock é obrigatório");
         this.sincronizacaoModeloMultiappService = sincronizacaoModeloMultiappService;
-        this.provisionamentoIdentidadeServiceCompat = null;
+        this.registradorPendenciaIntegracaoProdutoService = registradorPendenciaIntegracaoProdutoService;
+        this.provisionamentoIdentidadeServiceCompat = provisionamentoIdentidadeServiceCompat;
     }
 
     public CadastroInternoRealizado cadastrar(final String nomeCompleto,
@@ -234,11 +298,40 @@ public class CadastroContaInternaServico {
     }
 
     public boolean usuarioDisponivelPublico(final String usuario) {
-        String usuarioNormalizado = normalizarUsuarioOpcional(usuario);
+        return identificadorPublicoSistemaDisponivelPublico(usuario, SISTEMA_PUBLICO_PADRAO);
+    }
+
+    public boolean usuarioDisponivelPublico(final String usuario, final String sistemaSolicitante) {
+        return identificadorPublicoSistemaDisponivelPublico(usuario, sistemaSolicitante);
+    }
+
+    public boolean identificadorPublicoSistemaDisponivelPublico(final String identificadorPublicoSistema) {
+        return identificadorPublicoSistemaDisponivelPublico(
+                identificadorPublicoSistema,
+                SISTEMA_PUBLICO_PADRAO
+        );
+    }
+
+    public boolean identificadorPublicoSistemaDisponivelPublico(final String identificadorPublicoSistema,
+                                                                final String sistemaSolicitante) {
+        return identificadorPublicoSistemaDisponivel(identificadorPublicoSistema, sistemaSolicitante);
+    }
+
+    public boolean identificadorPublicoSistemaDisponivel(final String identificadorPublicoSistema,
+                                                         final String sistemaSolicitante) {
+        String usuarioNormalizado = normalizarUsuarioOpcional(identificadorPublicoSistema);
+        String sistemaNormalizado = normalizarOpcional(sistemaSolicitante);
         if (usuarioNormalizado == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "usuario é obrigatório.");
         }
-        return usuarioDisponivelNormalizado(usuarioNormalizado);
+        if (sistemaNormalizado == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sistemaSolicitante é obrigatório.");
+        }
+        return usuarioDisponivelNormalizado(usuarioNormalizado, sistemaNormalizado);
+    }
+
+    public boolean usuarioDisponivel(final String usuario, final String sistemaSolicitante) {
+        return identificadorPublicoSistemaDisponivel(usuario, sistemaSolicitante);
     }
 
     public boolean possuiCadastroPendenteEmailPublico(final String emailPrincipal) {
@@ -253,6 +346,14 @@ public class CadastroContaInternaServico {
         return cadastroContaRepositorio.findByEmailPrincipal(emailNormalizado)
                 .filter(this::cadastroPendenteEmail)
                 .map(CadastroConta::getCadastroId);
+    }
+
+    public Optional<ContextoPessoaPerfilSistema> buscarContextoCentralPorEmailPublico(final String emailPrincipal) {
+        String emailNormalizado = obrigatorio(emailPrincipal, "emailPrincipal").toLowerCase(Locale.ROOT);
+        return cadastroContaRepositorio.findByEmailPrincipal(emailNormalizado)
+                .filter(CadastroConta::emailJaConfirmado)
+                .filter(cadastro -> cadastro.getPessoaIdPerfil() != null)
+                .map(this::mapearContextoCentralFallback);
     }
 
     public void reenviarCodigoEmail(final UUID cadastroId) {
@@ -340,7 +441,7 @@ public class CadastroContaInternaServico {
         String nomeFantasiaNormalizado = normalizarOpcional(nomeFantasia);
         String paisNascimentoNormalizado = normalizarOpcional(paisNascimento);
 
-        validarDuplicidadeUsuario(usuarioNormalizado);
+        validarDuplicidadeUsuario(usuarioNormalizado, sistemaNormalizado);
         validarDuplicidadeEmail(emailNormalizado);
 
         CadastroKeycloakProvisionado cadastroKeycloak = clienteAdministracaoCadastroKeycloak.criarUsuarioPendente(
@@ -424,27 +525,29 @@ public class CadastroContaInternaServico {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "O código de confirmação informado é inválido.");
         }
 
-        String statusUsuario = "EMAIL_CONFIRMADO";
+        String statusPerfilSistema = "EMAIL_CONFIRMADO";
         if (ehFluxoCadastroPublico(cadastroConta)) {
-            ProvisionadorPerfilDominioServico provisionador = Objects.requireNonNull(
-                    provisionadorPerfilDominioServico,
-                    "provisionadorPerfilDominioServico é obrigatório para o fluxo público"
-            );
-            ProvisionamentoPerfilRealizado provisionamento = provisionador.provisionarCadastroConfirmado(cadastroConta);
-            cadastroConta.definirProvisionamentoPerfil(
-                    provisionamento.pessoaId(),
-                    provisionamento.usuarioId(),
-                    agora
-            );
-            statusUsuario = provisionamento.statusUsuario();
+            PessoaCanonicaConfirmada pessoa = confirmarPessoaCanonicaPublica(cadastroConta, agora);
+            ResultadoProvisionamentoPerfilPublico provisionamento =
+                    provisionarPerfilSistemaPublico(cadastroConta, pessoa.pessoaId());
+            if (provisionamento.perfilSistemaId() != null && !provisionamento.perfilSistemaId().isBlank()) {
+                cadastroConta.definirProvisionamentoPerfil(
+                        pessoa.pessoaId(),
+                        provisionamento.perfilSistemaId(),
+                        agora
+                );
+            } else {
+                cadastroConta.definirPessoaIdPerfil(pessoa.pessoaId(), agora);
+            }
+            statusPerfilSistema = provisionamento.statusPerfilSistema();
         } else {
-            clienteContextoPessoaPerfil.buscarPorSub(cadastroConta.getSubjectRemoto())
+            buscarContextoProdutoPorSubTolerante(cadastroConta.getSubjectRemoto())
                     .ifPresent(contexto -> {
                         cadastroConta.definirPessoaIdPerfil(contexto.pessoaId(), agora);
-                        if (contexto.usuarioId() != null && !contexto.usuarioId().isBlank()) {
+                        if (contexto.perfilSistemaId() != null && !contexto.perfilSistemaId().isBlank()) {
                             cadastroConta.definirProvisionamentoPerfil(
                                     contexto.pessoaId(),
-                                    contexto.usuarioId(),
+                                    contexto.perfilSistemaId(),
                                     agora
                             );
                         }
@@ -453,13 +556,14 @@ public class CadastroContaInternaServico {
                 provisionamentoIdentidadeServiceCompat.confirmarEmailCadastro(
                         cadastroConta.getSubjectRemoto(),
                         cadastroConta.getEmailPrincipal(),
+                        cadastroConta.getNomeCompleto(),
                         agora
                 );
             }
-            statusUsuario = clienteContextoPessoaPerfil.buscarPorSub(cadastroConta.getSubjectRemoto())
-                    .map(ContextoPessoaPerfil::statusUsuario)
+            statusPerfilSistema = buscarContextoProdutoPorSubTolerante(cadastroConta.getSubjectRemoto())
+                    .map(ContextoPessoaPerfilSistema::statusPerfilSistema)
                     .filter(valor -> valor != null && !valor.isBlank())
-                    .orElse(statusUsuario);
+                    .orElse(statusPerfilSistema);
         }
 
         clienteAdministracaoCadastroKeycloak.confirmarEmailEAtivarUsuario(
@@ -470,45 +574,136 @@ public class CadastroContaInternaServico {
         cadastroConta.marcarEmailConfirmado(agora);
         sincronizarCadastroSeConfigurado(cadastroConta);
 
-        return montarRespostaConfirmacao(cadastroConta, statusUsuario);
+        return montarRespostaConfirmacao(cadastroConta, statusPerfilSistema);
+    }
+
+    private PessoaCanonicaConfirmada confirmarPessoaCanonicaPublica(final CadastroConta cadastroConta,
+                                                                    final OffsetDateTime agora) {
+        ConfirmadorPessoaCadastroServico confirmador = Objects.requireNonNull(
+                confirmadorPessoaCadastroServico,
+                "confirmadorPessoaCadastroServico é obrigatório para o fluxo público"
+        );
+        PessoaCanonicaConfirmada pessoa = confirmador.confirmarEmailCadastro(
+                cadastroConta.getSubjectRemoto(),
+                cadastroConta.getEmailPrincipal(),
+                cadastroConta.getNomeCompleto(),
+                agora
+        );
+        cadastroConta.definirPessoaIdPerfil(pessoa.pessoaId(), agora);
+        return pessoa;
+    }
+
+    private ResultadoProvisionamentoPerfilPublico provisionarPerfilSistemaPublico(final CadastroConta cadastroConta,
+                                                                                  final Long pessoaIdCentral) {
+        ProvisionadorPerfilSistemaServico provisionador = Objects.requireNonNull(
+                provisionadorPerfilSistemaServico,
+                "provisionadorPerfilSistemaServico é obrigatório para o fluxo público"
+        );
+        try {
+            ProvisionamentoPerfilSistemaRealizado provisionamento =
+                    provisionador.provisionarCadastroConfirmado(cadastroConta, pessoaIdCentral);
+            return new ResultadoProvisionamentoPerfilPublico(
+                    provisionamento.perfilSistemaId(),
+                    provisionamento.statusPerfilSistema()
+            );
+        } catch (ResponseStatusException ex) {
+            if (!falhaProvisionamentoProdutoToleravel(ex)) {
+                throw ex;
+            }
+            registrarPendenciaProvisionamentoPerfilSistema(cadastroConta, pessoaIdCentral, ex);
+            LOGGER.warn(
+                    "provisionamento_perfil_sistema_pendente cadastroId={} sistema={} motivo={}",
+                    cadastroConta.getCadastroId(),
+                    cadastroConta.getSistemaSolicitante(),
+                    ex.getReason()
+            );
+            return new ResultadoProvisionamentoPerfilPublico(
+                    null,
+                    STATUS_PENDENTE_LIBERACAO_PRODUTO
+            );
+        }
     }
 
     private ConfirmacaoEmailCadastroPublicoRealizada montarRespostaConfirmacao(final CadastroConta cadastroConta,
-                                                                               final String statusUsuarioPadrao) {
-        ContextoPessoaPerfil contexto = clienteContextoPessoaPerfil.buscarPorSub(cadastroConta.getSubjectRemoto()).orElse(null);
-        String usuarioId = cadastroConta.getUsuarioIdPerfil();
-        if ((usuarioId == null || usuarioId.isBlank()) && contexto != null) {
-            usuarioId = contexto.usuarioId();
+                                                                               final String statusPerfilSistemaPadrao) {
+        ContextoPessoaPerfilSistema contexto = buscarContextoProdutoPorSubTolerante(cadastroConta.getSubjectRemoto())
+                .orElse(null);
+        String perfilSistemaId = cadastroConta.getPerfilSistemaId();
+        if ((perfilSistemaId == null || perfilSistemaId.isBlank()) && contexto != null) {
+            perfilSistemaId = contexto.perfilSistemaId();
         }
-        String statusUsuario = contexto == null || contexto.statusUsuario() == null || contexto.statusUsuario().isBlank()
-                ? statusUsuarioPadrao
-                : contexto.statusUsuario();
+        String statusPerfilSistema = contexto == null
+                || contexto.statusPerfilSistema() == null
+                || contexto.statusPerfilSistema().isBlank()
+                ? statusPerfilSistemaPadrao
+                : contexto.statusPerfilSistema();
         return new ConfirmacaoEmailCadastroPublicoRealizada(
                 cadastroConta.getCadastroId(),
                 cadastroConta.getSubjectRemoto(),
                 cadastroConta.getEmailPrincipal(),
-                Objects.requireNonNullElse(usuarioId, ""),
-                statusUsuario,
+                Objects.requireNonNullElse(perfilSistemaId, ""),
+                statusPerfilSistema,
                 true,
-                true
+                true,
+                PROXIMO_PASSO_LOGIN
         );
     }
 
-    private void validarDuplicidadeUsuario(final String usuarioNormalizado) {
+    private boolean falhaProvisionamentoProdutoToleravel(final ResponseStatusException ex) {
+        return ex.getStatusCode().is5xxServerError();
+    }
+
+    private void registrarPendenciaProvisionamentoPerfilSistema(final CadastroConta cadastroConta,
+                                                                final Long pessoaIdCentral,
+                                                                final ResponseStatusException ex) {
+        RegistradorPendenciaIntegracaoProdutoService registrador = Objects.requireNonNull(
+                registradorPendenciaIntegracaoProdutoService,
+                "registradorPendenciaIntegracaoProdutoService é obrigatório para tolerar falha de provisionamento"
+        );
+        registrador.registrarProvisionamentoPerfilSistema(
+                cadastroConta,
+                pessoaIdCentral,
+                "PROVISIONAMENTO_PERFIL_SISTEMA_HTTP_" + ex.getStatusCode().value(),
+                Objects.requireNonNullElse(
+                        ex.getReason(),
+                        "Falha toleravel ao provisionar o perfil do sistema."
+                )
+        );
+    }
+
+    private ContextoPessoaPerfilSistema mapearContextoCentralFallback(final CadastroConta cadastroConta) {
+        String statusPerfilSistema = cadastroConta.getPerfilSistemaId() == null || cadastroConta.getPerfilSistemaId().isBlank()
+                ? STATUS_PENDENTE_LIBERACAO_PRODUTO
+                : "LIBERADO";
+        return new ContextoPessoaPerfilSistema(
+                cadastroConta.getPessoaIdPerfil(),
+                cadastroConta.getSubjectRemoto(),
+                cadastroConta.getEmailPrincipal(),
+                cadastroConta.getNomeCompleto(),
+                cadastroConta.getPerfilSistemaId(),
+                statusPerfilSistema
+        );
+    }
+
+    private void validarDuplicidadeUsuario(final String usuarioNormalizado,
+                                           final String sistemaSolicitanteNormalizado) {
         if (usuarioNormalizado == null || usuarioNormalizado.isBlank()) {
             return;
         }
-        if (!usuarioDisponivelNormalizado(usuarioNormalizado)) {
+        if (!usuarioDisponivelNormalizado(usuarioNormalizado, sistemaSolicitanteNormalizado)) {
             throw FluxoPublicoException.conflito("usuario_indisponivel", "Este usuário não está disponível.");
         }
     }
 
-    private boolean usuarioDisponivelNormalizado(final String usuarioNormalizado) {
-        if (cadastroContaRepositorio.findByUsuarioIgnoreCase(usuarioNormalizado).isPresent()) {
-            return false;
+    private boolean usuarioDisponivelNormalizado(final String usuarioNormalizado,
+                                                 final String sistemaSolicitanteNormalizado) {
+        if (disponibilidadeUsuarioSistemaService == null) {
+            return !cadastroContaRepositorio.findByUsuarioIgnoreCase(usuarioNormalizado).isPresent();
         }
-        return provisionadorPerfilDominioServico == null
-                || provisionadorPerfilDominioServico.usuarioDisponivel(usuarioNormalizado);
+        return disponibilidadeUsuarioSistemaService.identificadorPublicoSistemaDisponivel(
+                usuarioNormalizado,
+                sistemaSolicitanteNormalizado
+        );
     }
 
     private void validarDuplicidadeEmail(final String emailNormalizado) {
@@ -519,7 +714,7 @@ public class CadastroContaInternaServico {
                     "Não foi possível concluir o cadastro com os dados informados."
             );
         }
-        clienteContextoPessoaPerfil.buscarPorEmail(emailNormalizado)
+        buscarContextoProdutoPorEmailTolerante(emailNormalizado)
                 .ifPresent(contexto -> {
                     notificarTentativaCadastroContaExistente(emailNormalizado);
                     throw FluxoPublicoException.conflito(
@@ -604,31 +799,55 @@ public class CadastroContaInternaServico {
         }
     }
 
+    private Optional<ContextoPessoaPerfilSistema> buscarContextoProdutoPorEmailTolerante(final String email) {
+        try {
+            return clienteContextoPessoaPerfilSistema.buscarPorEmail(email);
+        } catch (RuntimeException ex) {
+            LOGGER.warn("contexto_produto_indisponivel_busca_email email={} motivo={}", email, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private Optional<ContextoPessoaPerfilSistema> buscarContextoProdutoPorSubTolerante(final String sub) {
+        try {
+            return clienteContextoPessoaPerfilSistema.buscarPorSub(sub);
+        } catch (RuntimeException ex) {
+            LOGGER.warn("contexto_produto_indisponivel_busca_sub sub={} motivo={}", sub, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
     private static String normalizarUsuarioOpcional(final String valor) {
         String normalizado = normalizarOpcional(valor);
         return normalizado == null ? null : normalizado.toLowerCase(Locale.ROOT);
     }
 
-    private static final class ClienteContextoPessoaPerfilLegado implements ClienteContextoPessoaPerfil {
+    private record ResultadoProvisionamentoPerfilPublico(
+            String perfilSistemaId,
+            String statusPerfilSistema
+    ) {
+    }
+
+    private static final class ClienteContextoPessoaPerfilSistemaLegado implements ClienteContextoPessoaPerfilSistema {
 
         private final FormaAcessoRepositorio formaAcessoRepositorio;
         private final ProvisionamentoIdentidadeService provisionamentoIdentidadeService;
 
-        private ClienteContextoPessoaPerfilLegado(final FormaAcessoRepositorio formaAcessoRepositorio,
+        private ClienteContextoPessoaPerfilSistemaLegado(final FormaAcessoRepositorio formaAcessoRepositorio,
                                                   final ProvisionamentoIdentidadeService provisionamentoIdentidadeService) {
             this.formaAcessoRepositorio = formaAcessoRepositorio;
             this.provisionamentoIdentidadeService = provisionamentoIdentidadeService;
         }
 
         @Override
-        public Optional<ContextoPessoaPerfil> buscarPorPessoaId(final Long pessoaId) {
+        public Optional<ContextoPessoaPerfilSistema> buscarPorPessoaId(final Long pessoaId) {
             return Optional.empty();
         }
 
         @Override
-        public Optional<ContextoPessoaPerfil> buscarPorSub(final String sub) {
+        public Optional<ContextoPessoaPerfilSistema> buscarPorSub(final String sub) {
             return provisionamentoIdentidadeService.localizarPessoaPorSub(sub)
-                    .map(pessoa -> new ContextoPessoaPerfil(
+                    .map(pessoa -> new ContextoPessoaPerfilSistema(
                             pessoa.getId(),
                             pessoa.getSub(),
                             pessoa.getEmail(),
@@ -638,11 +857,11 @@ public class CadastroContaInternaServico {
         }
 
         @Override
-        public Optional<ContextoPessoaPerfil> buscarPorEmail(final String email) {
+        public Optional<ContextoPessoaPerfilSistema> buscarPorEmail(final String email) {
             return formaAcessoRepositorio.findByTipoAndProvedorAndIdentificador(
                             TipoFormaAcesso.EMAIL_SENHA, "EMAIL", email)
                     .map(formaAcesso -> formaAcesso.getPessoa())
-                    .map(pessoa -> new ContextoPessoaPerfil(
+                    .map(pessoa -> new ContextoPessoaPerfilSistema(
                             pessoa.getId(),
                             pessoa.getSub(),
                             pessoa.getEmail(),

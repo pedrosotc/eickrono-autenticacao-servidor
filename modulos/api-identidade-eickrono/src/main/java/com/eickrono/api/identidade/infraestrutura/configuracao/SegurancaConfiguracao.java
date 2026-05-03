@@ -71,11 +71,13 @@ public class SegurancaConfiguracao {
     @Order(0)
     public SecurityFilterChain internalApiSecurity(HttpSecurity http,
                                                    ConversorJwtFapi conversor) throws Exception {
-        http.securityMatcher(
+                http.securityMatcher(
                         "/identidade/atestacoes/interna/**",
                         "/identidade/sessoes/interna",
                         "/identidade/cadastros/interna",
                         "/identidade/cadastros/interna/**",
+                        "/identidade/perfis-sistema/interna",
+                        "/identidade/perfis-sistema/interna/**",
                         "/identidade/dispositivos/token/validacao/interna"
                 )
                 .csrf(AbstractHttpConfigurer::disable)

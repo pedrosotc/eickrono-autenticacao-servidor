@@ -8,17 +8,20 @@ import com.eickrono.api.identidade.apresentacao.dto.cadastro.CadastroInternoApiR
 import com.eickrono.api.identidade.apresentacao.dto.cadastro.ConfirmacaoEmailCadastroInternoApiResposta;
 import com.eickrono.api.identidade.apresentacao.dto.cadastro.ConfirmarEmailCadastroInternoApiRequest;
 import com.eickrono.api.identidade.apresentacao.dto.cadastro.CriarCadastroInternoApiRequest;
+import com.eickrono.api.identidade.apresentacao.dto.fluxo.DisponibilidadeUsuarioCadastroApiResposta;
 import jakarta.validation.Valid;
 import java.util.Objects;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -86,5 +89,19 @@ public class CadastroInternoController {
             @PathVariable final UUID cadastroId) {
         validadorChamadaInterna.validar(segredoInterno, jwt, "CadastroInternoController");
         servico.reenviarCodigoEmail(cadastroId);
+    }
+
+    @GetMapping("/usuarios/disponibilidade")
+    public DisponibilidadeUsuarioCadastroApiResposta consultarDisponibilidadeUsuario(
+            @RequestHeader(HEADER_SEGREDO_INTERNO) final String segredoInterno,
+            @AuthenticationPrincipal final Jwt jwt,
+            @RequestHeader(HEADER_SISTEMA_SOLICITANTE) final String sistemaSolicitante,
+            @RequestParam final String usuario) {
+        validadorChamadaInterna.validar(segredoInterno, jwt, "CadastroInternoController");
+        boolean disponivel = servico.identificadorPublicoSistemaDisponivel(usuario, sistemaSolicitante);
+        return new DisponibilidadeUsuarioCadastroApiResposta(
+                usuario == null ? "" : usuario.trim().toLowerCase(java.util.Locale.ROOT),
+                disponivel
+        );
     }
 }

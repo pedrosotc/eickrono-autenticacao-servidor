@@ -29,8 +29,8 @@
       ],
       "environment": [
         { "name": "SPRING_PROFILES_ACTIVE", "value": "hml" },
-        { "name": "SPRING_DATASOURCE_URL", "value": "jdbc:postgresql://eickrono-hml-postgres.cdu8yi4qkl16.sa-east-1.rds.amazonaws.com:5432/eickrono_identidade_hml" },
-        { "name": "SPRING_DATASOURCE_USERNAME", "value": "eickrono_admin" },
+        { "name": "SPRING_DATASOURCE_URL", "value": "__IDENTIDADE_DB_URL__" },
+        { "name": "SPRING_DATASOURCE_USERNAME", "value": "__IDENTIDADE_DB_USERNAME__" },
         { "name": "SPRING_FLYWAY_SCHEMAS", "value": "identidade_hml" },
         { "name": "SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA", "value": "identidade_hml" },
         { "name": "SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI", "value": "https://oidc-hml.eickrono.store/realms/eickrono" },
@@ -58,7 +58,7 @@
         { "name": "SPRING_MAIL_SMTP_STARTTLS_ENABLE", "value": "true" }
       ],
       "secrets": [
-        { "name": "SPRING_DATASOURCE_PASSWORD", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:rds!db-7df15f56-c831-40b7-be42-ebd935108b06-22Dwvf:password::" },
+        { "name": "SPRING_DATASOURCE_PASSWORD", "valueFrom": "__IDENTIDADE_DB_PASSWORD_SECRET_ARN__" },
         { "name": "EICKRONO_INTERNAL_SECRET", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:/eickrono/hml/shared/eickrono-internal-secret-rbAreo" },
         { "name": "SEGURANCA_MTLS_KEYSTORE_SENHA", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:/eickrono/hml/shared/mtls-keystore-password-2Ix8LB" },
         { "name": "SEGURANCA_MTLS_TRUSTSTORE_SENHA", "valueFrom": "arn:aws:secretsmanager:sa-east-1:531708494702:secret:/eickrono/hml/shared/mtls-truststore-password-1oGP18" },

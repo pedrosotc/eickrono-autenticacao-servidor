@@ -1,5 +1,15 @@
 # Matriz de Migracao entre Autenticacao, Identidade e Thimisu-Backend
 
+> Status deste documento: **transicao assistida**.
+>
+> Esta matriz ajuda a coordenar nomes, aliases de runtime e passos de cutover.
+> Ela nao substitui o documento canônico de responsabilidades.
+>
+> Para decisoes de ownership entre `autenticacao`, `identidade` e backend de
+> produto, a fonte principal passa a ser:
+>
+> - `consolidado_migracao_autenticacao_identidade_thimisu.md`
+
 Este documento separa o que ja pode ser tratado como nomenclatura canônica
 do que ainda continua preso a alias legados de wire, runtime ou infraestrutura.
 
@@ -10,6 +20,12 @@ enquanto o ecossistema termina o cutover para `thimisu-backend`.
 ## Convencao canônica aprovada
 
 ### Superficies e hosts
+
+No desenho atual, existem dois planos de leitura:
+
+- alvo canônico final em `eickrono.com`;
+- estado transitorio efetivamente publicado por ambiente, que ainda pode usar
+  `eickrono.online` em `dev` e `eickrono.store` em `hml`.
 
 - superficie do produto:
   - `thimisu-dev.eickrono.com`
@@ -51,13 +67,13 @@ imediato. Por isso a matriz abaixo classifica o estado de cada uma.
 
 | Superficie | Valor atual | Alvo canônico | Estado desta rodada | Proximo passo |
 | --- | --- | --- | --- | --- |
-| Nome logico do sistema chamador no fluxo interno | `identidade-servidor` | `thimisu-backend` | Compatibilidade ja aplicada no `api-identidade-eickrono`; o default do cadastro interno passou a `thimisu-backend`, e a migration `V18` agora semeia `thimisu-backend` + alias legado. | Parar de abrir novos fluxos internos com `identidade-servidor`; manter leitura do alias legado ate o cutover completo. |
-| Host publico do backend de dominio | sem host canônico materializado em todos os ambientes | `thimisu-backend-*` | Convenção aprovada; o app ja aceita `CONFIG_THIMISU_BASE_URL` sem fixar asset errado. | Publicar DNS/runtime por ambiente e depois cristalizar os assets do app. |
-| Realm OIDC em `hml` e `prd` | valores historicos divergentes em parte do runtime | `eickrono` | Runtime principal ja alinhado para `eickrono`; `application-hml.yml`/`application-prd.yml` do backend de dominio e `hml` local agora usam `issuer` compatível com `eickrono`. | Fechar os ultimos pontos de runtime e exports ainda amarrados ao legado. |
-| Client id de backchannel JWT | `identidade-servidor` | `thimisu-backend` | Compatibilidade ja entrou no `api-identidade-eickrono`, que aceita o nome canônico e os aliases legados de transição. | Ajustar secrets por ambiente e concluir o cutover do Keycloak e do runtime do backend de dominio. |
-| Audience/resource client do backend de dominio | `thimisu-backend` | `thimisu-backend` | Migracao concluida no runtime. `application.yml`, exports do Keycloak, audience mappers e testes ja usam o nome canonico. | Manter como identificador de runtime. |
-| Certificado `mTLS` do backend de dominio | `thimisu-backend.p12` | `thimisu-backend.p12` | Migracao concluida no runtime. Scripts de geracao, SAN, docs e `.env` ja usam o nome canonico. | Manter como identificador de runtime. |
-| Repo, modulo e artifactId | `eickrono-thimisu-backend` / `thimisu-backend` | `thimisu-backend` | Rename estrutural principal aplicado em repositório, módulo Maven, `artifactId`, `Dockerfile` e `docker-compose`. | Manter apenas sincronismo documental e operacional dos caminhos novos. |
+| Nome logico do sistema chamador no fluxo interno | `identidade-servidor` em parte do legado | `thimisu-backend` | Concluido no codigo principal. A `autenticacao` ja usa `thimisu-backend` como nome logico de sistema, mantendo apenas compatibilidades residuais onde necessario. | Remover alias legado restante quando nao houver mais consumer antigo. |
+| Host publico do backend de dominio | host transitorio depende do ambiente | `thimisu-backend-*` | Convenção canônica continua aprovada, mas `hml` ainda publica host real em `eickrono.store`. | Fechar a migracao final de DNS quando a camada publica consolidar em `eickrono.com`. |
+| Realm OIDC em `hml` e `prd` | legado parcialmente divergente | `eickrono` | Concluido no runtime principal dos servicos e nos templates atuais. | Apenas vigiar pontos externos ainda nao reexportados. |
+| Client id de backchannel JWT | `identidade-servidor` em parte do legado | `thimisu-backend` | Concluido no desenho principal e aceito nos contratos internos atuais. | Revisar apenas secrets e cadastros antigos de ambiente ainda nao rotacionados. |
+| Audience/resource client do backend de dominio | `thimisu-backend` | `thimisu-backend` | Concluido no runtime. | Manter. |
+| Certificado `mTLS` do backend de dominio | `thimisu-backend.p12` | `thimisu-backend.p12` | Concluido no runtime. | Manter. |
+| Repo, modulo e artifactId | `eickrono-thimisu-backend` / `thimisu-backend` | `thimisu-backend` | Concluido no codigo e na infraestrutura principal. | Manter apenas sincronismo documental e operacional. |
 
 ## O que ja foi refatorado com seguranca
 
@@ -85,6 +101,12 @@ imediato. Por isso a matriz abaixo classifica o estado de cada uma.
   `https://oidc-hml.eickrono.store/realms/eickrono`;
 - o `docker-compose` local de `hml` passou a assumir `realm=eickrono` para o
   client interno de backchannel.
+- o backend do produto ja expõe:
+  - `GET /api/interna/perfis-sistema/contexto`
+  - `GET /api/interna/perfis-sistema/disponibilidade`
+  - `POST /api/interna/perfis-sistema/provisionamentos`
+- o namespace final `/api/interna/identidade/*` ja foi cortado do runtime do
+  produto.
 
 ### `eickrono-thimisu-app`
 
@@ -97,15 +119,16 @@ imediato. Por isso a matriz abaixo classifica o estado de cada uma.
 
 ## O que ainda nao deve ser trocado cegamente
 
-### 1. `identidade-servidor`
+### 1. aliases de ambiente e secrets externos
 
 Ainda aparece em:
 
-- aliases ou imports antigos do Keycloak
-- `docker-compose` local do backend de dominio
-- segredos/client credentials de ambiente
+- alguns cadastros antigos de ambiente;
+- secrets e `client_credentials` ainda nao rotacionados em todos os ambientes;
+- documentos historicos que ainda registram a fase de transicao.
 
-Trocar isso so no YAML do backend quebraria a emissao do JWT interno.
+Trocar isso sem coordenacao ainda pode quebrar emissao de JWT interno ou
+integrações antigas.
 
 ### 2. `thimisu-backend`
 
@@ -118,7 +141,7 @@ Ja aparece de forma canonica em:
 - audience mappers
 - testes
 
-O nome canônico já vale tanto para runtime quanto para o módulo principal.
+O nome canônico ja vale tanto para runtime quanto para o modulo principal.
 
 ### 3. `thimisu-backend.p12`
 
@@ -134,10 +157,11 @@ Esse corte ja foi coordenado com os consumers do backchannel local.
 ## Ordem recomendada da migracao restante
 
 1. manter `thimisu-backend` como nome logico canônico de sistema;
-2. publicar o host `thimisu-backend-*` por ambiente;
-3. criar ou alinhar o client `thimisu-backend` no Keycloak;
-4. rotacionar secret e ajustar runtime do backend de dominio;
-5. por ultimo, se ainda fizer sentido, renomear repo/modulo/artefato.
+2. concluir a rotacao de secrets e `client_credentials` onde ainda houver
+   alias externo antigo;
+3. fechar a migracao final de DNS publico para `eickrono.com`, quando a camada
+   publica estiver pronta;
+4. manter apenas limpeza residual de documentacao e observabilidade.
 
 ## Leitura em conjunto
 

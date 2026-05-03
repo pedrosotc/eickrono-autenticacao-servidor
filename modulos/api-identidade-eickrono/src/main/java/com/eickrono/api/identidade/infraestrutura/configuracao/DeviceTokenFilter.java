@@ -100,6 +100,8 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
                 || PATH_MATCHER.match("/identidade/atestacoes/interna/**", path)
                 || PATH_MATCHER.match("/identidade/cadastros/interna", path)
                 || PATH_MATCHER.match("/identidade/cadastros/interna/**", path)
+                || PATH_MATCHER.match("/identidade/perfis-sistema/interna", path)
+                || PATH_MATCHER.match("/identidade/perfis-sistema/interna/**", path)
                 || PATH_MATCHER.match("/identidade/sessoes/interna", path)
                 || PATH_MATCHER.match("/identidade/dispositivos/token/validacao/interna", path)) {
             return true;

@@ -4,6 +4,11 @@
 // BANCO DE DADOS: PostgreSQL
 // ----------------------------------------------------------------------------------------------------
 // Este arquivo descreve o modelo alvo normalizado da API Identidade.
+// STATUS DE LEITURA:
+// - este arquivo representa o ALVO arquitetural para a parte de identidade;
+// - ler junto com o consolidado de migracao;
+// - disponibilidade de `usuario + sistema` e conta central pertencem a
+//   autenticacao, nao a este modelo.
 // Diferenca principal em relacao ao estado atual:
 // - elimina a duplicacao entre perfis_identidade e pessoas_identidade
 // - elimina repeticao de email/telefone em tabelas de processo
@@ -15,7 +20,7 @@
 
 Project eickrono_api_identidade_alvo {
     database_type: "PostgreSQL"
-    Note: "Modelo alvo normalizado da API Identidade. A pessoa vira a unica raiz canonica; email e telefone vivem em tabelas proprias; cadastro, registro de dispositivo e atestacao apontam para contexto relacional em vez de repetir dados textuais. O modelo assume uso de backchannel interno, especialmente pelo identidade-servidor, para abrir operacoes ja informando o melhor contexto conhecido."
+    Note: "Modelo alvo normalizado da API Identidade. A pessoa vira a unica raiz canonica; email e telefone vivem em tabelas proprias; cadastro, registro de dispositivo e atestacao apontam para contexto relacional em vez de repetir dados textuais. Este arquivo descreve o alvo da identidade, nao da conta central nem do perfil por sistema."
 }
 
 // ====================================================================================================

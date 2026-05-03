@@ -1,5 +1,14 @@
 # Diagrama de sequência – Plataforma Eickrono Autenticação
 
+> Status deste documento: **canônico no seu escopo**.
+>
+> Este diagrama e propositalmente macro e mostra a plataforma publicada,
+> seguranca e integracoes.
+>
+> Ele nao e o documento de ownership interno entre `autenticacao`,
+> `identidade` e backend do produto. Para isso, usar o consolidado de
+> migracao.
+
 Abaixo está o fluxo completo que cobre desde o login via Authorization Code + PKCE até as chamadas das APIs protegidas (identidade e contas), incluindo os bastidores de segurança, armazenamento de segredos, auditoria e observabilidade. O diagrama utiliza sintaxe Mermaid para facilitar a visualização em ferramentas compatíveis.
 
 ```mermaid

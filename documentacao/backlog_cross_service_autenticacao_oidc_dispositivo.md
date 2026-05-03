@@ -1,5 +1,15 @@
 # Backlog Cross-Service de Autenticacao, OIDC e Dispositivo
 
+> Status deste documento: **backlog operacional de transicao**.
+>
+> Este arquivo existe para priorizacao de trabalho entre servicos.
+> Ele nao e a fonte principal para decidir ownership de `Pessoa`, conta
+> central, `usuario + sistema` ou papel do backend de produto.
+>
+> Para essas decisoes, usar primeiro:
+>
+> - `consolidado_migracao_autenticacao_identidade_thimisu.md`
+
 ## Objetivo
 
 Este documento consolida o backlog que ainda atravessa mais de um projeto do

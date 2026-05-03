@@ -31,7 +31,7 @@ public class CadastroConta {
     private Long pessoaIdPerfil;
 
     @Column(name = "usuario_id_perfil", length = 36)
-    private String usuarioIdPerfil;
+    private String perfilSistemaId;
 
     @Column(name = "nome_completo", nullable = false)
     private String nomeCompleto;
@@ -172,8 +172,8 @@ public class CadastroConta {
         return pessoaIdPerfil;
     }
 
-    public String getUsuarioIdPerfil() {
-        return usuarioIdPerfil;
+    public String getPerfilSistemaId() {
+        return perfilSistemaId;
     }
 
     public String getEmailPrincipal() {
@@ -303,10 +303,10 @@ public class CadastroConta {
     }
 
     public void definirProvisionamentoPerfil(final Long pessoaIdPerfil,
-                                             final String usuarioIdPerfil,
+                                             final String perfilSistemaId,
                                              final OffsetDateTime atualizadoEm) {
         this.pessoaIdPerfil = pessoaIdPerfil;
-        this.usuarioIdPerfil = usuarioIdPerfil;
+        this.perfilSistemaId = perfilSistemaId;
         this.atualizadoEm = Objects.requireNonNull(atualizadoEm, "atualizadoEm é obrigatório");
     }
 }

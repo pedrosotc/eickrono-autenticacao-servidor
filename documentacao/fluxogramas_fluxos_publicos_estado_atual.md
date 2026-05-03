@@ -45,7 +45,7 @@ flowchart TD
     N -- Sim --> P[marcarEmailConfirmado]
 
     P --> Q{possuiTelefoneParaValidacao?}
-    Q -- Sim --> R[Retorna EMAIL_CONFIRMADO<br/>proximoPasso=VALIDAR_TELEFONE<br/>podeAutenticar=false]
+    Q -- Sim --> R[Retorna EMAIL_CONFIRMADO<br/>proximoPasso=VALIDAR_TELEFONE]
     Q -- Nao --> S[finalizarCadastroPublico]
 
     R --> T[Usuario confirma telefone]
@@ -55,9 +55,12 @@ flowchart TD
     V -- Sim --> S
 
     S --> X[Provisionar perfil/contexto]
-    X --> Y[Vincular social pendente se existir]
-    Y --> Z[Keycloak.confirmarEmailEAtivarUsuario]
-    Z --> AA[Conta liberada]
+    X --> Y{Produto respondeu?}
+    Y -- Sim --> Z[Vincular social pendente se existir]
+    Y -- Nao --> ZA[Registrar pendencia do produto]
+    Z --> AB[Keycloak.confirmarEmailEAtivarUsuario]
+    ZA --> AB
+    AB --> AC[Conta central liberada]
 ```
 
 ### Leitura objetiva
@@ -67,6 +70,10 @@ flowchart TD
 - isso nasce do desenho atual do contrato e do dominio:
   - o request publico exige `telefone`;
   - a confirmacao considera `telefoneObrigatorio = possuiTelefoneParaValidacao()`.
+- quando o produto falha nessa etapa final, a pendencia nao bloqueia o login
+  central por padrao;
+- o erro do produto aparece apenas quando o app realmente precisar do backend
+  do produto e ele ainda nao estiver pronto.
 
 ## 2. Login Publico Hoje
 

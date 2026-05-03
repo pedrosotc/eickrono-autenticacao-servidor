@@ -4,7 +4,7 @@ import com.eickrono.api.identidade.aplicacao.excecao.FluxoPublicoException;
 import com.eickrono.api.identidade.aplicacao.modelo.CadastroInternoRealizado;
 import com.eickrono.api.identidade.aplicacao.modelo.ConfirmacaoCodigoRecuperacaoSenhaRealizada;
 import com.eickrono.api.identidade.aplicacao.modelo.ConfirmacaoEmailCadastroPublicoRealizada;
-import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfilSistema;
 import com.eickrono.api.identidade.aplicacao.modelo.DispositivoSessaoRegistrado;
 import com.eickrono.api.identidade.aplicacao.modelo.RecuperacaoSenhaIniciada;
 import com.eickrono.api.identidade.aplicacao.modelo.SessaoInternaAutenticada;
@@ -12,7 +12,7 @@ import com.eickrono.api.identidade.aplicacao.servico.AtestacaoAppServico;
 import com.eickrono.api.identidade.aplicacao.servico.AvaliacaoSegurancaAplicativoService;
 import com.eickrono.api.identidade.aplicacao.servico.AutenticacaoSessaoInternaServico;
 import com.eickrono.api.identidade.aplicacao.servico.CadastroContaInternaServico;
-import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfil;
+import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfilSistema;
 import com.eickrono.api.identidade.aplicacao.servico.RecuperacaoSenhaService;
 import com.eickrono.api.identidade.aplicacao.servico.RegistroDispositivoLoginSilenciosoService;
 import com.eickrono.api.identidade.apresentacao.dto.fluxo.CadastroApiRequest;
@@ -60,12 +60,14 @@ public class FluxoPublicoController {
     private static final String ERRO_KEYCLOAK_CREDENCIAIS_INVALIDAS = "Invalid user credentials";
     private static final String STATUS_PENDENTE_EMAIL = "PENDENTE_EMAIL";
     private static final String STATUS_LIBERADO = "LIBERADO";
+    private static final String STATUS_PENDENTE_LIBERACAO_PRODUTO = "PENDENTE_LIBERACAO_PRODUTO";
+    private static final String PROXIMO_PASSO_LOGIN = "LOGIN";
 
     private final CadastroContaInternaServico cadastroContaInternaServico;
     private final AtestacaoAppServico atestacaoAppServico;
     private final AvaliacaoSegurancaAplicativoService avaliacaoSegurancaAplicativoService;
     private final AutenticacaoSessaoInternaServico autenticacaoSessaoInternaServico;
-    private final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil;
+    private final ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema;
     private final RecuperacaoSenhaService recuperacaoSenhaService;
     private final RegistroDispositivoLoginSilenciosoService registroDispositivoLoginSilenciosoService;
 
@@ -73,7 +75,7 @@ public class FluxoPublicoController {
                                   final AtestacaoAppServico atestacaoAppServico,
                                   final AvaliacaoSegurancaAplicativoService avaliacaoSegurancaAplicativoService,
                                   final AutenticacaoSessaoInternaServico autenticacaoSessaoInternaServico,
-                                  final ClienteContextoPessoaPerfil clienteContextoPessoaPerfil,
+                                  final ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema,
                                   final RecuperacaoSenhaService recuperacaoSenhaService,
                                   final RegistroDispositivoLoginSilenciosoService registroDispositivoLoginSilenciosoService) {
         this.cadastroContaInternaServico = Objects.requireNonNull(
@@ -83,8 +85,8 @@ public class FluxoPublicoController {
                 avaliacaoSegurancaAplicativoService, "avaliacaoSegurancaAplicativoService é obrigatório");
         this.autenticacaoSessaoInternaServico = Objects.requireNonNull(
                 autenticacaoSessaoInternaServico, "autenticacaoSessaoInternaServico é obrigatório");
-        this.clienteContextoPessoaPerfil = Objects.requireNonNull(
-                clienteContextoPessoaPerfil, "clienteContextoPessoaPerfil é obrigatório");
+        this.clienteContextoPessoaPerfilSistema = Objects.requireNonNull(
+                clienteContextoPessoaPerfilSistema, "clienteContextoPessoaPerfilSistema é obrigatório");
         this.recuperacaoSenhaService = Objects.requireNonNull(
                 recuperacaoSenhaService, "recuperacaoSenhaService é obrigatório");
         this.registroDispositivoLoginSilenciosoService = Objects.requireNonNull(
@@ -116,7 +118,7 @@ public class FluxoPublicoController {
                 requisicao.telefone(),
                 requisicao.tipoValidacaoTelefone(),
                 requisicao.senha(),
-                "app-flutter-publico",
+                requisicao.aplicacaoId(),
                 extrairIp(servletRequest),
                 servletRequest.getHeader("User-Agent")
         );
@@ -133,7 +135,8 @@ public class FluxoPublicoController {
 
     @GetMapping("/cadastros/usuarios/disponibilidade")
     public DisponibilidadeUsuarioCadastroApiResposta consultarDisponibilidadeUsuario(
-            @RequestParam final String usuario) {
+            @RequestParam final String usuario,
+            @RequestParam(required = false) final String aplicacaoId) {
         String usuarioNormalizado = Objects.requireNonNull(usuario, "usuario é obrigatório")
                 .trim()
                 .toLowerCase(Locale.ROOT);
@@ -142,7 +145,12 @@ public class FluxoPublicoController {
         }
         return new DisponibilidadeUsuarioCadastroApiResposta(
                 usuarioNormalizado,
-                cadastroContaInternaServico.usuarioDisponivelPublico(usuarioNormalizado)
+                aplicacaoId == null || aplicacaoId.isBlank()
+                        ? cadastroContaInternaServico.identificadorPublicoSistemaDisponivelPublico(usuarioNormalizado)
+                        : cadastroContaInternaServico.identificadorPublicoSistemaDisponivelPublico(
+                                usuarioNormalizado,
+                                aplicacaoId
+                        )
         );
     }
 
@@ -156,12 +164,14 @@ public class FluxoPublicoController {
         );
         return new ConfirmacaoEmailCadastroApiResposta(
                 confirmacao.cadastroId().toString(),
-                confirmacao.usuarioId(),
-                confirmacao.statusUsuario(),
+                confirmacao.perfilSistemaId(),
+                confirmacao.statusPerfilSistema(),
                 confirmacao.emailPrincipal(),
                 confirmacao.emailConfirmado(),
                 confirmacao.podeAutenticar(),
-                "LOGIN"
+                confirmacao.proximoPasso().isBlank()
+                        ? PROXIMO_PASSO_LOGIN
+                        : confirmacao.proximoPasso()
         );
     }
 
@@ -262,7 +272,8 @@ public class FluxoPublicoController {
                 sessao.autenticado(),
                 sessao.expiresIn()
         );
-        ContextoPessoaPerfil contexto = clienteContextoPessoaPerfil.buscarPorEmail(loginNormalizado)
+        ContextoPessoaPerfilSistema contexto = buscarContextoProdutoPorEmailTolerante(loginNormalizado)
+                .or(() -> cadastroContaInternaServico.buscarContextoCentralPorEmailPublico(loginNormalizado))
                 .orElseThrow(() -> {
                     LOGGER.warn(
                             "login_publico_contexto_ausente login={} motivo=conta_nao_liberada",
@@ -274,12 +285,12 @@ public class FluxoPublicoController {
                             "A conta ainda não está liberada para utilizar o aplicativo."
                     );
                 });
-        String statusUsuario = Objects.requireNonNullElse(contexto.statusUsuario(), STATUS_LIBERADO);
-        if (!STATUS_LIBERADO.equalsIgnoreCase(statusUsuario)) {
+        String statusPerfilSistema = Objects.requireNonNullElse(contexto.statusPerfilSistema(), STATUS_LIBERADO);
+        if (!statusPerfilSistemaPermiteLoginCentral(statusPerfilSistema)) {
             LOGGER.warn(
-                    "login_publico_contexto_bloqueado login={} statusUsuario={}",
+                    "login_publico_contexto_bloqueado login={} statusPerfilSistema={}",
                     loginMascarado,
-                    statusUsuario
+                    statusPerfilSistema
             );
             throw new FluxoPublicoException(
                     HttpStatus.FORBIDDEN,
@@ -292,10 +303,10 @@ public class FluxoPublicoController {
                 requisicao.dispositivo()
         );
         LOGGER.info(
-                "login_publico_sucesso login={} usuarioId={} statusUsuario={} tokenDispositivoEmitido={} tokenDispositivoExpiraEm={}",
+                "login_publico_sucesso login={} perfilSistemaId={} statusPerfilSistema={} tokenDispositivoEmitido={} tokenDispositivoExpiraEm={}",
                 loginMascarado,
-                contexto.usuarioId(),
-                statusUsuario,
+                contexto.perfilSistemaId(),
+                statusPerfilSistema,
                 dispositivoRegistrado.tokenDispositivo() != null && !dispositivoRegistrado.tokenDispositivo().isBlank(),
                 dispositivoRegistrado.tokenDispositivoExpiraEm()
         );
@@ -307,11 +318,16 @@ public class FluxoPublicoController {
                 sessao.expiresIn(),
                 dispositivoRegistrado.tokenDispositivo(),
                 dispositivoRegistrado.tokenDispositivoExpiraEm(),
-                statusUsuario,
+                statusPerfilSistema,
                 false,
                 true,
                 true
         );
+    }
+
+    private boolean statusPerfilSistemaPermiteLoginCentral(final String statusPerfilSistema) {
+        return STATUS_LIBERADO.equalsIgnoreCase(statusPerfilSistema)
+                || STATUS_PENDENTE_LIBERACAO_PRODUTO.equalsIgnoreCase(statusPerfilSistema);
     }
 
     @PostMapping("/sessoes/refresh")
@@ -469,6 +485,15 @@ public class FluxoPublicoController {
             return servletRequest.getRemoteAddr();
         }
         return forwardedFor.split(",")[0].trim();
+    }
+
+    private java.util.Optional<ContextoPessoaPerfilSistema> buscarContextoProdutoPorEmailTolerante(final String email) {
+        try {
+            return clienteContextoPessoaPerfilSistema.buscarPorEmail(email);
+        } catch (RuntimeException ex) {
+            LOGGER.warn("login_publico_contexto_produto_indisponivel email={} motivo={}", email, ex.getMessage());
+            return java.util.Optional.empty();
+        }
     }
 
     private static String mascararIdentificador(final String valor) {

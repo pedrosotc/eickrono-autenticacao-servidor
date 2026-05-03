@@ -5,6 +5,11 @@
 // ----------------------------------------------------------------------------------------------------
 // Este arquivo representa a base relacional do projeto Java do servidor de autenticacao, conforme o
 // estado programado hoje nas migrations V1..V7 e nas entidades JPA da api-identidade-eickrono.
+// STATUS DE LEITURA:
+// - este arquivo representa o ESTADO ATUAL / LEGADO do modelo implementado;
+// - ele nao deve ser lido como modelo alvo final;
+// - para ownership canônico entre autenticacao, identidade e backend de produto,
+//   usar primeiro o consolidado de migracao.
 //
 // Ligacoes externas relevantes para o contexto geral:
 // - pessoas_identidade.sub espelha o subject remoto do usuario no Keycloak
@@ -14,7 +19,7 @@
 
 Project eickrono_api_identidade {
     database_type: "PostgreSQL"
-    Note: "Modelo do estado implementado hoje na API Identidade. Ler em quatro camadas: compatibilidade legado (perfis_*), identidade local canonica (pessoas_*), processos efemeros de onboarding/cadastro/atestado (cadastros_conta, registro_dispositivo, codigo_verificacao, atestacoes_app_desafios) e confianca persistente do aparelho (dispositivos_identidade, token_dispositivo, eventos_offline_dispositivo). O fluxo real e: cadastro interno cria usuario pendente no Keycloak e espelho local; confirmacao de email libera a conta; registro de dispositivo prova posse dos canais e emite token; atestacao do app protege operacoes sensiveis mesmo antes de existir sessao autenticada."
+    Note: "Modelo do estado implementado hoje na API Identidade. Ler como retrato de transicao entre legado e desenho alvo. Nao usar este arquivo sozinho para decidir ownership canônico. O fluxo real ainda carrega copia local e compatibilidades historicas que estao sendo desmontadas na migracao."
 }
 
 // ====================================================================================================

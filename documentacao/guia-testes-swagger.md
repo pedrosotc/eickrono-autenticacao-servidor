@@ -241,7 +241,7 @@ PY
 As APIs de contas leem dados reais do Postgres. Insira registros manualmente usando o mesmo `sub` do token de usuário:
 
 ```bash
-docker exec -it eickrono-postgres-dev psql -U eickrono -d eickrono_dev
+docker exec -it eickrono-postgres-dev psql -U eickrono -d eickrono_contas
 ```
 
 ```sql

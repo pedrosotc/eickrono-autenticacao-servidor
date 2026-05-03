@@ -1,11 +1,27 @@
 # Diagramas de sequência por caso de uso
 
+> Status deste documento: **canônico no seu escopo**.
+>
+> Estes diagramas mostram as superficies publicadas e os fluxos ponta a ponta
+> vistos por app, BFF, jobs e QA.
+>
+> Eles nao detalham o ownership interno completo entre `autenticacao`,
+> `identidade` e backend do produto. Para esse corte, a fonte principal
+> continua sendo o consolidado de migracao.
+
 Este documento apresenta dois conjuntos de diagramas:
 
 - **Versão completa (produção)** — fluxos com todos os componentes de segurança, observabilidade e integrações que operam no ambiente oficial.
 - **Versão simplificada (dev / Swagger)** — o mínimo necessário para reproduzir e testar os serviços localmente via Swagger UI, com foco em equipes de QA ou desenvolvimento.
 
 Todos os diagramas usam sintaxe Mermaid.
+
+Leitura importante:
+
+- quando este documento fala em `API Identidade`, leia como a superficie
+  publicada consumida pelo app e por integracoes;
+- o detalhamento interno entre borda publica, `Pessoa` canônica e backend do
+  produto fica fora do escopo deste arquivo.
 
 ---
 

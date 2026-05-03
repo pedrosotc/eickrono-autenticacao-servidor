@@ -1,5 +1,13 @@
 # Mapeamento dos TDDs Canonicos para Componentes e Migracoes
 
+> Status deste documento: **canônico no seu escopo**.
+>
+> Este mapeamento traduz o bloco `TDD-45` a `TDD-64` para implementacao de
+> fluxos publicos.
+>
+> Ele complementa o consolidado de migracao, mas nao substitui o ownership
+> macro entre `autenticacao`, `identidade` e backend do produto.
+
 Este documento traduz o bloco `TDD-45` a `TDD-64` em responsabilidade tecnica
 de implementacao.
 
@@ -45,7 +53,7 @@ os seguintes pacotes de banco/catalogo:
   - objetivo: impedir que uma mudanca posterior de configuracao altere uma
     jornada ja iniciada
 - `DB-03` Contexto social pendente para vinculacao assistida
-  - persistir contexto do login social sem conta local vinculada;
+  - persistir contexto do login social sem perfil do sistema vinculado;
   - minimo recomendado:
     - projeto atual
     - conta sugerida para vinculacao

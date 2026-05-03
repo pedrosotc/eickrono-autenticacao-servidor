@@ -16,6 +16,20 @@ Hoje a divisão correta é:
 - `eickrono-identidade-servidor`: API pública de identidade/autenticação usada pelo app;
 - `eickrono-contas-servidor`: API de contas.
 
+## Diretriz de nomenclatura
+
+Na autenticação, modelos, tabelas, contratos, enums e documentação devem
+evitar nomes específicos de produto quando o conceito for compartilhado pelo
+ecossistema.
+
+Regra prática:
+
+- usar nomes gerais como `cliente`, `sistema`, `vinculo`, `perfilSistema` e
+  equivalentes;
+- evitar nomes como `Thimisu` quando a regra vale para vários apps, sites ou
+  softwares;
+- só usar o nome de um produto quando a regra realmente for exclusiva dele.
+
 ## Documentação canônica
 
 A documentação principal permanece em `documentacao/`, mas o índice canônico do
@@ -23,15 +37,17 @@ projeto agora fica neste `README.md`.
 
 ### Diretriz vigente para o app móvel
 
-- cadastro, confirmação de e-mail, login e recuperação de senha entram pela autenticação;
-- o `identidade-servidor` não é mais a borda pública de senha ou código;
-- o `thimisu` recebe apenas provisionamento interno depois que a autenticação conclui as etapas sensíveis;
+- cadastro, confirmação de e-mail, login e recuperação de senha entram pela API pública de identidade;
+- a autenticação continua dona da conta central, das credenciais e das liberações internas;
+- a identidade continua dona da `Pessoa` canônica;
+- o `thimisu` recebe apenas o provisionamento do perfil daquele sistema depois que conta central e `Pessoa` já tiverem sido resolvidas;
 - o `X-Device-Token` canônico nasce no próprio login público da autenticação;
 - qualquer explicação antiga centrada em navegador, `OIDC` interativo no app ou autenticação pública via `thimisu` deve ser considerada legada.
 
 ### Guias principais
 
 - `documentacao/guia-arquitetura.md`: papel de cada serviço, contratos canônicos e segurança do fluxo
+- `documentacao/consolidado_migracao_autenticacao_identidade_thimisu.md`: consolidado único das responsabilidades, migrações e perguntas abertas entre autenticação, identidade e thimisu
 - `documentacao/guia-seguranca-app-movel.md`: sinais locais do app, atestação e decisão de risco no backend
 - `documentacao/guia-desenvolvimento.md`: ambiente local, `MailHog`, Docker e rotina de desenvolvimento
 - `documentacao/guia-mtls.md`: malha `mTLS` do backchannel e geração de certificados
@@ -70,8 +86,9 @@ versão do artefato Java empacotado no runtime do Keycloak.
 ## Arquitetura canônica
 
 - o app fala diretamente com a API de identidade/autenticação para cadastro, login e recuperação de senha;
-- o app não envia senha, código de recuperação nem tentativa de login ao `identidade-servidor`;
-- o `identidade-servidor` recebe apenas provisionamento interno de perfil e contexto já autorizados;
+- o `identidade-servidor` é a borda pública do app;
+- a autenticação continua sendo a autoridade central de credencial, sessão e vínculo por sistema;
+- o backend do produto recebe apenas provisionamento interno de perfil e contexto já autorizados;
 - a confirmação de e-mail acontece na autenticação antes de qualquer provisionamento no domínio do produto;
 - o app não abre uma tela dedicada de registro de dispositivo;
 - se a autenticação exigir validação adicional de contato, o app reutiliza a tela de verificação já existente;
@@ -94,27 +111,23 @@ No fluxo móvel atual:
 
 - a borda pública do app é o `eickrono-identidade-servidor`;
 - este repositório sustenta a parte de Keycloak/RH-SSO do ecossistema;
-- o `identidade-servidor` não recebe senha do app;
 - login, recuperação de senha e demais fluxos sensíveis continuam centralizados na API pública de identidade;
+- a autenticação continua como dona da conta central, de `usuario + sistema`, do refresh e das políticas de segurança;
 - o provider daqui consulta a identidade por `mTLS` no refresh protegido por `device token`.
 
-## Backchannel para o servidor de identidade
+## Comunicação interna entre servidores
 
-O fluxo canônico de cadastro agora parte da autenticação para o `eickrono-thimisu-backend`:
+No fluxo canônico de cadastro, a autenticação coordena duas etapas internas:
 
-1. o app cria um cadastro pendente na autenticação;
-2. a autenticação envia o código de confirmação por e-mail;
-3. o app confirma o código com a autenticação;
-4. a autenticação provisiona o perfil do usuário no `identidade-servidor` por backchannel;
-5. o `identidade-servidor` responde com os identificadores de domínio já criados;
-6. a autenticação libera o login no app.
+1. a autenticação aciona a identidade para criar ou atualizar a `Pessoa` canônica;
+2. depois disso, a autenticação aciona o backend do produto para criar ou atualizar o perfil daquele sistema.
 
-Esse provisionamento interno deve ser:
+Essas comunicações internas devem ser:
 
 - autenticado por JWT de serviço;
 - restrito por allowlist de `client_id`;
 - protegido por `mTLS`;
-- idempotente por `cadastroId`, para que retries não dupliquem pessoa ou usuário no `identidade-servidor`.
+- idempotentes por `cadastroId`, para que retries não dupliquem `Pessoa` ou perfil de sistema.
 
 ## Sessão e recuperação de senha
 
@@ -179,9 +192,11 @@ forcar o uso do MailHog sem alterar essas credenciais:
 2. `docker compose -f docker-compose.yml -f docker-compose.email-fake.yml up -d --build smtp-teste api-identidade-eickrono`
 3. abrir `http://localhost:8025`
 
-O `docker compose` local usa PostgreSQL compartilhado já existente no Docker:
+O `docker compose` local usa PostgreSQL já existente no ambiente local, com bancos separados por serviço:
 
-- `dev`: `jdbc:postgresql://localhost:5432/eickrono_dev`
+- `dev` Keycloak/autorização: `jdbc:postgresql://localhost:5432/eickrono_autorizacao`
+- `dev` identidade: `jdbc:postgresql://localhost:5432/eickrono_identidade`
+- `dev` contas: `jdbc:postgresql://localhost:5432/eickrono_contas`
 - `hml` Keycloak: `jdbc:postgresql://localhost:5432/keycloak_hml`
 - `hml` identidade: `jdbc:postgresql://localhost:5432/eickrono_identidade_hml`
 - `hml` contas: `jdbc:postgresql://localhost:5432/eickrono_contas_hml`

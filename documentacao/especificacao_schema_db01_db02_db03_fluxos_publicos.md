@@ -1,12 +1,22 @@
 # Especificacao de Schema dos Pacotes DB-01, DB-02 e DB-03
 
+> Status deste documento: **canônico no seu escopo**.
+>
+> Este documento fecha o desenho de banco dos pacotes `DB-01`, `DB-02` e
+> `DB-03` para os fluxos publicos.
+>
+> Quando aparecerem nomes historicos de seed, tabela ou coluna, leia-os como
+> retrato do schema ou da migration, nao como decisao de ownership superior ao
+> consolidado de migracao.
+
 Este documento fecha a especificacao de dados necessaria para sustentar a
 regra funcional alvo dos fluxos publicos.
 
 Escopo:
 
 - `DB-01`: politica e exibicao por projeto/cliente do ecossistema;
-- `DB-02`: snapshot do projeto e da politica aplicada nos fluxos publicos;
+- `DB-02`: copia congelada (`snapshot`) do projeto e da politica aplicada nos
+  fluxos publicos;
 - `DB-03`: contexto social pendente para vinculacao assistida no login.
 
 Este documento **nao aplica migration**.
@@ -67,7 +77,8 @@ Nelas ja existem partes do contexto que serao reaproveitadas:
 Os gaps mais relevantes hoje sao:
 
 1. a politica `exigeValidacaoTelefone` ainda nao mora no catalogo de projeto;
-2. o cadastro e a recuperacao ainda nao persistem explicitamente o snapshot da
+2. o cadastro e a recuperacao ainda nao persistem explicitamente a copia
+   congelada (`snapshot`) da
    politica de telefone;
 3. a recuperacao de senha ja recebe `aplicacaoId` e o runtime legado ja resolve
    e persiste `cliente_ecossistema_id`, mas o endurecimento final ainda nao foi
@@ -132,7 +143,8 @@ Semantica dos campos:
 Motivo:
 
 - ela nao foi escolhida pelo usuario como campo minimo do catalogo;
-- hoje ela pode continuar vindo do contexto do request e do snapshot do fluxo;
+- hoje ela pode continuar vindo do contexto do request e da copia congelada
+  (`snapshot`) do fluxo;
 - se no futuro ela precisar virar politica fixa do projeto, isso entra em uma
   fase posterior.
 
@@ -202,8 +214,8 @@ O fluxo precisa congelar no inicio da jornada:
 - se esse projeto exigia ou nao validacao de telefone;
 - qual contexto de exibicao estava valendo naquele momento.
 
-Sem snapshot, mudar a configuracao do projeto no meio da jornada pode mudar a
-regra de um cadastro/recuperacao ja em andamento.
+Sem copia congelada (`snapshot`), mudar a configuracao do projeto no meio da
+jornada pode mudar a regra de um cadastro/recuperacao ja em andamento.
 
 ### Campos novos obrigatorios no alvo multiapp
 
@@ -261,7 +273,8 @@ Referencias:
 - [IniciarRecuperacaoSenhaApiRequest.java](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/src/main/java/com/eickrono/api/identidade/apresentacao/dto/fluxo/IniciarRecuperacaoSenhaApiRequest.java:1)
 - [RecuperacaoSenhaService.java](/Users/thiago/Desenvolvedor/flutter/eickrono-identidade-servidor/src/main/java/com/eickrono/api/identidade/aplicacao/servico/RecuperacaoSenhaService.java:123)
 
-O que ainda falta antes de endurecer `cliente_ecossistema_id` e o snapshot da
+O que ainda falta antes de endurecer `cliente_ecossistema_id` e a copia
+congelada (`snapshot`) da
 politica na recuperacao e apenas:
 
 - promover esse comportamento para a etapa de endurecimento de schema
@@ -372,7 +385,8 @@ CREATE TABLE IF NOT EXISTS autenticacao.contextos_sociais_pendentes (
 - `email_social_normalizado`
   - suporta a regra “existe conta com este email **neste projeto**?”
 - `usuario_id_sugerido`
-  - conta local sugerida para `Entrar e vincular`, quando existir
+  - identificador interno do usuario central sugerido para `Entrar e vincular`
+    no projeto atual, quando esse vinculo ja puder ser inferido com seguranca
 - `login_sugerido`
   - valor textual que o app pode exibir/conferir no modo assistido
 - `modo_pendente`

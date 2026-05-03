@@ -1,11 +1,11 @@
 package com.eickrono.api.identidade.aplicacao.modelo;
 
-public record ContextoPessoaPerfil(
+public record ContextoPessoaPerfilSistema(
         Long pessoaId,
         String sub,
         String emailPrincipal,
         String nome,
-        String usuarioId,
-        String statusUsuario
+        String perfilSistemaId,
+        String statusPerfilSistema
 ) {
 }

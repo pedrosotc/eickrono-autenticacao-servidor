@@ -5,6 +5,13 @@
 Este arquivo e o ponto de entrada canônico para subir, atualizar e validar o
 ambiente `hml` na AWS sem depender da leitura linear do historico completo.
 
+Estado atual da base de dados em `hml`:
+
+- `auth`, `identidade` e `thimisu-backend` ja usam bancos diferentes;
+- esses bancos ainda estao no mesmo host RDS em `hml`;
+- a separacao fisica completa por host/instancia ainda nao faz parte do estado
+  atual do ambiente.
+
 ## Como usar
 
 - use este arquivo para a ordem operacional atual;
@@ -69,6 +76,9 @@ credenciais usados na operacao continuam documentados nos arquivos abaixo:
 4. Executar o rollout do servico
 
 - usar `infraestrutura/prod/ecs/rollout_hml_service.sh`;
+- quando precisar mudar host, porta, nome do banco ou usuario por servico,
+  usar `--db-overrides-file infraestrutura/prod/ecs/hml-db-overrides.example.env`
+  como base e ajustar os valores necessarios nesse arquivo ou em uma copia dele;
 - registrar imagem, task definition e resultado no historico;
 - acompanhar `running`, `pending` e `rolloutState` ate `COMPLETED`.
 

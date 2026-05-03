@@ -1,7 +1,7 @@
 package com.eickrono.api.identidade.aplicacao.servico;
 
 import com.eickrono.api.identidade.aplicacao.excecao.FluxoPublicoException;
-import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfilSistema;
 import com.eickrono.api.identidade.aplicacao.modelo.DispositivoSessaoRegistrado;
 import com.eickrono.api.identidade.apresentacao.dto.fluxo.DispositivoSessaoApiRequest;
 import com.eickrono.api.identidade.dominio.modelo.DispositivoIdentidade;
@@ -88,9 +88,9 @@ public class RegistroDispositivoLoginSilenciosoService {
     }
 
     @Transactional
-    public DispositivoSessaoRegistrado registrar(final ContextoPessoaPerfil contexto,
+    public DispositivoSessaoRegistrado registrar(final ContextoPessoaPerfilSistema contexto,
                                                  final DispositivoSessaoApiRequest dispositivo) {
-        ContextoPessoaPerfil contextoObrigatorio = Objects.requireNonNull(contexto, "contexto é obrigatório");
+        ContextoPessoaPerfilSistema contextoObrigatorio = Objects.requireNonNull(contexto, "contexto é obrigatório");
         DispositivoSessaoApiRequest dispositivoObrigatorio = Objects.requireNonNull(
                 dispositivo, "dispositivo é obrigatório");
         OffsetDateTime agora = OffsetDateTime.now(clock);

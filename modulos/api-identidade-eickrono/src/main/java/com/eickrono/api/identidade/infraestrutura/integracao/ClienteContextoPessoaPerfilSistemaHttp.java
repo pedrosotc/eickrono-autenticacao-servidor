@@ -1,7 +1,7 @@
 package com.eickrono.api.identidade.infraestrutura.integracao;
 
-import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
-import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfil;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfilSistema;
+import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfilSistema;
 import com.eickrono.api.identidade.infraestrutura.configuracao.ConfiguradorRestTemplateBackchannelMtls;
 import com.eickrono.api.identidade.infraestrutura.configuracao.IntegracaoInternaProperties;
 import com.eickrono.api.identidade.infraestrutura.configuracao.PerfilDominioBackchannelProperties;
@@ -23,10 +23,10 @@ import org.springframework.web.client.RestTemplate;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Component
-public class ClienteContextoPessoaPerfilHttp implements ClienteContextoPessoaPerfil {
+public class ClienteContextoPessoaPerfilSistemaHttp implements ClienteContextoPessoaPerfilSistema {
 
     private static final String HEADER_SEGREDO_INTERNO = "X-Eickrono-Internal-Secret";
-    private static final String CAMINHO_CONTEXTO = "/api/interna/identidade/contexto";
+    private static final String CAMINHO_CONTEXTO = "/api/interna/perfis-sistema/contexto";
     private static final DefaultResponseErrorHandler NO_OP_ERROR_HANDLER = new NoOpResponseErrorHandler();
 
     private final RestTemplate restTemplate;
@@ -34,7 +34,7 @@ public class ClienteContextoPessoaPerfilHttp implements ClienteContextoPessoaPer
     private final String segredoInterno;
     private final ClienteTokenBackchannelPerfilKeycloak clienteTokenBackchannelPerfilKeycloak;
 
-    public ClienteContextoPessoaPerfilHttp(final RestTemplateBuilder restTemplateBuilder,
+    public ClienteContextoPessoaPerfilSistemaHttp(final RestTemplateBuilder restTemplateBuilder,
                                            final PerfilDominioBackchannelProperties properties,
                                            final IntegracaoInternaProperties integracaoInternaProperties,
                                            final ConfiguradorRestTemplateBackchannelMtls configuradorRestTemplateBackchannelMtls,
@@ -55,35 +55,35 @@ public class ClienteContextoPessoaPerfilHttp implements ClienteContextoPessoaPer
     }
 
     @Override
-    public Optional<ContextoPessoaPerfil> buscarPorPessoaId(final Long pessoaId) {
+    public Optional<ContextoPessoaPerfilSistema> buscarPorPessoaId(final Long pessoaId) {
         if (pessoaId == null) {
             return Optional.empty();
         }
-        return buscar("?pessoaId=" + pessoaId);
+        return buscar("?pessoaIdCentral=" + pessoaId);
     }
 
     @Override
-    public Optional<ContextoPessoaPerfil> buscarPorSub(final String sub) {
+    public Optional<ContextoPessoaPerfilSistema> buscarPorSub(final String sub) {
         if (sub == null || sub.isBlank()) {
             return Optional.empty();
         }
-        return buscar("?sub=" + UriEscapers.escapeQueryParam(sub.trim()));
+        return buscar("?subPessoa=" + UriEscapers.escapeQueryParam(sub.trim()));
     }
 
     @Override
-    public Optional<ContextoPessoaPerfil> buscarPorEmail(final String email) {
+    public Optional<ContextoPessoaPerfilSistema> buscarPorEmail(final String email) {
         if (email == null || email.isBlank()) {
             return Optional.empty();
         }
-        return buscar("?email=" + UriEscapers.escapeQueryParam(email.trim().toLowerCase(Locale.ROOT)));
+        return buscar("?emailPessoa=" + UriEscapers.escapeQueryParam(email.trim().toLowerCase(Locale.ROOT)));
     }
 
-    private Optional<ContextoPessoaPerfil> buscar(final String queryString) {
-        ResponseEntity<ContextoPessoaPerfil> response = restTemplate.exchange(
+    private Optional<ContextoPessoaPerfilSistema> buscar(final String queryString) {
+        ResponseEntity<ContextoPerfilSistemaRemotoResposta> response = restTemplate.exchange(
                 URI.create(urlBase + CAMINHO_CONTEXTO + queryString),
                 HttpMethod.GET,
                 new HttpEntity<>(cabecalhosBasicos()),
-                ContextoPessoaPerfil.class
+                ContextoPerfilSistemaRemotoResposta.class
         );
         if (response.getStatusCode() == NOT_FOUND) {
             return Optional.empty();
@@ -91,7 +91,18 @@ public class ClienteContextoPessoaPerfilHttp implements ClienteContextoPessoaPer
         if (!response.getStatusCode().is2xxSuccessful()) {
             throw new IllegalStateException("Falha ao resolver contexto de pessoa no serviço de perfil.");
         }
-        return Optional.ofNullable(response.getBody());
+        return Optional.ofNullable(response.getBody()).map(ClienteContextoPessoaPerfilSistemaHttp::converterResposta);
+    }
+
+    static ContextoPessoaPerfilSistema converterResposta(final ContextoPerfilSistemaRemotoResposta resposta) {
+        return new ContextoPessoaPerfilSistema(
+                resposta.pessoaIdCentral(),
+                resposta.subPessoa(),
+                resposta.emailAtual(),
+                resposta.nomeAtual(),
+                resposta.perfilSistemaId(),
+                resposta.statusPerfilSistema()
+        );
     }
 
     private HttpHeaders cabecalhosBasicos() {
@@ -115,5 +126,16 @@ public class ClienteContextoPessoaPerfilHttp implements ClienteContextoPessoaPer
         private static String escapeQueryParam(final String value) {
             return value.replace(" ", "%20");
         }
+    }
+
+    record ContextoPerfilSistemaRemotoResposta(
+            Long pessoaProdutoLocalId,
+            Long pessoaIdCentral,
+            String subPessoa,
+            String emailAtual,
+            String nomeAtual,
+            String perfilSistemaId,
+            String statusPerfilSistema
+    ) {
     }
 }

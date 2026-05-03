@@ -12,8 +12,8 @@ import com.eickrono.api.identidade.dominio.modelo.EventoOfflineDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.MotivoRevogacaoToken;
 import com.eickrono.api.identidade.dominio.modelo.TipoEventoOfflineDispositivo;
 import com.eickrono.api.identidade.AplicacaoApiIdentidade;
-import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfil;
-import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfil;
+import com.eickrono.api.identidade.aplicacao.modelo.ContextoPessoaPerfilSistema;
+import com.eickrono.api.identidade.aplicacao.servico.ClienteContextoPessoaPerfilSistema;
 import com.eickrono.api.identidade.support.InfraestruturaTesteIdentidade;
 import com.eickrono.api.identidade.dominio.modelo.StatusRegistroDispositivo;
 import com.eickrono.api.identidade.dominio.modelo.TokenDispositivo;
@@ -72,11 +72,11 @@ class RegistroDispositivoControllerIT {
     private EventoOfflineDispositivoRepositorio eventoOfflineDispositivoRepositorio;
 
     @MockBean
-    private ClienteContextoPessoaPerfil clienteContextoPessoaPerfil;
+    private ClienteContextoPessoaPerfilSistema clienteContextoPessoaPerfilSistema;
 
     @BeforeEach
     void setUp() {
-        ContextoPessoaPerfil contexto = new ContextoPessoaPerfil(
+        ContextoPessoaPerfilSistema contexto = new ContextoPessoaPerfilSistema(
                 123L,
                 "usuario-xyz",
                 "teste@eickrono.com",
@@ -84,9 +84,9 @@ class RegistroDispositivoControllerIT {
                 null,
                 "ATIVO"
         );
-        when(clienteContextoPessoaPerfil.buscarPorSub("usuario-xyz"))
+        when(clienteContextoPessoaPerfilSistema.buscarPorSub("usuario-xyz"))
                 .thenReturn(Optional.of(contexto));
-        when(clienteContextoPessoaPerfil.buscarPorEmail("teste@eickrono.com"))
+        when(clienteContextoPessoaPerfilSistema.buscarPorEmail("teste@eickrono.com"))
                 .thenReturn(Optional.of(contexto));
     }
 

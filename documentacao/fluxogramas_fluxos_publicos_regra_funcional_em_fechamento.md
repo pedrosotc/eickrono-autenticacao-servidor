@@ -61,8 +61,8 @@ Importante:
   - validacao de telefone, se o projeto exigir;
   - definicao de nova senha;
   - retorno ao login com mensagem de sucesso;
-- no login social sem conta local ja vinculada, o servidor deve verificar se o
-  email social ja existe no projeto atual;
+- no login social sem perfil do sistema ja vinculado, o servidor deve verificar
+  se o email social ja existe no projeto atual;
 - se esse email ja existir no projeto atual, o app deve oferecer vinculacao com
   conta existente, em vez de abrir cadastro novo diretamente;
 - se o usuario aceitar a vinculacao:
@@ -209,7 +209,7 @@ flowchart TD
 flowchart TD
     A([Inicio: usuario toca em login social]) --> B[Usuario autentica no provedor social]
     B --> C[Backend reconhece a identidade social]
-    C --> D{Ja existe conta local vinculada?}
+    C --> D{Ja existe perfil do sistema vinculado neste projeto?}
     D -- Sim --> G{Conta esta LIBERADA?}
     G -- Sim --> H([Login social concluido])
     G -- Nao --> I{Bloqueio administrativo?}
@@ -221,14 +221,14 @@ flowchart TD
     M -- Nao --> O([Reclassificar para outro estado funcional valido])
 
     D -- Nao --> P[Servidor verifica se o email social ja existe no projeto atual]
-    P --> Q{Existe conta local com esse email no projeto atual?}
+    P --> Q{Existe perfil do sistema com esse email no projeto atual?}
     Q -- Nao --> R[App oferece abrir cadastro com prefill]
     R --> S([Fluxo continua pelo cadastro<br/>Ver fluxo 1])
     Q -- Sim --> T[App pergunta se deseja vincular a rede social a conta existente]
     T --> U{Usuario aceita?}
     U -- Nao --> V([Cancela o processo social e permanece no login normal com mensagem])
     U -- Sim --> W[App entra em modo Entrar e vincular]
-    W --> X[Usuario informa email e senha da conta local]
+    W --> X[Usuario informa email e senha da conta central]
     X --> Y{Email informado e da mesma conta sugerida?}
     Y -- Nao --> Z([Cancela a vinculacao pendente e permanece no login normal])
     Y -- Sim --> A1{Login local bem-sucedido?}
@@ -340,16 +340,16 @@ Rastreabilidade de testes:
 
 ### Login social
 
-- `CASO-14` Login social com conta local ja vinculada e `LIBERADA`
+- `CASO-14` Login social com perfil do sistema ja vinculado e `LIBERADA`
   - comportamento:
     - concluir login social
     - liberar a home
-- `CASO-15` Login social sem conta local vinculada e sem email igual no projeto atual
+- `CASO-15` Login social sem perfil do sistema vinculado e sem email igual no projeto atual
   - comportamento:
     - manter contexto social pendente
     - oferecer abertura de cadastro com prefill editavel
     - nao considerar registros do mesmo email em outros projetos
-- `CASO-16` Login social sem conta local vinculada, mas com email ja existente no projeto atual
+- `CASO-16` Login social sem perfil do sistema vinculado, mas com email ja existente no projeto atual
   - comportamento:
     - oferecer vinculacao com conta existente
     - nao abrir cadastro novo diretamente
@@ -381,27 +381,27 @@ Consequencia funcional:
   - pendente de email;
   - pendente de telefone;
   - bloqueio administrativo;
-  - conta social sem conta local;
+  - conta social sem perfil do sistema no projeto;
   - conta desabilitada.
 
-## Fechamento complementar do login social sem conta local vinculada
+## Fechamento complementar do login social sem perfil do sistema vinculado
 
 Quando a autenticacao social for bem-sucedida, mas ainda nao existir conta
-local ja vinculada:
+ou perfil do sistema ja vinculado no projeto atual:
 
 - o servidor deve verificar se o email da autenticacao social ja existe no
   projeto atual;
 - se nao existir no projeto atual:
   - o app pode seguir para oferta de cadastro novo com prefill;
 - se existir no projeto atual:
-  - o app deve oferecer vinculacao com conta existente;
+  - o app deve oferecer vinculacao com perfil existente do projeto;
   - se o usuario recusar:
     - o fluxo social pendente e descartado;
     - o app permanece no login normal com mensagem;
   - se o usuario aceitar:
     - o app entra em modo `Entrar e vincular`;
-    - a vinculacao so termina se o usuario autenticar a conta correta com
-      sucesso;
+    - a vinculacao so termina se o usuario autenticar a conta central correta
+      com sucesso;
     - se tentar outra conta ou errar a senha 3 vezes:
       - o processo de vinculacao e cancelado;
       - o app permanece no login normal.

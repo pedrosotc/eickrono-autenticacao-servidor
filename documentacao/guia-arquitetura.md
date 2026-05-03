@@ -1,43 +1,67 @@
 # Guia de Arquitetura
 
-Este guia descreve a arquitetura canônica do ecossistema de autenticação da Eickrono para o app móvel e para os serviços internos que participam do provisionamento do perfil do usuário.
+Este guia descreve a arquitetura canônica do ecossistema de autenticação da
+Eickrono para o app móvel e para os serviços internos que participam do
+cadastro, da identidade e do provisionamento do perfil de produto.
 
 ## Diretriz central
 
 Para o app móvel:
 
-- cadastro, confirmação de e-mail, login e recuperação de senha entram pela autenticação;
-- o app não abre páginas do `realm` nem delega senha ao `identidade-servidor`;
-- o `identidade-servidor` não é mais a borda pública de senha, código de recuperação ou código de confirmação de cadastro;
-- o `identidade-servidor` recebe apenas provisionamento de perfil de negócio por backchannel depois que a autenticação conclui as etapas sensíveis.
+- cadastro, confirmação de e-mail, login e recuperação de senha entram pela
+  API de identidade;
+- o app não abre páginas do `realm`;
+- a API de identidade é a borda pública do app;
+- a autenticação continua sendo a dona da conta central, das credenciais e da
+  autorização para os outros sistemas seguirem;
+- a identidade continua sendo a dona da `Pessoa` canônica;
+- o backend do produto recebe apenas o provisionamento do perfil daquele
+  sistema depois que as partes centrais forem concluídas.
 
 ## Componentes principais
 
-- **Servidor de autorização (Keycloak/RH-SSO):** autoridade de credencial, token, required actions, derivação de senha e políticas de refresh.
-- **API Identidade Eickrono:** borda pública do app para cadastro, confirmação de e-mail, login, recuperação de senha, emissão de `X-Device-Token` e integrações móveis.
-- **Thimisu servidor:** downstream de domínio, provisionado por backchannel depois da confirmação de e-mail.
-- **API Contas Eickrono:** domínio financeiro separado, sem receber senha ou código do app.
-- **PostgreSQL + Flyway:** persistência dos estados de cadastro, dispositivos, códigos, tokens e auditoria.
+- **Servidor de autorização (Keycloak/RH-SSO):** autoridade de credencial,
+  token, required actions, derivação de senha e políticas de refresh.
+- **API Identidade Eickrono:** borda pública do app para cadastro, confirmação
+  de e-mail, login, recuperação de senha, emissão de `X-Device-Token` e
+  integrações móveis.
+- **Backend do produto Thimisu:** downstream de domínio, provisionado por
+  comunicação interna entre servidores depois que conta central e `Pessoa`
+  canônica forem resolvidas.
+- **API Contas Eickrono:** domínio financeiro separado, sem receber senha ou
+  código do app.
+- **PostgreSQL + Flyway:** persistência dos estados de cadastro, dispositivos,
+  códigos, tokens e auditoria.
 - **Observabilidade:** Actuator, Micrometer, Prometheus e OpenTelemetry.
 
 ## Papéis por serviço
 
-### Autenticação
+### Servidor de autorização e autenticação
+
+- guarda e valida credenciais;
+- sustenta sessão, refresh, brokers sociais e políticas de segurança;
+- controla confiança do dispositivo;
+- responde pela conta central do usuário;
+- valida a disponibilidade de `usuario + sistema`;
+- libera, por comunicação interna entre servidores, a continuidade do fluxo
+  para identidade e para o backend do produto.
+
+### Identidade
 
 - recebe o cadastro público do app;
-- valida e guarda credenciais;
-- envia e valida códigos de e-mail;
-- responde de forma genérica na recuperação de senha para não enumerar usuários;
-- executa login e emite sessão;
-- controla confiança do dispositivo e emite `X-Device-Token` já no login;
-- provisiona o perfil no thimisu depois da confirmação de e-mail.
+- recebe confirmação de e-mail, login e recuperação de senha na borda pública;
+- integra internamente com a autenticação para a conta central;
+- concentra a leitura e a escrita da `Pessoa` canônica;
+- expõe o contexto de identidade compartilhado para os demais serviços.
 
-### Thimisu
+### Backend do produto Thimisu
 
-- persiste pessoa e usuário do domínio de estudo;
 - recebe apenas os dados necessários para criar o perfil do produto;
-- nunca recebe senha digitada, código de recuperação ou tentativa de login do app;
-- deve tratar o provisionamento recebido da autenticação como operação idempotente.
+- persiste o contexto do produto, não a `Pessoa` canônica;
+- nunca recebe senha digitada, código de recuperação ou tentativa de login do
+  app;
+- deve tratar o provisionamento recebido da autenticação como operação
+  idempotente.
 
 ## Fluxos públicos canônicos
 
@@ -48,29 +72,37 @@ divergências já observadas entre fluxo atual e fluxo alvo, ver também:
 
 ### Cadastro
 
-1. o app envia o cadastro para a autenticação;
-2. a autenticação cria um cadastro pendente e envia o código de e-mail;
-3. o app confirma o código com a autenticação;
-4. a autenticação provisiona o perfil no thimisu por backchannel;
-5. o thimisu devolve os identificadores de domínio criados;
-6. a autenticação libera o login do usuário.
+1. o app envia o cadastro para a API de identidade;
+2. a identidade abre a etapa sensível junto à autenticação;
+3. a autenticação cria o cadastro pendente e envia o código de e-mail;
+4. o app confirma o código pela API de identidade;
+5. a autenticação conclui a conta central;
+6. a autenticação aciona a identidade para criar ou atualizar a `Pessoa`
+   canônica;
+7. a autenticação aciona o backend do produto para criar o perfil daquele
+   sistema;
+8. o fluxo libera a continuidade do uso do app.
 
 ### Login
 
-1. o app envia login, senha, atestação e metadados do aparelho para a autenticação;
-2. a autenticação valida a credencial e a política de dispositivo;
-3. a autenticação registra ou atualiza silenciosamente o dispositivo quando o risco permitir;
+1. o app envia login, senha, atestação e metadados do aparelho para a API de
+   identidade;
+2. a identidade integra com a autenticação para validar a credencial e a
+   política de dispositivo;
+3. a autenticação registra ou atualiza silenciosamente o dispositivo quando o
+   risco permitir;
 4. a autenticação emite a sessão já com `X-Device-Token`;
 5. o app não abre uma tela dedicada de registro de dispositivo.
 
 ### Recuperação de senha
 
-1. o app envia o e-mail para a autenticação;
-2. a autenticação sempre devolve mensagem neutra;
-3. se existir conta, a autenticação envia o código por e-mail;
-4. o app confirma o código com a autenticação;
-5. o app envia a nova senha para a autenticação;
-6. a autenticação atualiza a credencial no Keycloak e registra auditoria.
+1. o app envia o e-mail para a API de identidade;
+2. a identidade integra com a autenticação;
+3. a autenticação sempre devolve mensagem neutra;
+4. se existir conta, a autenticação envia o código por e-mail;
+5. o app confirma o código pela API de identidade;
+6. o app envia a nova senha pela API de identidade;
+7. a autenticação atualiza a credencial no Keycloak e registra auditoria.
 
 ## Contratos públicos canônicos
 
@@ -85,11 +117,12 @@ Para o app móvel, os contratos canônicos passam a ser:
 - `POST /api/publica/recuperacoes-senha/{fluxoId}/confirmacoes/email/reenvio`
 - `POST /api/publica/recuperacoes-senha/{fluxoId}/senha`
 
-Qualquer contrato antigo em que servidor de produto receba senha ou código do app deve ser tratado como legado.
+Qualquer contrato antigo em que servidor de produto receba senha ou código do
+app deve ser tratado como legado.
 
-## Backchannel autenticação -> thimisu
+## Comunicação interna entre servidores para provisionamento
 
-O provisionamento interno do perfil deve seguir estas regras:
+O provisionamento interno entre serviços deve seguir estas regras:
 
 - autenticação mútua por `mTLS`;
 - JWT de serviço com allowlist explícita de `client_id`;
@@ -97,35 +130,71 @@ O provisionamento interno do perfil deve seguir estas regras:
 - idempotência por `cadastroId`;
 - auditoria em ambos os lados.
 
+Direção canônica:
+
+- autenticação -> identidade para criar ou atualizar `Pessoa`;
+- autenticação -> backend do produto para criar o perfil daquele sistema.
+
 ### O que significa idempotência por `cadastroId`
 
-Se a autenticação repetir o mesmo provisionamento por timeout, retry ou falha de rede:
+Se a autenticação repetir o mesmo provisionamento por timeout, retry ou falha
+de rede:
 
-- o thimisu não pode criar uma segunda pessoa;
-- o thimisu deve reconhecer o mesmo `cadastroId`;
-- o thimisu deve devolver a mesma resposta lógica da primeira criação.
+- a identidade não pode criar uma segunda `Pessoa` para o mesmo fluxo;
+- o backend do produto não pode criar um segundo perfil para o mesmo fluxo;
+- os serviços devem reconhecer o mesmo `cadastroId`;
+- os serviços devem devolver a mesma resposta lógica da primeira criação.
 
-Isso evita duplicidade de perfil quando a primeira resposta se perde no caminho.
+Isso evita duplicidade de pessoa ou perfil quando a primeira resposta se perde
+no caminho.
+
+## Momento correto do provisionamento
+
+O backend do produto não deve ser provisionado no primeiro envio do cadastro.
+
+O momento correto é:
+
+1. identidade recebe o cadastro público;
+2. autenticação cria o cadastro pendente;
+3. autenticação envia o código por e-mail;
+4. app confirma o código pela identidade;
+5. autenticação conclui a conta central;
+6. autenticação provisiona a identidade;
+7. autenticação provisiona o backend do produto;
+8. o fluxo libera a continuidade do uso.
+
+Assim, o domínio do produto não fica poluído por cadastros incompletos ou nunca
+confirmados.
 
 ## Segurança
 
-- o app nunca recebe resposta que diga explicitamente se o e-mail existe na recuperação de senha;
-- o thimisu não recebe segredo principal do usuário;
+- o app nunca recebe resposta que diga explicitamente se o e-mail existe na
+  recuperação de senha;
+- o backend do produto não recebe segredo principal do usuário;
 - logs precisam mascarar tokens, e-mails e identificadores sensíveis;
-- rate limit, lockout, expiração de código, limite de tentativas e antifraude ficam concentrados na autenticação;
-- qualquer integração interna entre serviços modernos deve usar `mTLS` + JWT de serviço.
+- rate limit, lockout, expiração de código, limite de tentativas e antifraude
+  ficam concentrados na autenticação;
+- qualquer integração interna entre serviços modernos deve usar `mTLS` + JWT de
+  serviço.
 
 ## Dispositivo e atestação
 
 - a atestação nativa de app/dispositivo continua centralizada na autenticação;
-- o `X-Device-Token` é emitido pelo backend já no login quando o dispositivo estiver liberado;
-- se houver necessidade de nova validação de contato, o app deve reutilizar a tela de verificação já existente, não uma tela separada de registro de dispositivo;
+- o `X-Device-Token` é emitido pelo backend já no login quando o dispositivo
+  estiver liberado;
+- se houver necessidade de nova validação de contato, o app deve reutilizar a
+  tela de verificação já existente, não uma tela separada de registro de
+  dispositivo;
 - o refresh continua condicionado ao `device_token`, validado centralmente.
 
-Para a camada adicional de sinais locais do app além de `Play Integrity` e `App Attest`, ler também:
+Para a camada adicional de sinais locais do app além de `Play Integrity` e
+`App Attest`, ler também:
 
 - `guia-seguranca-app-movel.md`
 
 ## Sobre FAPI e OIDC
 
-O servidor de autorização continua suportando mecanismos FAPI, OIDC e client policies para clientes confidenciais, web e integrações específicas. Para o app móvel, porém, a diretriz vigente é UX nativa mediada pela API de identidade, não telas web do `realm`.
+O servidor de autorização continua suportando mecanismos FAPI, OIDC e client
+policies para clientes confidenciais, web e integrações específicas. Para o app
+móvel, porém, a diretriz vigente é UX nativa mediada pela API de identidade,
+não telas web do `realm`.

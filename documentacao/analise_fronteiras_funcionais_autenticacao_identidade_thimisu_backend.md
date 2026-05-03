@@ -27,8 +27,8 @@ Hoje:
 - a borda publica de cadastro, login, recuperacao de senha, confirmacao e
   dispositivo esta no `api-identidade-eickrono`;
 - o `thimisu-backend` nao recebe senha, codigo nem tentativa de login do app;
-- o `thimisu-backend` ficou concentrado em contexto interno, disponibilidade de
-  usuario e provisionamento de dominio por backchannel.
+- o `thimisu-backend` ficou concentrado em contexto do produto, provisionamento
+  do perfil do sistema e leitura local do proprio dominio.
 
 Entao, neste momento, o que ainda resta e majoritariamente:
 
@@ -109,20 +109,27 @@ Isso esta coerente com a arquitetura desejada.
 Rotas efetivamente encontradas:
 
 - `GET /api/v1/estado`
-- `GET /api/interna/identidade/contexto`
-- `GET /api/interna/identidade/usuarios/disponibilidade`
-- `POST /api/interna/identidade/provisionamentos`
+- `GET /api/interna/perfis-sistema/contexto`
+- `GET /api/interna/perfis-sistema/disponibilidade`
+- `POST /api/interna/perfis-sistema/provisionamentos`
 
 ### Leitura funcional
 
 Esse servico esta concentrado em:
 
-- pessoa e usuario do dominio;
-- resolucao de contexto interno por `pessoaId`, `sub`, `email` ou `usuario`;
-- disponibilidade de `usuario` do dominio;
-- provisionamento idempotente do perfil de negocio a partir do `cadastroId`.
+- resolucao de contexto local do produto;
+- provisionamento idempotente de `PerfilSistema`;
+- persistencia de copia local de `PessoaProdutoLocal`, sem ownership de
+  `Pessoa` canonica;
+- contratos internos do proprio produto, sem depender mais de namespace final
+  `/api/interna/identidade`.
 
-Isso tambem esta coerente com a arquitetura alvo.
+Ou seja:
+
+- a borda publica principal continua coerente;
+- o backend do produto ja fala majoritariamente a linguagem de `PerfilSistema`;
+- o que ainda resta e mais limpeza residual e coerencia documental do que corte
+  funcional forte.
 
 ## Achados objetivos
 
@@ -138,28 +145,30 @@ No modulo `thimisu-backend`, nao existe rota publica de:
 
 Isso significa que o principal desvio historico ja foi saneado.
 
-### 2. A disponibilidade de usuario esta no lugar certo
+### 2. A disponibilidade de `usuario + sistema` ja foi centralizada
 
-`GET /api/interna/identidade/usuarios/disponibilidade` fica no
-`thimisu-backend`, nao na autenticacao.
+A verificacao de disponibilidade de `usuario + sistema` deixou de ser decidida
+localmente no `thimisu-backend`.
 
-Isso faz sentido porque:
+Hoje a leitura correta e:
 
-- `usuario` e regra de dominio do Thimisu;
-- a autenticacao apenas consulta ou orquestra essa disponibilidade;
-- o backend de dominio continua dono da unicidade semantica do identificador
-  de usuario.
+- a `autenticacao` controla essa regra do ecossistema;
+- o backend do produto consome essa resposta por `backchannel`;
+- o contrato interno novo ja fala em `/identidade/perfis-sistema/interna`.
 
-### 3. O provisionamento por `cadastroId` esta no lugar certo
+### 3. O provisionamento final ja foi quebrado no desenho correto
 
-`POST /api/interna/identidade/provisionamentos` pertence ao
-`thimisu-backend`, porque o que ele faz e:
+O provisionamento tambem ja nao deve mais ser lido como uma operacao unica de
+"identidade dentro do thimisu".
 
-- criar ou atualizar `Pessoa`;
-- criar ou atualizar `Usuario`;
-- responder com ids e status do dominio.
+Hoje a direcao correta e:
 
-Isso nao deve voltar para a autenticacao.
+- `autenticacao -> identidade` para confirmar ou atualizar `Pessoa`;
+- `autenticacao -> backend do produto` para criar ou atualizar o
+  `PerfilSistema`.
+
+No backend do produto, o contrato novo ja esta separado em
+`/api/interna/perfis-sistema/provisionamentos`.
 
 ### 4. O resquicio funcional legado ja foi removido
 
@@ -172,10 +181,11 @@ backend de dominio propriamente dito.
 
 Os pontos mais pendentes nao sao "funcao no projeto errado", e sim:
 
-- audience/resource client ja alinhado como `thimisu-backend`;
-- certificado tecnico ja alinhado como `thimisu-backend.p12`;
-- nomes de client ids internos e exports do Keycloak em transicao;
-- nomenclatura de repo/modulo ainda antiga.
+- fechamento da separacao fisica do banco do produto;
+- limpeza de documentos secundarios e diagramas ainda em linguagem antiga;
+- hardening operacional da fila de pendencias de integracao com produto;
+- revisao final de aliases residuais onde ainda houver compatibilidade externa
+  temporaria.
 
 ## Conclusao
 
@@ -192,11 +202,14 @@ Entao a resposta objetiva e:
 
 - **sim**, a fronteira de funcoes entre os projetos hoje esta majoritariamente
   correta;
-- o que ainda falta e principalmente migracao tecnica e limpeza de legado;
-- o que sobra agora e majoritariamente legado tecnico de build e nomenclatura estrutural.
+- o que ainda falta e principalmente migracao tecnica, operacao e fechamento
+  documental;
+- o que sobra agora nao e mais um desvio grande de ownership funcional.
 
 ## Proximos passos recomendados
 
-1. Concluir a migracao tecnica dos nomes internos sem `-interno`.
-2. Continuar a limpeza de nomes estruturais antigos quando houver retorno real.
-3. Manter `thimisu-backend` como identificador canônico de runtime do backend de domínio.
+1. Fechar a separacao fisica do banco do produto na Etapa 5.
+2. Concluir a especificacao e futura implementacao da fila de pendencias de
+   integracao com produto.
+3. Continuar a limpeza documental dos artefatos secundarios que ainda falam a
+   linguagem do legado.

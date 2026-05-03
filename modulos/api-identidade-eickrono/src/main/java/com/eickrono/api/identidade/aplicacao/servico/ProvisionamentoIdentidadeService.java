@@ -68,22 +68,22 @@ public class ProvisionamentoIdentidadeService {
     @Transactional
     public Pessoa confirmarEmailCadastro(final String sub,
                                          final String email,
+                                         final String nomeCompleto,
                                          final OffsetDateTime confirmadoEm) {
         String subNormalizado = obrigatorio(sub, "sub");
         String emailNormalizado = obrigatorio(email, "email").toLowerCase(Locale.ROOT);
+        String nomeNormalizado = obrigatorio(nomeCompleto, "nomeCompleto");
         OffsetDateTime instante = Objects.requireNonNull(confirmadoEm, "confirmadoEm é obrigatório");
 
-        Pessoa pessoa = pessoaRepositorio.findBySub(subNormalizado)
-                .orElseThrow(() -> new IllegalStateException("Pessoa não encontrada para o sub informado."));
-        pessoa.atualizar(
+        Pessoa salva = provisionarOuAtualizarInterno(
+                subNormalizado,
                 emailNormalizado,
-                pessoa.getNome(),
-                pessoa.getPerfis(),
-                pessoa.getPapeis(),
-                instante
+                nomeNormalizado,
+                Set.of(),
+                Set.of(),
+                instante,
+                true
         );
-
-        Pessoa salva = salvarPessoa(pessoa);
         sincronizarFormaAcessoEmail(salva, emailNormalizado, instante, true);
         sincronizarPerfilLegado(salva);
         return salva;
